@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css"><link rel="icon" href="https://i.imgur.com/fC3C6gI.png" type="image/png">
-    <!-- Vercel Speed Insights (only loads on Vercel) -->
+    <!-- Vercel Speed Insights -->
     <script>
       if (window.location.hostname.endsWith('vercel.app') || window.location.hostname.includes('vercel')) {
         window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
@@ -19,6 +19,11 @@
         s.defer = true;
         document.head.appendChild(s);
       }
+    </script>
+    <!-- Vercel Web Analytics -->
+    <script type="module">
+      import { inject } from 'https://cdn.jsdelivr.net/npm/@vercel/analytics@2.0.1/+esm';
+      inject();
     </script>
 </head>
 <body style="padding-top: 60px;"> <!-- Add padding to body to offset fixed header -->
