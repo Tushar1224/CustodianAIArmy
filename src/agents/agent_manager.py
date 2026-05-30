@@ -9,27 +9,23 @@ import uuid
 
 from src.agents.base_agent import BaseAgent, AgentMessage, AgentStatus, AgentType
 from src.agents.gemini_agent import GeminiAgent
-from src.agents.nim_agent import NIMAgent
 from src.agents.claude_agent import ClaudeAgent
-from src.agents.groq_agent import GroqAgent
 from src.core.config import get_model_for_agent
 from src.core.logging_config import get_logger
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Provider registry
 # Maps provider key → agent class
-# Priority fallback order: groq → gemini → anthropic → nim
+# Available providers: gemini, anthropic (Claude)
 # ─────────────────────────────────────────────────────────────────────────────
 PROVIDER_CLASSES = {
-    "groq":      GroqAgent,
     "gemini":    GeminiAgent,
     "anthropic": ClaudeAgent,
-    "nim":       NIMAgent,
 }
 
-# Default provider used when no user preference is set
-# Groq is the primary: completely free, ultra-fast, no credit card required
-DEFAULT_PROVIDER = "groq"
+# Default provider — read from settings (set via .env PRIMARY_LLM_PROVIDER).
+from src.core.config import settings as _settings
+DEFAULT_PROVIDER = _settings.PRIMARY_LLM_PROVIDER or "gemini"
 
 # Role definitions: each role has a canonical name and specialization.
 # These are the only agents exposed to the user.
@@ -162,10 +158,8 @@ class AgentManager:
             if hasattr(agent, '_api_key_override'):
                 provider = self._active_provider
                 key_map = {
-                    "groq":      keys.get("groq_api_key"),
                     "gemini":    keys.get("gemini_api_key"),
                     "anthropic": keys.get("anthropic_api_key"),
-                    "nim":       keys.get("nim_api_key"),
                 }
                 agent._api_key_override = key_map.get(provider)
 
@@ -262,10 +256,43 @@ class AgentManager:
 
         try:
             response = await target_agent.process_message(message)
+            
+            # Check if response contains provider error - if so, try alternative provider
+            if isinstance(response.content, str) and (
+                response.content.startswith("Error:") and 
+                ("API" in response.content or "403" in response.content or "404" in response.content)
+            ):
+                self.logger.warning(f"Provider error: {response.content}. Attempting fallback to alternative provider.")
+                
+                # Try to find and rebuild agents with alternative provider
+                alternative_provider = self._get_fallback_provider()
+                if alternative_provider and alternative_provider != self._active_provider:
+                    self.logger.info(f"Switching from '{self._active_provider}' to '{alternative_provider}' provider")
+                    self._build_agents_for_provider(alternative_provider)
+                    
+                    # Retry with the alternative provider
+                    retry_agent = self.get_agent(message.receiver_id)
+                    if retry_agent and retry_agent != target_agent:
+                        self.logger.info(f"Retrying message with {alternative_provider} provider")
+                        retry_response = await retry_agent.process_message(message)
+                        return retry_response
+            
             return response
         except Exception as e:
             self.logger.error(f"Error processing message: {str(e)}")
             raise
+
+    def _get_fallback_provider(self) -> Optional[str]:
+        """Get alternative provider when primary fails."""
+        for provider in ["anthropic", "gemini"]:
+            if provider == self._active_provider:
+                continue
+            # Check if this provider has required API key
+            if provider == "gemini" and _settings.GEMINI_API_KEY:
+                return "gemini"
+            elif provider == "anthropic" and _settings.ANTHROPIC_API_KEY:
+                return "anthropic"
+        return None
 
     async def execute_task(self, task: Dict[str, Any], preferred_agent: str = None) -> Dict[str, Any]:
         target_agent = None
@@ -380,3 +407,4 @@ class AgentManager:
         self.sub_agents.clear()
 
         self.logger.info("Agent Manager shutdown complete")
+

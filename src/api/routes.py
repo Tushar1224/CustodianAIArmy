@@ -4,7 +4,7 @@ API Routes for Custodian AI Army
 import json
 import asyncio
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 import subprocess
 import random
 import json
@@ -18,11 +18,11 @@ from datetime import datetime
 from src.agents.agent_manager import AgentManager
 from src.core.database import (
     get_chats_for_user, save_chat_session, DB_PATH,
-    get_user_api_keys, get_user_api_keys_raw, save_user_api_keys, delete_user_api_key, get_user_github_token, save_custom_agent_config, get_custom_agent_config, save_user_strategy, get_user_strategies,
+    get_user_api_keys, get_user_api_keys_raw, save_user_api_keys, delete_user_api_key, get_user_github_token, save_custom_agent_config, get_custom_agent_config,
     get_user_plan, check_and_increment_rate_limit, upgrade_user_plan
 )
 from src.agents.astro_agent import AstroAgent # Import AstroAgent
-from src.agents.base_agent import AgentMessage, AgentCapability
+from src.agents.base_agent import AgentMessage, AgentCapability, BaseAgent
 from src.core.logging_config import get_logger
 from src.api.auth import get_current_user_from_cookies, User
 from src.api.build import get_mvp_builder, MVPBuilder
@@ -103,6 +103,12 @@ class MVPConnectGitHubRequest(BaseModel):
 class MVPDisconnectGitHubRequest(BaseModel):
     session_id: str
 
+class MVPCreateRepoRequest(BaseModel):
+    session_id: str
+    repo_name: str
+    description: str = ""
+    private: bool = False
+
 class MVPSelectGitHubRepoRequest(BaseModel):
     session_id: str
 
@@ -111,34 +117,6 @@ class CustomAgentConfigRequest(BaseModel):
     name: str
     description: str
     skills: List[str]
-
-# Pydantic models for Finance API
-class BrokerConnectInitiateRequest(BaseModel):
-    broker: str
-    pan_number: str
-    mobile_number: str
-
-class BrokerConnectVerifyRequest(BaseModel):
-    broker: str
-    session_id: str # A temporary ID from the initiate step
-    otp: str
-
-class BacktestRequest(BaseModel):
-    strategy: str
-    symbol: str = "AAPL"
-    start_date: str = "2023-01-01"
-    end_date: str = "2024-01-01"
-
-class PaperTradeRequest(BaseModel):
-    symbol: str
-    quantity: float
-    action: str  # 'BUY' or 'SELL'
-
-class StrategyRequest(BaseModel):
-    id: Optional[str] = None
-    name: str
-    description: Optional[str] = ""
-    content: str
 
 # Pydantic models for API requests/responses
 class TaskRequest(BaseModel):
@@ -450,63 +428,66 @@ async def get_main_agents():
 
 @router.post("/chat/guest")
 async def guest_chat(chat_request: ChatRequest, request: Request):
-    """Guest chat — NIM only, 3 requests/day, no auth required"""
-    # Use per-IP identifier so each device gets its own 3-request counter
-    # Check X-Forwarded-For first (for reverse proxies / Vercel), fall back to direct client IP
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        client_ip = forwarded_for.split(",")[0].strip()
-    else:
-        client_ip = request.client.host if request.client else "unknown"
-    guest_identifier = f"guest_{client_ip}"
-    rate = check_and_increment_rate_limit(guest_identifier)
-    if not rate["allowed"]:
+    """Guest chat, 3 requests/day, no auth required."""
+    try:
+        # Use per-IP identifier so each device gets its own 3-request counter
+        # Check X-Forwarded-For first (for reverse proxies / Vercel), fall back to direct client IP
+        forwarded_for = request.headers.get("X-Forwarded-For")
+        if forwarded_for:
+            client_ip = forwarded_for.split(",")[0].strip()
+        else:
+            client_ip = request.client.host if request.client else "unknown"
+        guest_identifier = f"guest_{client_ip}"
+        rate = check_and_increment_rate_limit(guest_identifier)
+        if not rate["allowed"]:
+            return {
+                "agent_response": {
+                    "content": (
+                        "🔒 **You've used all 3 free daily requests as a guest.**\n\n"
+                        "**Sign in with Google** to unlock:\n"
+                        "- ✅ 20 requests per day\n"
+                        "- ✅ Access to Gemini, Claude providers\n"
+                        "- ✅ Chat history saved\n\n"
+                        "[Sign in with Google →](/api/v1/auth/google)"
+                    ),
+                    "agent_name": "System",
+                    "agent_id": "system",
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "metadata": {"rate_limited": True}
+                },
+                "plan_info": rate
+            }
+        agent_name = chat_request.agent_name or "CustodianAI"
+        target = agent_manager.get_agent_by_name(agent_name)
+        if not target and chat_request.agent_id:
+            target = agent_manager.get_agent(chat_request.agent_id)
+        if not target:
+            target = next(iter(agent_manager.main_agents.values()), None)
+        if not target:
+            raise HTTPException(status_code=404, detail="No agent available")
+        msg = AgentMessage(
+            sender_id="guest",
+            receiver_id=target.agent_id,
+            content=chat_request.message,
+            message_type="chat"
+        )
+        response = await agent_manager.send_message(msg)
         return {
             "agent_response": {
-                "content": (
-                    "🔒 **You've used all 3 free daily requests as a guest.**\n\n"
-                    "**Sign in with Google** to unlock:\n"
-                    "- ✅ 20 requests per day\n"
-                    "- ✅ Access to Gemini, Claude, and NIM providers\n"
-                    "- ✅ Chat history saved\n\n"
-                    "[Sign in with Google →](/api/v1/auth/google)"
-                ),
-                "agent_name": "System",
-                "agent_id": "system",
-                "timestamp": datetime.utcnow().isoformat(),
-                "metadata": {"rate_limited": True}
+                "content": response.content,
+                "agent_name": target.name,
+                "agent_id": target.agent_id,
+                "specialization": getattr(target, "specialization", None),
+                "timestamp": response.timestamp.isoformat(),
+                "metadata": response.metadata
             },
             "plan_info": rate
         }
-    # Force NIM for guests
-    if agent_manager.active_provider != "nim":
-        agent_manager.switch_provider("nim")
-    agent_name = chat_request.agent_name or "CustodianAI"
-    target = agent_manager.get_agent_by_name(agent_name)
-    if not target and chat_request.agent_id:
-        target = agent_manager.get_agent(chat_request.agent_id)
-    if not target:
-        target = next(iter(agent_manager.main_agents.values()), None)
-    if not target:
-        raise HTTPException(status_code=404, detail="No agent available")
-    msg = AgentMessage(
-        sender_id="guest",
-        receiver_id=target.agent_id,
-        content=chat_request.message,
-        message_type="chat"
-    )
-    response = await agent_manager.send_message(msg)
-    return {
-        "agent_response": {
-            "content": response.content,
-            "agent_name": target.name,
-            "agent_id": target.agent_id,
-            "specialization": getattr(target, "specialization", None),
-            "timestamp": response.timestamp.isoformat(),
-            "metadata": response.metadata
-        },
-        "plan_info": rate
-    }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in guest chat: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/user/plan")
@@ -612,6 +593,289 @@ async def chat_with_agent(
         raise
     except Exception as e:
         logger.error(f"Error in chat: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _stream_with_fallback(
+    agent_message: AgentMessage,
+    target_agent: Optional[BaseAgent] = None
+):
+    """
+    Stream response from agent with automatic fallback.
+    
+    Tries providers in order: Gemini → Claude
+    Falls back to next provider if current one fails.
+    
+    Args:
+        agent_message: The message to process
+        target_agent: The target agent to use
+        
+    Yields:
+        Text chunks from the response
+    """
+    if not target_agent:
+        raise ValueError("target_agent is required")
+    
+    providers_to_try = ["gemini", "anthropic"]
+    original_provider = agent_manager.active_provider
+    
+    for provider in providers_to_try:
+        try:
+            # Only switch provider if not already using the current one
+            if agent_manager.active_provider != provider:
+                logger.info(f"Switching to provider: {provider}")
+                if not agent_manager.switch_provider(provider):
+                    logger.warning(f"Failed to switch to provider {provider}")
+                    continue
+            
+            # Get the updated agent after potential provider switch
+            current_agent = agent_manager.get_agent(target_agent.agent_id)
+            if not current_agent:
+                current_agent = target_agent
+            
+            logger.info(f"Attempting to stream with {provider} provider")
+            
+            # Try to stream response
+            has_streamed = False
+            try:
+                async for chunk in current_agent.stream_message(agent_message):
+                    if chunk:
+                        has_streamed = True
+                        yield chunk
+                
+                if has_streamed:
+                    logger.info(f"Successfully streamed with {provider} provider")
+                    return
+            except AttributeError:
+                # Agent doesn't have stream_message method
+                logger.warning(f"Agent doesn't support streaming with {provider}, trying next provider")
+                continue
+            except Exception as e:
+                logger.warning(f"Error streaming with {provider}: {str(e)}, trying next provider")
+                continue
+                
+        except Exception as e:
+            logger.warning(f"Unexpected error with {provider}: {str(e)}, trying next provider")
+            continue
+    
+    # If all fallbacks failed, try to restore original provider and yield error
+    try:
+        agent_manager.switch_provider(original_provider)
+    except:
+        pass
+    
+    yield f"Error: All streaming providers failed ({', '.join(providers_to_try)}). Please try again later."
+
+
+
+@router.post("/chat/stream")
+async def chat_stream(
+    request: ChatRequest,
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """
+    Stream chat response with automatic fallback.
+    
+    Primary provider: Gemini (Google Cloud)
+    Fallback: Claude (Anthropic)
+    """
+    try:
+        # Rate limiting
+        rate = check_and_increment_rate_limit(current_user.email)
+        if not rate["allowed"]:
+            error_message = (
+                "data: " + json.dumps({
+                    "type": "error",
+                    "content": "⚠️ Daily request limit reached"
+                }) + "\n\n"
+            )
+            return StreamingResponse(
+                iter([error_message]),
+                media_type="text/event-stream"
+            )
+
+        # Find target agent
+        target_agent = None
+        if request.agent_id:
+            target_agent = agent_manager.get_agent(request.agent_id)
+        elif request.agent_name:
+            target_agent = agent_manager.get_agent_by_name(request.agent_name)
+        else:
+            target_agent = agent_manager.get_agent_by_name("CustodianAI")
+        
+        if not target_agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        
+        # Build message
+        history = request.history[-20:] if request.history else []
+        chat_message = AgentMessage(
+            sender_id="user",
+            receiver_id=target_agent.agent_id,
+            content=request.message,
+            message_type="chat",
+            metadata={"history": history}
+        )
+        
+        async def generate():
+            """Generator for streaming response with SSE format"""
+            try:
+                chunk_buffer = ""
+                async for chunk in _stream_with_fallback(chat_message, target_agent):
+                    if chunk:
+                        chunk_buffer += chunk
+                        # Yield chunks as server-sent events
+                        yield f"data: {json.dumps({'type': 'message', 'content': chunk})}\n\n"
+                
+                # Send final event
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            except Exception as e:
+                logger.error(f"Error in stream generation: {str(e)}")
+                yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no"
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in chat stream: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/chat/stream/guest")
+async def chat_stream_guest(chat_request: ChatRequest, request: Request):
+    """
+    Stream chat response for guests with fallback.
+    Guest limited to 3 requests per day.
+    """
+    try:
+        # Rate limiting by IP
+        forwarded_for = request.headers.get("X-Forwarded-For")
+        if forwarded_for:
+            client_ip = forwarded_for.split(",")[0].strip()
+        else:
+            client_ip = request.client.host if request.client else "unknown"
+        guest_identifier = f"guest_{client_ip}"
+        
+        rate = check_and_increment_rate_limit(guest_identifier)
+        if not rate["allowed"]:
+            error_message = (
+                "data: " + json.dumps({
+                    "type": "error",
+                    "content": "🔒 You've used all 3 free daily requests. Sign in to get more!"
+                }) + "\n\n"
+            )
+            return StreamingResponse(
+                iter([error_message]),
+                media_type="text/event-stream"
+            )
+
+        # Find target agent
+        agent_name = chat_request.agent_name or "CustodianAI"
+        target = agent_manager.get_agent_by_name(agent_name)
+        if not target and chat_request.agent_id:
+            target = agent_manager.get_agent(chat_request.agent_id)
+        if not target:
+            target = next(iter(agent_manager.main_agents.values()), None)
+        if not target:
+            raise HTTPException(status_code=404, detail="No agent available")
+        
+        # Build message
+        chat_message = AgentMessage(
+            sender_id="guest",
+            receiver_id=target.agent_id,
+            content=chat_request.message,
+            message_type="chat"
+        )
+        
+        async def generate():
+            """Generator for streaming response"""
+            try:
+                async for chunk in _stream_with_fallback(chat_message, target):
+                    if chunk:
+                        yield f"data: {json.dumps({'type': 'message', 'content': chunk})}\n\n"
+                
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            except Exception as e:
+                logger.error(f"Error in guest stream: {str(e)}")
+                yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no"
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in guest stream: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/agents/{agent_id}/stream")
+async def stream_to_agent(
+    agent_id: str,
+    message_request: MessageRequest,
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """
+    Stream message directly to a specific agent.
+    """
+    try:
+        # Rate limiting
+        rate = check_and_increment_rate_limit(current_user.email)
+        if not rate["allowed"]:
+            raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
+        # Get agent
+        agent = agent_manager.get_agent(agent_id)
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        
+        # Build message
+        message = AgentMessage(
+            sender_id=current_user.email,
+            receiver_id=agent_id,
+            content=message_request.content,
+            message_type=message_request.message_type,
+            metadata=message_request.metadata
+        )
+        
+        async def generate():
+            """Generator for streaming response"""
+            try:
+                async for chunk in _stream_with_fallback(message, agent):
+                    if chunk:
+                        yield f"data: {json.dumps({'type': 'message', 'content': chunk})}\n\n"
+                
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            except Exception as e:
+                logger.error(f"Error streaming to agent {agent_id}: {str(e)}")
+                yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no"
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error streaming to agent: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/specializations")
@@ -981,14 +1245,14 @@ async def course_chat(
         # Build enriched message with course context
         enriched_message = request.message
         if course_context:
+            user_code_section = ""
+            if course_context.get('user_code'):
+                user_code_section = f"\nUser's Code:\n```\n{course_context.get('user_code')}\n```\n"
             enriched_message = f"""[Course Context]
 Course: {course_context.get('course_title', '')}
 Topic: {course_context.get('section_title', '')}
 Slide Content:
-{course_context.get('slide_content', '')}
-
-{"User's Code:\n```\n" + course_context.get('user_code', '') + "\n```\n" if course_context.get('user_code') else ''}
-[Student Question]
+{course_context.get('slide_content', '')}{user_code_section}[Student Question]
 {request.message}"""
 
         chat_message = AgentMessage(
@@ -1031,13 +1295,11 @@ Slide Content:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class UserApiKeysRequest(BaseModel):
-    groq_api_key: Optional[str] = None
     gemini_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
-    nim_api_key: Optional[str] = None
 
 class SwitchProviderRequest(BaseModel):
-    provider: str  # 'gemini' | 'anthropic' | 'nim'
+    provider: str  # 'gemini' | 'anthropic'
 
 
 @router.get("/user/api-keys")
@@ -1067,7 +1329,6 @@ async def save_my_api_keys(
         keys_dict = {
             "gemini_api_key": request.gemini_api_key,
             "anthropic_api_key": request.anthropic_api_key,
-            "nim_api_key": request.nim_api_key,
         }
         success = save_user_api_keys(current_user.email, keys_dict)
         if success:
@@ -1087,7 +1348,7 @@ async def switch_provider(
     current_user: User = Depends(get_current_user_from_cookies)
 ):
     """Switch the active AI provider for all agents globally."""
-    valid_providers = ["groq", "gemini", "anthropic", "nim"]
+    valid_providers = ["gemini", "anthropic"]
     if request.provider not in valid_providers:
         raise HTTPException(
             status_code=400,
@@ -1117,7 +1378,7 @@ async def get_active_provider():
     """Get the currently active AI provider."""
     return {
         "active_provider": agent_manager.active_provider,
-        "available_providers": ["groq", "gemini", "anthropic", "nim"]
+        "available_providers": ["gemini", "anthropic"]
     }
 
 
@@ -1159,7 +1420,7 @@ async def delete_my_api_key(
     current_user: User = Depends(get_current_user_from_cookies)
 ):
     """Delete a specific provider's API key for the current user"""
-    valid_providers = ["gemini", "anthropic", "nim"]
+    valid_providers = ["gemini", "anthropic"]
     if provider not in valid_providers:
         raise HTTPException(
             status_code=400,
@@ -1434,6 +1695,8 @@ async def mvp_publish_to_github(
         return {
             "success": result.get("success", False),
             "repo_url": result.get("repo_url"),
+            "pages_url": result.get("pages_url"),
+            "files_pushed": result.get("files_pushed", []),
             "message": result.get("message")
         }
     except HTTPException:
@@ -1443,342 +1706,49 @@ async def mvp_publish_to_github(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# WebSocket Endpoints
-# ─────────────────────────────────────────────────────────────────────────────
-
-# In-memory store for a more realistic market simulation
-simulated_market = {
-    "AAPL":  {"price": round(random.uniform(180, 220), 2)},
-    "GOOGL": {"price": round(random.uniform(160, 190), 2)},
-    "MSFT": {"price": round(random.uniform(430, 470), 2)},
-    "AMZN": {"price": round(random.uniform(170, 200), 2)},
-    "TSLA": {"price": round(random.uniform(160, 200), 2)},
-    "NVDA": {"price": round(random.uniform(110, 140), 2)},
-}
-
-@router.websocket("/ws/market-data")
-async def websocket_market_data(websocket: WebSocket):
-    """
-    WebSocket endpoint for live market data.
-    Simulates real-time stock price updates for multiple stocks.
-    """
-    await websocket.accept()
-    logger.info("WebSocket connection accepted for market data.")
-    try:
-        while True:
-            # Pick a random stock to update
-            symbol_to_update = random.choice(list(simulated_market.keys()))
-            
-            # Simulate a price change
-            change_percent = random.uniform(-0.015, 0.015)  # +/- 1.5%
-            old_price = simulated_market[symbol_to_update]['price']
-            new_price = round(old_price * (1 + change_percent), 2)
-            simulated_market[symbol_to_update]['price'] = new_price
-
-            stock_data = {
-                "symbol": symbol_to_update,
-                "price": new_price,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            await websocket.send_json(stock_data)
-            await asyncio.sleep(random.uniform(0.5, 2.5)) # Send updates at random intervals
-    except WebSocketDisconnect:
-        logger.info("WebSocket connection disconnected for market data.")
-    except Exception as e:
-        logger.error(f"WebSocket error: {e}")
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Finance AI Dashboard API Endpoints
-# ─────────────────────────────────────────────────────────────────────────────
-
-@router.post("/finance/connect/initiate")
-async def finance_connect_initiate(
-    request: BrokerConnectInitiateRequest,
+@router.post("/mvp/create-repo")
+async def mvp_create_repo(
+    request: MVPCreateRepoRequest,
     current_user: User = Depends(get_current_user_from_cookies)
 ):
-    """
-    Initiate a connection to a brokerage.
-    This would trigger an OTP send via the FinanceAgent and an MCP server.
-    """
+    """Create a new GitHub repository for the session."""
     try:
-        logger.info(f"User {current_user.email} initiating broker connection: {request.broker}")
-        finance_agent = agent_manager.get_agent_by_name("FinanceAI")
-        if not finance_agent:
-            raise HTTPException(status_code=503, detail="FinanceAI agent is not available.")
-
-        # Delegate to agent
-        command = f"initiate_broker_connection broker={request.broker} pan={request.pan_number} mobile={request.mobile_number}"
-        agent_message = AgentMessage(sender_id="api", receiver_id=finance_agent.agent_id, content=command)
-        response = await agent_manager.send_message(agent_message)
-
-        # The agent's MCP tool should return a JSON with success status and session_id
-        response_data = response.metadata
-        if response_data.get("success"):
-            return response_data
-        else:
-            raise HTTPException(status_code=400, detail=response_data.get("message", "Broker connection failed."))
-
-    except Exception as e:
-        logger.error(f"Error initiating broker connection: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/finance/connect/verify")
-async def finance_connect_verify(
-    request: BrokerConnectVerifyRequest,
-    current_user: User = Depends(get_current_user_from_cookies)
-):
-    """
-    Verify the OTP and establish a session with the brokerage via the FinanceAgent.
-    """
-    try:
-        logger.info(f"User {current_user.email} verifying OTP for broker: {request.broker}")
-        finance_agent = agent_manager.get_agent_by_name("FinanceAI")
-        if not finance_agent:
-            raise HTTPException(status_code=503, detail="FinanceAI agent is not available.")
-
-        command = f"verify_broker_connection broker={request.broker} otp={request.otp} session_id={request.session_id}"
-        agent_message = AgentMessage(sender_id="api", receiver_id=finance_agent.agent_id, content=command)
-        response = await agent_manager.send_message(agent_message)
-
-        response_data = response.metadata
-        if response_data.get("success"):
-            return response_data
-        else:
-            raise HTTPException(status_code=400, detail=response_data.get("message", "OTP verification failed."))
-
-    except Exception as e:
-        logger.error(f"Error verifying broker connection: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/finance/historical-data/{symbol}")
-async def get_historical_data(
-    symbol: str,
-    current_user: User = Depends(get_current_user_from_cookies)
-):
-    """
-    Get historical data for a given symbol by delegating to the FinanceAgent.
-    """
-    try:
-        finance_agent = agent_manager.get_agent_by_name("FinanceAI")
-        if not finance_agent:
-            raise HTTPException(status_code=503, detail="FinanceAI agent is not available.")
-
-        command = f"get_historical_data for={symbol}"
-        agent_message = AgentMessage(sender_id="api", receiver_id=finance_agent.agent_id, content=command)
-        response = await agent_manager.send_message(agent_message)
-
-        response_data = response.metadata
-        if response_data.get("success"):
-            return response_data
-        else:
-            raise HTTPException(status_code=404, detail=response_data.get("message", "Data not found."))
-    except Exception as e:
-        logger.error(f"Error getting historical data for {symbol}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/finance/backtest")
-async def finance_backtest(
-    request: BacktestRequest,
-    current_user: User = Depends(get_current_user_from_cookies)
-):
-    """
-    Run a backtest for a given strategy.
-    This is a simulation and does not involve real trading.
-    """
-    try:
-        logger.info(f"User {current_user.email} delegating backtest to FinanceAgent...")
-        
-        finance_agent = agent_manager.get_agent_by_name("FinanceAI")
-        if not finance_agent:
-            raise HTTPException(status_code=503, detail="FinanceAI agent is not available.")
-
-        # Create a message for the agent
-        agent_message = AgentMessage(
-            sender_id=current_user.email,
-            receiver_id=finance_agent.agent_id,
-            content=f"backtest '{request.strategy}' on {request.symbol} from {request.start_date} to {request.end_date}"
+        mvp_builder = get_mvp_builder_instance()
+        await get_owned_mvp_session(request.session_id, current_user)
+        result = await mvp_builder.create_github_repo(
+            request.session_id, request.repo_name, request.description, request.private
         )
-
-        # Get the agent's response
-        agent_response = await agent_manager.send_message(agent_message)
-        
-        # The agent should return results in its metadata
-        results = agent_response.metadata.get("result", {})
-
-        return {"success": True, "message": agent_response.content, "results": results}
-
-    except Exception as e:
-        logger.error(f"Error running backtest: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/finance/paper-trade/execute")
-async def finance_paper_trade_execute(
-    request: PaperTradeRequest,
-    current_user: User = Depends(get_current_user_from_cookies)
-):
-    """
-    Execute a paper trade. This is a simulation.
-    """
-    try:
-        logger.info(f"User {current_user.email} executing paper trade: {request.action} {request.quantity} {request.symbol}")
-        
-        # Use database for portfolio persistence
-        from src.core.database import get_user_paper_portfolio, save_user_paper_portfolio
-        paper_portfolio = get_user_paper_portfolio(current_user.email)
-
-        # Simulate getting a live price (consistent with market data WS)
-        current_price = round(200 + (random.random() * 10 - 5), 2)
-        trade_value = request.quantity * current_price
-        symbol = request.symbol.upper()
-
-        if request.action.upper() == 'BUY':
-            if paper_portfolio["cash"] < trade_value:
-                raise HTTPException(status_code=400, detail="Not enough virtual cash.")
-            
-            paper_portfolio["cash"] -= trade_value
-            position = paper_portfolio["positions"].get(symbol, {"quantity": 0, "avg_price": 0})
-            new_quantity = position["quantity"] + request.quantity
-            new_avg_price = ((position["quantity"] * position["avg_price"]) + trade_value) / new_quantity
-            paper_portfolio["positions"][symbol] = {"quantity": new_quantity, "avg_price": new_avg_price}
-            message = f"Bought {request.quantity} {symbol} @ ${current_price:.2f}"
-
-        elif request.action.upper() == 'SELL':
-            position = paper_portfolio["positions"].get(symbol)
-            if not position or position["quantity"] < request.quantity:
-                raise HTTPException(status_code=400, detail="Not enough shares to sell.")
-
-            paper_portfolio["cash"] += trade_value
-            position["quantity"] -= request.quantity
-            if position["quantity"] == 0:
-                del paper_portfolio["positions"][symbol]
-            message = f"Sold {request.quantity} {symbol} @ ${current_price:.2f}"
-
-        else:
-            raise HTTPException(status_code=400, detail="Invalid action. Must be 'BUY' or 'SELL'.")
-
-        # Save updated portfolio back to the database
-        save_user_paper_portfolio(current_user.email, paper_portfolio)
-
-        return {"success": True, "message": message, "portfolio": paper_portfolio}
-
+        return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error executing paper trade: {str(e)}")
+        logger.error(f"Error creating GitHub repo: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/finance/paper-trade/portfolio")
-async def finance_get_paper_portfolio(
+
+@router.get("/mvp/session/{mvp_session_id}/preview")
+async def mvp_preview(
+    mvp_session_id: str,
     current_user: User = Depends(get_current_user_from_cookies)
 ):
-    """
-    Get the current paper trading portfolio.
-    """
+    """Serve the preview HTML for an MVP session."""
     try:
-        from src.core.database import get_user_paper_portfolio
-        paper_portfolio = get_user_paper_portfolio(current_user.email)
-
-        # Add simulated current prices and P&L to the response for viewing
-        portfolio_view = json.loads(json.dumps(paper_portfolio)) # Deep copy
-        total_value = portfolio_view["cash"]
-        for symbol, data in portfolio_view["positions"].items():
-            current_price = round(200 + (random.random() * 10 - 5), 2)
-            market_value = data["quantity"] * current_price
-            data["current_price"] = current_price
-            data["market_value"] = market_value
-            data["pnl"] = (current_price - data["avg_price"]) * data["quantity"]
-            total_value += market_value
-        
-        portfolio_view["total_value"] = total_value
-        return {"success": True, "portfolio": portfolio_view}
+        mvp_builder = get_mvp_builder_instance()
+        session = await get_owned_mvp_session(mvp_session_id, current_user)
+        content = await mvp_builder.read_file(mvp_session_id, "index.html")
+        if content is None:
+            for fname in sorted(session.files.keys()):
+                if fname.endswith(".html"):
+                    content = await mvp_builder.read_file(mvp_session_id, fname)
+                    break
+        if content is None:
+            content = mvp_builder._generate_placeholder_html(session)
+        from fastapi.responses import HTMLResponse
+        return HTMLResponse(content=content)
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error getting paper portfolio: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/finance/portfolio/analytics")
-async def get_portfolio_analytics(
-    current_user: User = Depends(get_current_user_from_cookies)
-):
-    """
-    Get high-level analytics for the user's paper portfolio.
-    """
-    try:
-        from src.core.database import get_user_paper_portfolio
-        portfolio = get_user_paper_portfolio(current_user.email)
-
-        # Calculate market values and total portfolio value
-        total_value = portfolio["cash"]
-        positions_with_mv = []
-        for symbol, data in portfolio["positions"].items():
-            # In a real app, you'd fetch live prices. Here we simulate.
-            current_price = round(200 + (random.random() * 10 - 5), 2)
-            market_value = data["quantity"] * current_price
-            total_value += market_value
-            positions_with_mv.append({"symbol": symbol, "market_value": market_value})
-
-        # Calculate asset allocation
-        allocation = []
-        if total_value > 0:
-            # Add cash to allocation
-            allocation.append({"asset": "Cash", "value": portfolio["cash"], "percentage": (portfolio["cash"] / total_value) * 100})
-            # Add positions to allocation
-            for pos in positions_with_mv:
-                allocation.append({"asset": pos["symbol"], "value": pos["market_value"], "percentage": (pos["market_value"] / total_value) * 100})
-
-        # Simulate historical performance data
-        # TODO: This should be calculated based on historical trade data
-        historical_performance = [{"time": (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d'), "value": 100000 * (1 + random.uniform(-0.05, 0.15) * (i/30))} for i in range(30, 0, -1)]
-
-        return {
-            "success": True,
-            "analytics": {
-                "allocation": allocation,
-                "historical_performance": historical_performance,
-            }
-        }
-    except Exception as e:
-        logger.error(f"Error getting portfolio analytics: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/finance/strategies")
-async def get_strategies(
-    current_user: User = Depends(get_current_user_from_cookies)
-):
-    """
-    Get all trading strategies for the current user, including pre-built ones.
-    """
-    try:
-        strategies = get_user_strategies(current_user.email)
-        return {"success": True, "strategies": strategies}
-    except Exception as e:
-        logger.error(f"Error getting strategies: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/finance/strategies")
-async def save_strategy(
-    request: StrategyRequest,
-    current_user: User = Depends(get_current_user_from_cookies)
-):
-    """
-    Save or update a user-defined trading strategy.
-    """
-    try:
-        strategy_data = {
-            "id": request.id,
-            "name": request.name,
-            "description": request.description,
-            "content": request.content
-        }
-        strategy_id = save_user_strategy(current_user.email, strategy_data)
-        return {
-            "success": True,
-            "message": f"Strategy '{request.name}' saved successfully.",
-            "strategy_id": strategy_id
-        }
-    except Exception as e:
-        logger.error(f"Error saving strategy: {str(e)}")
+        logger.error(f"Error serving preview: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1795,12 +1765,6 @@ async def receive_webhook(webhook_id: str, request: Request):
     try:
         payload = await request.json()
         logger.info(f"Received webhook for ID '{webhook_id}': {json.dumps(payload)}")
-
-        # In a real system, the agent manager would route this to the appropriate agent(s)
-        # Example: Notify AstroBot or FinanceAI if they are subscribed to this webhook_id
-        # astro_agent = agent_manager.get_agent_by_name("AstroBot")
-        # if astro_agent:
-        #     await astro_agent.handle_message(AgentMessage(sender_id="webhook_system", receiver_id=astro_agent.agent_id, content=f"Webhook '{webhook_id}' received: {payload}"))
 
         return {"status": "success", "message": f"Webhook '{webhook_id}' received."}
     except json.JSONDecodeError:

@@ -112,6 +112,11 @@
             <span class="stat-label">System Status</span>
             <span class="stat-value status-online" id="system-status">Online</span>
         </div>
+        <div class="sub-header-divider"></div>
+        <div class="sub-header-stat">
+            <span class="stat-label">Current Provider</span>
+            <span class="stat-value" id="current-provider" style="color:var(--success-color);">Bedrock</span>
+        </div>
     </div>
 
     <!-- ── Dismissible Auth Modal ── -->
@@ -215,6 +220,16 @@
                                 <button id="change-agent-btn" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#agentSelectModal">
                                     <i class="fas fa-users"></i>
                                 </button>
+                                <div class="dropdown provider-switcher">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" id="providerDropdown" title="Switch provider">
+                                        <span id="providerDropdownIcon"><i class="fab fa-google"></i></span>
+                                        <span id="providerDropdownLabel">Gemini</span>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="#" data-provider="gemini" onclick="window.app && window.app.switchToProvider('gemini')"><i class="fab fa-google me-1"></i>Gemini</a></li>
+                                        <li><a class="dropdown-item" href="#" data-provider="anthropic" onclick="window.app && window.app.switchToProvider('anthropic')"><i class="fas fa-brain me-1"></i>Claude</a></li>
+                                    </ul>
+                                </div>
                                 <textarea id="chat-input" placeholder="Type your message..." disabled rows="1"></textarea>
                                 <button id="send-btn" onclick="sendMessage()" disabled>
                                     <i class="fas fa-paper-plane"></i>
@@ -322,7 +337,7 @@
                         <ul class="small mb-3" style="color:var(--text-muted);">
                             <li><strong>Free plan:</strong> 20 requests/day</li>
                             <li><strong>Pro plan:</strong> 50 requests/day</li>
-                            <li>Access to all providers: Gemini, Claude &amp; NIM</li>
+                            <li>Access to all providers: Gemini, Claude &amp; Amazon Bedrock</li>
                         </ul>
                         <button class="btn btn-warning text-dark w-100 fw-bold mb-2" onclick="bootstrap.Modal.getInstance(document.getElementById('rateLimitModal'))?.hide(); setTimeout(() => window.app && window.app.openPaymentPage(), 300);">
                             <i class="fas fa-crown me-2"></i>Upgrade to Pro — $9.99/mo
@@ -387,8 +402,7 @@
                             <span class="small" style="color:var(--text-muted);"><i class="fas fa-info-circle me-1"></i>Switch provider by selecting a different agent:</span>
                             <button class="btn btn-sm btn-outline-info" onclick="window.app && window.app.switchToProvider('gemini')"><i class="fab fa-google me-1"></i>Gemini</button>
                             <button class="btn btn-sm btn-outline-warning" onclick="window.app && window.app.switchToProvider('anthropic')"><i class="fas fa-brain me-1"></i>Claude</button>
-                            <button class="btn btn-sm btn-outline-success" onclick="window.app && window.app.switchToProvider('nim')"><i class="fas fa-microchip me-1"></i>NIM</button>
-                        </div>
+
                     </div>
                     <p class="small mb-4" style="color:var(--text-muted);">Add your own API keys to use personal quotas. If left empty, the server's default keys are used. Keys are stored securely and never shown in full.</p>
 
@@ -417,7 +431,7 @@
                                 <h6 class="mb-0" style="color:var(--primary-color);">Claude API Key</h6>
                                 <span id="anthropic-key-status" class="ms-auto badge bg-secondary">Using server default</span>
                             </div>
-                            <p class="small mb-2" style="color:var(--text-muted);">Get your key at <a href="https://console.anthropic.com" target="_blank" style="color:var(--primary-color);">console.anthropic.com</a> &nbsp;|&nbsp; Also enables <strong>ClaudeCode-AI</strong> agent</p>
+                            <p class="small mb-2" style="color:var(--text-muted);">Get your key at <a href="https://console.anthropic.com" target="_blank" style="color:var(--primary-color);">console.anthropic.com</a> for Claude</p>
                             <div class="input-group">
                                 <input type="password" class="form-control" id="anthropic-key-input" placeholder="sk-ant-..." style="background:var(--secondary-bg);color:var(--text-primary);border-color:var(--border-color);">
                                 <button class="btn btn-outline-info" onclick="saveApiKey('anthropic')"><i class="fas fa-save me-1"></i>Save</button>
@@ -425,21 +439,16 @@
                             </div>
                         </div>
                     </div>
-
-                    <!-- NVIDIA NIM API Key -->
-                    <div class="card mb-3" style="background:var(--tertiary-bg);border-color:var(--border-color);">
+                    <div class="card mb-3" style="background:var(--tertiary-bg, #1a1a1a);border-color:var(--border-color, #444);">
                         <div class="card-body">
                             <div class="d-flex align-items-center mb-2">
-                                <span class="badge me-2" style="background:var(--success-color);color:#000;">NVIDIA</span>
-                                <h6 class="mb-0" style="color:var(--primary-color);">NIM API Key <span class="badge ms-1" style="background:var(--success-color);color:#000;">FREE Tier</span></h6>
-                                <span id="nim-key-status" class="ms-auto badge bg-secondary">Using server default</span>
-                            </div>
-                            <p class="small mb-2" style="color:var(--text-muted);">Get your <strong>FREE</strong> key at <a href="https://build.nvidia.com" target="_blank" style="color:var(--primary-color);">build.nvidia.com</a> — 1000 free credits/month.</p>
-                            <div class="input-group">
-                                <input type="password" class="form-control" id="nim-key-input" placeholder="nvapi-..." style="background:var(--secondary-bg);color:var(--text-primary);border-color:var(--border-color);">
-                                <button class="btn btn-outline-info" onclick="saveApiKey('nim')"><i class="fas fa-save me-1"></i>Save</button>
-                                <button class="btn btn-outline-danger" onclick="deleteApiKey('nim')"><i class="fas fa-trash"></i></button>
-                            </div>
+                                <span class="badge bg-success text-dark me-2">AWS</span>
+                                <h6 class="mb-0" style="color:var(--primary-color);">Bedrock API Key</h6>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
                         </div>
                     </div>
                     <div id="api-keys-message" class="alert d-none mt-3"></div>
@@ -483,7 +492,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
-    <script src="/static/js/app.js?v=12"></script>
+    <script src="/static/js/app.js?v=13"></script>
 
     <script>
         // ── Auth helpers ──
@@ -581,3 +590,5 @@
     </script>
 </body>
 </html>
+
+

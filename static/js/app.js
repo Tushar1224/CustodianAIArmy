@@ -180,6 +180,7 @@ class CustodianAIApp {
         this.urlParams = new URLSearchParams(window.location.search);
         this.currentChatId = crypto.randomUUID ? crypto.randomUUID() : 'chat-' + Date.now();
         this.currentMessages = [];
+        this.currentProvider = 'gemini';
         this.init();
     }
 
@@ -230,11 +231,47 @@ class CustodianAIApp {
     async loadInitialData() {
         try {
             await Promise.all([
+                this.loadActiveProvider(),
                 this.loadAgents()
             ]);
         } catch (error) {
             console.error('Error loading initial data:', error);
             this.showError('Failed to load application data');
+        }
+    }
+
+    async loadActiveProvider() {
+        try {
+            const response = await fetch('/api/v1/provider/active', {
+                credentials: 'include'
+            });
+            if (!response.ok) return;
+            const data = await response.json();
+            if (data.active_provider) {
+                this.currentProvider = data.active_provider;
+                this.updateProviderSwitcherUI();
+            }
+        } catch (error) {
+            console.error('Error loading active provider:', error);
+        }
+    }
+
+    updateProviderSwitcherUI() {
+        const icon = document.getElementById('providerDropdownIcon');
+        const label = document.getElementById('providerDropdownLabel');
+        if (icon && label) {
+            if (this.currentProvider === 'gemini') {
+                icon.innerHTML = '<i class="fab fa-google"></i>';
+                label.textContent = 'Gemini';
+            } else {
+                icon.innerHTML = '<i class="fas fa-brain"></i>';
+                label.textContent = 'Claude';
+            }
+        }
+        const badge = document.getElementById('api-keys-provider-badge');
+        if (badge) {
+            badge.textContent = this.currentProvider === 'gemini' ? 'Gemini' : 'Claude';
+            badge.className = 'badge ' + (this.currentProvider === 'gemini' ? 'bg-info' : 'bg-warning text-dark');
         }
     }
 
@@ -1445,6 +1482,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Auth] DOMContentLoaded fired');
     window.app = new CustodianAIApp();
     
+    // Set default provider display to Bedrock
+    const providerDisplay = document.getElementById('current-provider');
+    if (providerDisplay) {
+        providerDisplay.textContent = 'Bedrock';
+        providerDisplay.style.color = 'var(--danger-color)';
+    }
+    
     // First check if we have a cached user in localStorage
     const cachedUser = localStorage.getItem('custodian_user');
     console.log('[Auth] Cached user from localStorage:', cachedUser);
@@ -1619,23 +1663,27 @@ window.loadApiKeys = async function() {
         var keys = data.keys || {};
 
         var providers = [
-            { field: 'groq_api_key',      statusEl: 'groq-key-status',      inputEl: 'groq-key-input',      placeholder: 'gsk_...' },
             { field: 'gemini_api_key',    statusEl: 'gemini-key-status',    inputEl: 'gemini-key-input',    placeholder: 'AIza...' },
-            { field: 'anthropic_api_key', statusEl: 'anthropic-key-status', inputEl: 'anthropic-key-input', placeholder: 'sk-ant-...' },
-            { field: 'nim_api_key',       statusEl: 'nim-key-status',       inputEl: 'nim-key-input',       placeholder: 'nvapi-...' }
+            { field: 'anthropic_api_key', statusEl: 'anthropic-key-status', inputEl: 'anthropic-key-input', placeholder: 'sk-ant-...' }
         ];
 
         providers.forEach(function(p) {
             var statusBadge = document.getElementById(p.statusEl);
             var input = document.getElementById(p.inputEl);
             var keyInfo = keys[p.field];
+            var hasKey = Boolean(keyInfo);
+            var maskedKey = keyInfo;
+            if (keyInfo && typeof keyInfo === 'object') {
+                hasKey = Boolean(keyInfo.set || keyInfo.masked);
+                maskedKey = keyInfo.masked || '';
+            }
 
-            if (keyInfo && keyInfo.set) {
+            if (hasKey) {
                 if (statusBadge) {
                     statusBadge.className = 'ms-auto badge bg-success';
-                    statusBadge.textContent = keyInfo.masked ? 'Set (' + keyInfo.masked + ')' : 'Set ✓';
+                    statusBadge.textContent = maskedKey ? 'Set (' + maskedKey + ')' : 'Set';
                 }
-                if (input) input.placeholder = keyInfo.masked || '••••••••';
+                if (input) input.placeholder = maskedKey || '********';
             } else {
                 if (statusBadge) {
                     statusBadge.className = 'ms-auto badge bg-secondary';
@@ -1654,11 +1702,11 @@ window.loadApiKeys = async function() {
 
 /**
  * Save a single provider API key to the backend.
- * @param {string} provider - 'gemini' | 'anthropic' | 'nim'
+ * @param {string} provider - 'gemini' | 'anthropic'
  */
 window.saveApiKey = async function(provider) {
-    var inputMap = { groq: 'groq-key-input', gemini: 'gemini-key-input', anthropic: 'anthropic-key-input', nim: 'nim-key-input' };
-    var fieldMap = { groq: 'groq_api_key', gemini: 'gemini_api_key', anthropic: 'anthropic_api_key', nim: 'nim_api_key' };
+    var inputMap = { gemini: 'gemini-key-input', anthropic: 'anthropic-key-input' };
+    var fieldMap = { gemini: 'gemini_api_key', anthropic: 'anthropic_api_key' };
 
     var inputEl = document.getElementById(inputMap[provider]);
     var keyValue = inputEl ? inputEl.value.trim() : '';
@@ -1695,7 +1743,7 @@ window.saveApiKey = async function(provider) {
 
 /**
  * Delete a provider API key from the backend.
- * @param {string} provider - 'gemini' | 'anthropic' | 'nim'
+ * @param {string} provider - 'gemini' | 'anthropic'
  */
 window.deleteApiKey = async function(provider) {
     if (!confirm('Remove your ' + _capitalize(provider) + ' API key? The server default will be used instead.')) return;
@@ -1773,10 +1821,10 @@ window.loadMyPlan = async function() {
             <div class="mb-4">
                 <h6 class="text-info mb-2"><i class="fas fa-plug me-2"></i>Provider Access</h6>
                 <div class="d-flex gap-2 flex-wrap">
-                    ${['gemini','anthropic','nim'].map(p => {
-                        const allowed = data.allowed_providers && data.allowed_providers.includes(p);
-                        const labels = {gemini:'Google Gemini', anthropic:'Anthropic Claude', nim:'NVIDIA NIM'};
-                        return `<span class="badge ${allowed ? 'bg-success' : 'bg-secondary'}">${allowed ? '✓' : '✗'} ${labels[p]}</span>`;
+                    ${['gemini','anthropic'].map(p => {
+                        var c = provConfig[p];
+                        const labels = {gemini:'Google Gemini', anthropic:'Claude'};
+                        return `<span class="badge ${allowed ? 'bg-success' : 'bg-secondary'}">${allowed ? 'Yes' : 'No'} ${labels[p]}</span>`;
                     }).join('')}
                 </div>
             </div>
@@ -1786,7 +1834,7 @@ window.loadMyPlan = async function() {
                 <ul class="text-muted small mb-3">
                     <li>20 requests/day on Free plan</li>
                     <li>50 requests/day on Pro plan</li>
-                    <li>Access to Gemini, Claude &amp; NIM</li>
+                    <li>Access to Gemini, Claude &amp; Claude Sonnet</li>
                     <li>Chat history &amp; course progress saved</li>
                 </ul>
                 <a href="/api/v1/auth/google" class="btn btn-success w-100">
@@ -1823,24 +1871,18 @@ window.loadMyPlan = async function() {
 // =============================================================================
 
 /**
- * Derive the provider key ('gemini' | 'anthropic' | 'nim') from an agent object.
- * Uses agent name prefix conventions set in agent_manager.py.
- */
-function _getAgentProvider(agent) {
-    if (!agent) return null;
-    const name = agent.name || '';
-    if (name.startsWith('NIM-')) return 'nim';
-    if (name.startsWith('Claude-') || name === 'ClaudeCode-AI') return 'anthropic';
-    // All agents are now Groq by default (primary provider)
-    // Groq agents have no special prefix — they use the same names as before
-    return 'groq';
+ * Derive the provider key ('gemini' | 'anthropic') from the active app state.
+    var provider, name = (target && target.name) || '';
+    if (name.startsWith('Gemini-')) return 'gemini';
+    if (name.startsWith('Claude-')) return 'anthropic';
+    // Default to gemini
+    return 'gemini';
 }
 
 const _providerMeta = {
-    groq:      { label: 'Groq (Llama)',     badgeClass: 'bg-success text-dark', icon: 'fas fa-bolt',      cardId: 'groq-provider-card' },
     gemini:    { label: 'Google Gemini',    badgeClass: 'bg-info text-dark',    icon: 'fab fa-google',    cardId: 'gemini-provider-card' },
-    anthropic: { label: 'Anthropic Claude', badgeClass: 'bg-warning text-dark', icon: 'fas fa-brain',     cardId: 'anthropic-provider-card' },
-    nim:       { label: 'NVIDIA NIM',       badgeClass: 'bg-secondary',         icon: 'fas fa-microchip', cardId: 'nim-provider-card' }
+    anthropic: { label: 'Claude',           badgeClass: 'bg-warning text-dark', icon: 'fas fa-brain',     cardId: 'anthropic-provider-card' },
+
 };
 
 /**
@@ -1873,6 +1915,19 @@ CustodianAIApp.prototype._updateApiKeysAgentDisplay = function(agent) {
 
     // Highlight the matching provider card in the modal
     _highlightActiveProviderCard(provider);
+    
+    // Update the main dashboard provider display
+    const providerDisplay = document.getElementById('current-provider');
+    if (providerDisplay) {
+        const providerLabel = provider === 'anthropic' ? 'Cloud (Claude)' : 
+                            provider === 'gemini' ? 'Gemini' : 
+                            provider;
+        providerDisplay.textContent = providerLabel;
+        // Update color based on provider
+        if (provider === 'gemini') providerDisplay.style.color = 'var(--info-color)';
+        else if (provider === 'anthropic') providerDisplay.style.color = 'var(--warning-color)';
+
+    }
 };
 
 // =============================================================================
@@ -1894,12 +1949,10 @@ const _providerModels = {
         { id: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
         { id: 'claude-3-opus-20240229',     label: 'Claude 3 Opus' }
     ],
-    nim: [
-        { id: 'meta/llama-3.3-70b-instruct',  label: 'Llama 3.3 70B (default)' },
-        { id: 'deepseek-ai/deepseek-r1',       label: 'DeepSeek R1' },
-        { id: 'meta/llama-3.1-405b-instruct',  label: 'Llama 3.1 405B' },
-        { id: 'mistralai/mixtral-8x22b-instruct-v0.1', label: 'Mixtral 8x22B' },
-        { id: 'nvidia/llama-3.1-nemotron-70b-instruct', label: 'Nemotron 70B' }
+    bedrock: [
+        { id: 'anthropic.claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (default)' },
+        { id: 'anthropic.claude-opus-4-1', label: 'Claude Opus 4.1' },
+        { id: 'anthropic.claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' }
     ]
 };
 
@@ -1909,7 +1962,7 @@ const _providerModels = {
 CustodianAIApp.prototype.openModelSelector = function() {
     if (!this.currentAgent) return;
 
-    // ── Guest restriction: NIM only, no model switching ──────────────────────
+    // ── Guest restriction: server default, no model switching ──────────────────────
     const isGuestUser = !localStorage.getItem('custodian_user');
     if (isGuestUser) {
         // Show a brief tooltip-style notice but keep existing messages intact
@@ -1926,7 +1979,7 @@ CustodianAIApp.prototype.openModelSelector = function() {
                 </button>
             </div>
             <div class="p-3 text-muted small">
-                Guests use <strong class="text-success">NVIDIA NIM</strong> by default.<br>
+                Guests use the server default provider.<br>
                 <a href="/api/v1/auth/google" class="text-info">Sign in with Google</a> to switch models.
             </div>
         `;
@@ -2016,15 +2069,17 @@ CustodianAIApp.prototype.selectModel = function(modelId, modelLabel) {
 
 /**
  * Switch the active chat agent to the first available agent for the given provider.
- * Called by the Gemini / Claude / NIM quick-switch buttons in the API Keys modal.
+ * Called by the Gemini / Claude / Bedrock quick-switch buttons in the API Keys modal.
  */
 CustodianAIApp.prototype.switchToProvider = async function(provider) {
-    const validProviders = ['groq', 'gemini', 'anthropic', 'nim'];
-    if (!validProviders.includes(provider)) return;
-
-    // Show a brief loading indicator on the button
-    const btnMap = { gemini: 'fab fa-google', anthropic: 'fas fa-brain', nim: 'fas fa-microchip' };
-    const providerLabels = { groq: 'Groq', gemini: 'Gemini', anthropic: 'Claude', nim: 'NIM' };
+    const validProviders = ['gemini', 'anthropic'];
+    var label, errMsg;
+    if (!validProviders.includes(provider)) {
+        errMsg = 'Invalid provider "' + provider + '". Must be one of: ' + validProviders.join(', ');
+        if (errorEl) errorEl.innerHTML = '<span class="text-danger">' + errMsg + '</span>';
+        return;
+    }
+    const providerLabels = { gemini: 'Gemini', anthropic: 'Claude' };
 
     try {
         // Call backend to switch provider server-side
@@ -2039,6 +2094,9 @@ CustodianAIApp.prototype.switchToProvider = async function(provider) {
             const errData = await resp.json().catch(() => ({}));
             throw new Error(errData.detail || 'Failed to switch provider');
         }
+
+        this.currentProvider = provider;
+        this.updateProviderSwitcherUI();
 
         // Reload agents from backend (agent IDs change after provider switch)
         const agentsResp = await fetch('/api/v1/agents', { credentials: 'include' });
@@ -2134,7 +2192,7 @@ function _highlightActiveProviderCard(activeProvider) {
     const providerCardMap = {
         gemini:    'gemini-key-input',
         anthropic: 'anthropic-key-input',
-        nim:       'nim-key-input'
+        anthropic: 'anthropic-key-input'
     };
 
     Object.keys(providerCardMap).forEach(function(p) {
@@ -2149,3 +2207,9 @@ function _highlightActiveProviderCard(activeProvider) {
         }
     });
 }
+
+
+
+
+
+

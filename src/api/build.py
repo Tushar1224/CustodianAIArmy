@@ -499,6 +499,173 @@ class MVPBuilder:
             session.add_log(f"Error fetching GitHub repos: {str(e)}", "error")
             return []
 
+    async def create_github_repo(
+        self, session_id: str, repo_name: str, description: str = "", private: bool = False
+    ) -> Dict[str, Any]:
+        """Create a new GitHub repository for the session."""
+        session = self.get_session(session_id)
+        if not session:
+            raise ValueError(f"Session {session_id} not found")
+        if not session.github_token:
+            raise ValueError("GitHub not connected for this session.")
+
+        # Sanitize repo name
+        safe_name = repo_name.strip().lower().replace(" ", "-").replace("_", "-")
+        import re as _re
+        safe_name = _re.sub(r"[^a-z0-9\-]", "", safe_name) or "my-project"
+
+        try:
+            async with httpx.AsyncClient() as client:
+                headers = {
+                    "Authorization": f"token {session.github_token}",
+                    "Accept": "application/vnd.github.v3+json",
+                    "Content-Type": "application/json",
+                }
+                payload = {
+                    "name": safe_name,
+                    "description": description or f"Built with Custodian AI – {session.product_idea[:80]}",
+                    "private": private,
+                    "auto_init": True,  # creates initial commit with README
+                }
+                response = await client.post(
+                    "https://api.github.com/user/repos",
+                    headers=headers,
+                    json=payload,
+                )
+                if response.status_code == 422:
+                    # Repo already exists — just use it
+                    repo_data = {"full_name": f"{session.github_username}/{safe_name}", "html_url": f"https://github.com/{session.github_username}/{safe_name}"}
+                elif response.status_code not in (200, 201):
+                    raise Exception(f"GitHub API error {response.status_code}: {response.text}")
+                else:
+                    repo_data = response.json()
+
+                full_name = repo_data.get("full_name", f"{session.github_username}/{safe_name}")
+                html_url = repo_data.get("html_url", f"https://github.com/{full_name}")
+
+                session.github_repo_name = full_name
+                session.add_log(f"GitHub repository created: {html_url}")
+
+                return {
+                    "success": True,
+                    "repo_name": full_name,
+                    "repo_url": html_url,
+                    "message": f"Repository '{full_name}' created successfully",
+                }
+        except Exception as e:
+            logger.error(f"Error creating GitHub repo: {e}")
+            session.add_log(f"Failed to create repo: {str(e)}", "error")
+            return {"success": False, "message": str(e)}
+
+    async def publish_to_github(
+        self, session_id: str, repo_name: Optional[str] = None, commit_message: str = "Build by Custodian AI"
+    ) -> Dict[str, Any]:
+        """
+        Publish all workspace files to GitHub via the Contents API.
+        Creates/updates each file individually — no git CLI required.
+        If repo_name is provided and no repo is connected, creates it first.
+        """
+        session = self.get_session(session_id)
+        if not session:
+            raise ValueError(f"Session {session_id} not found")
+        if not session.github_token:
+            raise ValueError("GitHub not connected. Please connect GitHub first.")
+
+        # Determine target repo
+        target_repo = session.github_repo_name or repo_name
+        if not target_repo:
+            # Auto-create repo from product idea
+            idea_slug = (session.product_idea or "my-project")[:40]
+            create_result = await self.create_github_repo(session_id, idea_slug)
+            if not create_result.get("success"):
+                return create_result
+            target_repo = create_result["repo_name"]
+
+        if not session.files:
+            # Generate a basic index.html if no files exist
+            await self.write_file(session_id, "index.html", self._generate_placeholder_html(session))
+            await self.write_file(session_id, "README.md", f"# {session.product_idea}\n\nBuilt with [Custodian AI](https://github.com/Tushar1224/CustodianAIArmy).\n")
+
+        import base64 as _b64
+        pushed = []
+        failed = []
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            headers = {
+                "Authorization": f"token {session.github_token}",
+                "Accept": "application/vnd.github.v3+json",
+            }
+            owner, repo = (target_repo.split("/", 1) if "/" in target_repo else (session.github_username, target_repo))
+
+            for file_path, content in session.files.items():
+                try:
+                    encoded = _b64.b64encode(content.encode("utf-8")).decode("ascii")
+                    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
+
+                    # Check if file already exists (need its SHA to update)
+                    sha = None
+                    check_resp = await client.get(api_url, headers=headers)
+                    if check_resp.status_code == 200:
+                        sha = check_resp.json().get("sha")
+
+                    put_payload: Dict[str, Any] = {
+                        "message": commit_message,
+                        "content": encoded,
+                    }
+                    if sha:
+                        put_payload["sha"] = sha
+
+                    put_resp = await client.put(api_url, headers=headers, json=put_payload)
+                    if put_resp.status_code in (200, 201):
+                        pushed.append(file_path)
+                        session.add_log(f"Pushed: {file_path}", "success")
+                    else:
+                        failed.append(file_path)
+                        session.add_log(f"Failed to push {file_path}: {put_resp.text}", "error")
+                except Exception as e:
+                    failed.append(file_path)
+                    session.add_log(f"Error pushing {file_path}: {str(e)}", "error")
+
+        repo_url = f"https://github.com/{owner}/{repo}"
+        pages_url = f"https://{owner}.github.io/{repo}"
+        session.add_log(f"Published {len(pushed)} files to {repo_url}")
+
+        return {
+            "success": len(pushed) > 0,
+            "repo_url": repo_url,
+            "pages_url": pages_url,
+            "files_pushed": pushed,
+            "files_failed": failed,
+            "message": f"Published {len(pushed)} files to {repo_url}",
+        }
+
+    def _generate_placeholder_html(self, session) -> str:
+        """Generate a basic placeholder HTML when no files exist yet."""
+        idea = session.product_idea or "My Product"
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{idea}</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }}
+        .hero {{ text-align: center; padding: 2rem; }}
+        h1 {{ font-size: 3rem; font-weight: 900; background: linear-gradient(135deg, #06b6d4, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
+        p {{ margin-top: 1rem; color: #94a3b8; font-size: 1.1rem; }}
+        .badge {{ margin-top: 2rem; display: inline-block; padding: 0.5rem 1.25rem; border: 1px solid #334155; border-radius: 9999px; font-size: 0.875rem; color: #64748b; }}
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <h1>{idea}</h1>
+        <p>Built with Custodian AI Army</p>
+        <div class="badge">🚀 Phase: {session.current_phase.name if session.current_phase else "Building"}</div>
+    </div>
+</body>
+</html>"""
+
     async def write_file(self, session_id: str, path: str, content: str) -> bool:
         """Write a file to the session workspace."""
         session = self.get_session(session_id)

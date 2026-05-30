@@ -11,7 +11,7 @@ MCP Tool Calling:
 
 import os
 import json
-from typing import Dict, Any, List
+from typing import Dict, Any, List, AsyncGenerator
 from datetime import datetime
 
 from src.agents.base_agent import BaseAgent, AgentMessage, AgentStatus, AgentType, AgentCapability
@@ -216,6 +216,108 @@ class ClaudeAgent(BaseAgent):
                 "agent_name": self.name
             }
 
+    async def stream_response(
+        self,
+        system_prompt: str,
+        user_message: str,
+        context: Dict[str, Any] = None,
+        history: list = None,
+        max_tokens: int = 4096,
+        temperature: float = 0.7
+    ) -> AsyncGenerator[str, None]:
+        """
+        Stream responses from Claude API in real-time.
+        
+        Args:
+            system_prompt: System prompt to guide the model
+            user_message: User's message
+            context: Additional context
+            history: Conversation history
+            max_tokens: Maximum tokens to generate
+            temperature: Temperature for sampling
+            
+        Yields:
+            Text chunks from the model
+        """
+        try:
+            import anthropic
+            
+            api_key = self._api_key_override or settings.ANTHROPIC_API_KEY
+            if not api_key:
+                yield "Error: ANTHROPIC_API_KEY not configured"
+                return
+
+            model = self._model_override or settings.CLAUDE_MODEL or CLAUDE_DEFAULT_MODEL
+            
+            # Build messages
+            messages = []
+            if history:
+                for msg in history:
+                    sender = msg.get("sender", "")
+                    content = msg.get("content", "")
+                    if not content:
+                        continue
+                    role = "user" if sender == "You" else "assistant"
+                    messages.append({"role": role, "content": content})
+            
+            messages.append({"role": "user", "content": user_message})
+            
+            # Create streaming client
+            client = anthropic.Anthropic(api_key=api_key)
+            
+            self.logger.info(f"Starting Claude stream with model: {model}")
+            
+            with client.messages.stream(
+                model=model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                system=system_prompt if system_prompt else None,
+                messages=messages
+            ) as stream:
+                chunk_count = 0
+                for text in stream.text_stream:
+                    if text:
+                        chunk_count += 1
+                        yield text
+                
+                self.logger.info(f"Claude stream completed ({chunk_count} chunks)")
+
+        except Exception as e:
+            self.logger.error(f"Claude stream failed: {str(e)}")
+            yield f"Error streaming from Claude: {str(e)}"
+
+    async def stream_message(self, message: AgentMessage) -> AsyncGenerator[str, None]:
+        """
+        Stream a response to an incoming message using Claude.
+        
+        Args:
+            message: The incoming agent message
+            
+        Yields:
+            Text chunks from the response
+        """
+        self.update_status(AgentStatus.BUSY)
+        
+        try:
+            system_prompt = self._get_system_prompt()
+            history = message.metadata.get("history", [])
+            context = message.metadata.get("context", {})
+            
+            async for chunk in self.stream_response(
+                system_prompt=system_prompt,
+                user_message=message.content,
+                context=context,
+                history=history
+            ):
+                yield chunk
+            
+            self.update_status(AgentStatus.IDLE)
+            
+        except Exception as e:
+            self.logger.error(f"Error streaming message: {str(e)}")
+            self.update_status(AgentStatus.ERROR)
+            yield f"Error: {str(e)}"
+
     def _get_system_prompt(self) -> str:
         """Get system prompt based on agent specialization."""
         prompt_file_map = {
@@ -334,6 +436,10 @@ class ClaudeAgent(BaseAgent):
         )
 
         # Agentic tool-calling loop
+        import asyncio
+        import random
+
+        max_retries = 3
         for iteration in range(MAX_TOOL_ITERATIONS):
             payload = {
                 "model": model,
@@ -346,77 +452,87 @@ class ClaudeAgent(BaseAgent):
             if tool_definitions and not _is_simple:
                 payload["tools"] = tool_definitions
 
-            try:
-                async with httpx.AsyncClient(timeout=60.0) as client:
-                    response = await client.post(
-                        "https://api.anthropic.com/v1/messages",
-                        json=payload,
-                        headers=headers
-                    )
-                    response.raise_for_status()
-                    data = response.json()
+            last_error = None
+            for attempt in range(max_retries + 1):
+                try:
+                    async with httpx.AsyncClient(timeout=60.0) as client:
+                        response = await client.post(
+                            "https://api.anthropic.com/v1/messages",
+                            json=payload,
+                            headers=headers
+                        )
+                        response.raise_for_status()
+                        data = response.json()
+                    last_error = None
+                    break
+                except httpx.HTTPStatusError as e:
+                    last_error = e
+                    status = e.response.status_code
+                    if status in (429, 529) and attempt < max_retries:
+                        wait = (2 ** attempt) + random.random()
+                        self.logger.warning(f"Claude API {status}, retry {attempt + 1}/{max_retries} in {wait:.1f}s")
+                        await asyncio.sleep(wait)
+                        continue
+                    break
+                except Exception as e:
+                    last_error = e
+                    break
 
-                stop_reason = data.get("stop_reason", "")
-                content_blocks = data.get("content", [])
+            if last_error:
+                if isinstance(last_error, httpx.HTTPStatusError):
+                    status = last_error.response.status_code
+                    self.logger.error(f"HTTP error calling Claude API: Status {status}, Response: {last_error.response.text}")
+                    if status == 401:
+                        return "Claude API Error: Invalid API key. Please check your Anthropic API key in your profile settings."
+                    elif status in (429, 529):
+                        return "Claude API Error: Rate limit exceeded. Please wait a moment and try again."
+                    return f"Claude API Error (Status: {status}): {last_error.response.text}"
+                self.logger.error(f"Error calling Claude API: {last_error}")
+                return f"I encountered an unexpected error when communicating with Claude: {str(last_error)}"
 
-                # ── Tool use requested by the model ────────────────────────
-                if stop_reason == "tool_use":
-                    # Append assistant's response (with tool_use blocks) to messages
-                    messages.append({"role": "assistant", "content": content_blocks})
+            stop_reason = data.get("stop_reason", "")
+            content_blocks = data.get("content", [])
 
-                    # Build tool results
-                    tool_results = []
-                    for block in content_blocks:
-                        if block.get("type") == "tool_use":
-                            tool_name = block["name"]
-                            tool_args = block.get("input", {})
-                            tool_use_id = block["id"]
+            # ── Tool use requested by the model ────────────────────────
+            if stop_reason == "tool_use":
+                messages.append({"role": "assistant", "content": content_blocks})
 
-                            self.logger.info(f"[MCP] {self.name} calling tool: {tool_name}({tool_args})")
-
-                            if mcp_executor:
-                                tool_result = await mcp_executor.execute_tool(tool_name, tool_args)
-                                tool_content = tool_result.content
-                                is_error = tool_result.is_error
-                            else:
-                                tool_content = f"MCP tools are disabled. Cannot execute '{tool_name}'."
-                                is_error = True
-
-                            tool_results.append({
-                                "type": "tool_result",
-                                "tool_use_id": tool_use_id,
-                                "content": tool_content,
-                                "is_error": is_error
-                            })
-
-                    # Append tool results as user message
-                    messages.append({"role": "user", "content": tool_results})
-
-                    # Continue the loop to get the model's next response
-                    continue
-
-                # ── Final text response ────────────────────────────────────
+                tool_results = []
                 for block in content_blocks:
-                    if block.get("type") == "text":
-                        return block.get("text", "")
+                    if block.get("type") == "tool_use":
+                        tool_name = block["name"]
+                        tool_args = block.get("input", {})
+                        tool_use_id = block["id"]
 
-                if stop_reason:
-                    return f"Claude didn't return text. Stop reason: {stop_reason}"
+                        self.logger.info(f"[MCP] {self.name} calling tool: {tool_name}({tool_args})")
 
-                return f"Unexpected API response format: {data}"
+                        if mcp_executor:
+                            tool_result = await mcp_executor.execute_tool(tool_name, tool_args)
+                            tool_content = tool_result.content
+                            is_error = tool_result.is_error
+                        else:
+                            tool_content = f"MCP tools are disabled. Cannot execute '{tool_name}'."
+                            is_error = True
 
-            except httpx.HTTPStatusError as e:
-                self.logger.error(f"HTTP error calling Claude API: Status {e.response.status_code}, Response: {e.response.text}")
-                if e.response.status_code == 401:
-                    return "Claude API Error: Invalid API key. Please check your Anthropic API key in your profile settings."
-                elif e.response.status_code == 429:
-                    return "Claude API Error: Rate limit exceeded. Please wait a moment and try again."
-                elif e.response.status_code == 529:
-                    return "Claude API Error: Anthropic API is currently overloaded. Please try again later."
-                return f"Claude API Error (Status: {e.response.status_code}): {e.response.text}"
-            except Exception as e:
-                self.logger.error(f"Error calling Claude API: {e}")
-                return f"I encountered an unexpected error when communicating with Claude: {str(e)}"
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": tool_use_id,
+                            "content": tool_content,
+                            "is_error": is_error
+                        })
+
+                messages.append({"role": "user", "content": tool_results})
+                continue
+
+            # ── Final text response ────────────────────────────────────
+            for block in content_blocks:
+                if block.get("type") == "text":
+                    return block.get("text", "")
+
+            if stop_reason:
+                return f"Claude didn't return text. Stop reason: {stop_reason}"
+
+            return f"Unexpected API response format: {data}"
 
         # Exceeded max iterations
         self.logger.warning(f"[MCP] {self.name} exceeded max tool iterations ({MAX_TOOL_ITERATIONS})")

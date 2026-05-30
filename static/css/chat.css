@@ -148,6 +148,10 @@
     flex-shrink: 0;
 }
 
+/* ── Provider Switcher ── */
+.provider-switcher { flex-shrink: 0; }
+.provider-switcher .dropdown-toggle { font-size: 0.75rem; padding: 0.3rem 0.5rem; }
+
 /* ── Chat Input ── */
 .chat-input-container {
     padding: 0.875rem 1rem;

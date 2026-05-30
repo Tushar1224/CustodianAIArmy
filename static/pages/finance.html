@@ -1,412 +1,173 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <base href="/"> <!-- Ensures relative paths work correctly -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance AI Dashboard</title>
-    <link rel="stylesheet" href="/static/css/styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <title>Custodian AI — Finance AI Dashboard</title>
+    <link rel="icon" href="https://i.imgur.com/fC3C6gI.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/layout.css">
+    <link rel="stylesheet" href="/static/css/components.css">
+    <link rel="stylesheet" href="/static/css/custom.css">
+    <script>
+      window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/speed-insights/script.js"></script>
     <style>
-        /* Add specific styles for the finance dashboard here */
-        .finance-dashboard-container {
-            display: grid;
-            grid-template-columns: 3fr 1fr; /* Main content and AI sidebar */
-            gap: 20px;
-            padding: 20px;
-            height: calc(100vh - 60px); /* Adjust for header if present */
-            overflow: hidden;
+        body { padding-top: 60px; }
+        .coming-soon-hero {
+            text-align: center;
+            padding: 5rem 2rem;
+            max-width: 700px;
+            margin: 0 auto;
         }
-        .main-content {
-            display: grid;
-            grid-template-rows: auto 1fr;
-            gap: 20px;
-            overflow-y: auto;
-        }
-        .header-panel {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background-color: var(--secondary-bg);
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: var(--neon-glow-blue);
-        }
-        .dashboard-section {
-            background-color: var(--secondary-bg);
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: var(--neon-glow-cyan);
-            min-height: 200px;
-        }
-        .ai-sidebar {
-            background-color: var(--secondary-bg);
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: var(--neon-glow-purple);
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-        }
-        .ai-chat-window {
-            flex-grow: 1;
-            overflow-y: auto;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 10px;
-            margin-bottom: 10px;
-        }
-        .ai-chat-input {
-            width: 100%;
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid var(--border-color);
-            background-color: var(--primary-bg);
-            color: var(--text-primary);
-        }
-        /* Broker Connection Modal */
-        .modal {
-            display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
-            overflow: auto; background-color: rgba(0,0,0,0.7); justify-content: center; align-items: center;
-        }
-        .modal-content {
-            background-color: var(--secondary-bg); padding: 20px; border-radius: 8px;
-            box-shadow: var(--neon-glow-purple); width: 90%; max-width: 400px;
-        }
-        .modal-header { padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
-        .modal-body { padding-top: 20px; }
-        .close-button { float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; }
-        .form-group input { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); background-color: var(--primary-bg); color: var(--text-primary); }
-        .status-indicator.disconnected { background-color: #ff4d4d; }
-        .status-indicator.connected { background-color: #4dff4d; }
-        .status-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
-        #broker-connect-modal .step { display: none; }
-        #broker-connect-modal .step.active { display: block; }
-        #connection-status-text { margin-left: 5px; }
-    </style>
-    <style>
-        /* Strategy Studio Styles */
-        .strategy-studio-layout {
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 20px;
-            margin-top: 15px;
-        }
-        .strategy-library ul {
-            list-style: none;
-            padding: 0;
-        }
-        .strategy-library .strategy-item {
-            background: var(--primary-bg);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            padding: 8px 12px;
-            width: 100%;
-            text-align: left;
-            margin-bottom: 5px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .strategy-library .strategy-item:hover {
-            background-color: var(--primary-accent);
-        }
-        .strategy-editor textarea {
-            width: 100%;
-            height: 150px;
-            margin-top: 10px;
-            background-color: var(--primary-bg);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 10px;
-            resize: vertical;
-        }
-        .editor-toolbar button {
-            margin-right: 5px;
-        }
-        /* Backtesting Results Styles */
-        #backtest-results-container {
-            margin-top: 15px;
-            display: none; /* Hidden by default */
-        }
-        .backtest-results-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-        }
-        .metric-card {
-            background: var(--primary-bg);
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-        }
-         /* Watchlist Styles */
-        #market-watchlist {
-            list-style: none;
-            padding: 0;
-        }
-        .watchlist-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 4px;
-            border-bottom: 1px solid var(--border-color);
-            transition: background-color 0.3s ease;
-        }
-        .watchlist-item .symbol { font-weight: bold; }
-        .watchlist-item .price { font-family: monospace; }
-        .watchlist-item.price-up {
-            background-color: rgba(0, 255, 0, 0.1);
-        }
-        .watchlist-item.price-down {
-            background-color: rgba(255, 0, 0, 0.1);
-        }
-        /* Chart Styles */
-        .market-dashboard-layout {
-            display: grid;
-            grid-template-columns: 250px 1fr; /* Watchlist and Chart */
-            gap: 20px;
-            height: 400px; /* Example height */
-        }
-        #market-chart-container {
-            width: 100%;
-            height: 100%;
-            border-radius: 8px;
-        }
-        .chart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .chart-header h4 {
-            margin: 0;
-            color: var(--text-secondary);
-            font-size: 1rem;
-        }
-        /* Tab Navigation */
-        .finance-nav-tabs {
-            display: flex;
-            border-bottom: 1px solid var(--border-color);
-            margin-bottom: 20px;
-        }
-        .finance-nav-tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -1px;
-        }
-        .finance-nav-tab.active {
+        .coming-soon-icon {
+            font-size: 5rem;
             color: var(--primary-color);
-            border-bottom-color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            animation: pulse-glow 2s infinite;
         }
-        .finance-tab-content {
-            display: none;
+        .feature-preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin-top: 3rem;
         }
-        .finance-tab-content.active {
-            display: block;
+        .feature-preview-card {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            opacity: 0.7;
         }
+        .feature-preview-card i { font-size: 2rem; color: var(--primary-color); margin-bottom: 0.75rem; display: block; }
     </style>
+    <script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
 </head>
 <body>
-    <div class="finance-dashboard-container">
-        <div class="main-content">
-            <!-- Header -->
-            <div class="header-panel">
-                <div>
-                    <span id="connection-status-indicator" class="status-indicator disconnected"></span>
-                    <span id="connection-status-text">Disconnected</span>
-                </div>
-                <div>Broker: <select id="broker-selector"><option value="zerodha">Zerodha</option><option value="groww">Groww</option><option value="kite">Kite</option></select>
-                    <button id="connect-broker-btn" class="btn btn-sm btn-outline-info">Connect</button></div>
-                <div>Mode: <button>Live</button> / <button class="active">Paper Trading</button></div>
-                <div>Account Balance: $0.00</div>
-            </div>
-            
-            <!-- Tab Navigation -->
-            <div class="finance-nav-tabs">
-                <div class="finance-nav-tab active" data-tab="dashboard">Dashboard</div>
-                <div class="finance-nav-tab" data-tab="portfolio">Portfolio</div>
-                <div class="finance-nav-tab" data-tab="strategies">Strategies</div>
-            </div>
-
-            <!-- Dashboard Tab -->
-            <div id="tab-dashboard" class="finance-tab-content active">
-                <h2>Market Dashboard</h2>
-                <div class="market-dashboard-layout">
-                    <div id="live-market-data">
-                        <p>Connecting to live market data...</p>
-                        <ul id="market-watchlist"></ul>
-                    </div>
-                    <div>
-                        <div class="chart-header">
-                            <h4 id="chart-title">Real-Time Chart: AAPL</h4>
-                            <button id="explain-chart-btn" class="btn btn-sm btn-outline-info"><i class="fas fa-info-circle"></i> Explain this</button>
-                        </div>
-                        <div id="market-chart-container" style="height: calc(100% - 30px);"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Portfolio Tab -->
-            <div id="tab-portfolio" class="finance-tab-content">
-                <h2>Portfolio Overview</h2>
-                <div id="portfolio-analytics-container"></div>
-            </div>
-
-            <!-- Strategies Tab -->
-            <div id="tab-strategies" class="finance-tab-content">
-                <h2>Strategy Studio</h2>
-                <div class="strategy-studio-layout">
-                    <div class="strategy-library">
-                        <h3>Pre-built Strategies</h3>
-                        <ul>
-                            <li><button class="strategy-item"><i class="fas fa-chart-line"></i> Moving Average Crossover</button></li>
-                            <li><button class="strategy-item"><i class="fas fa-wave-square"></i> RSI Overbought/Oversold</button></li>
-                            <li><button class="strategy-item"><i class="fas fa-compress-arrows-alt"></i> Bollinger Band Squeeze</button></li>
-                        </ul>
-                    </div>
-                    <div class="strategy-editor">
-                        <h3>Custom Strategy Editor</h3>
-                        <div class="editor-toolbar">
-                            <button id="new-strategy-btn" class="btn btn-sm btn-outline-success"><i class="fas fa-plus"></i> New</button>
-                            <button id="save-strategy-btn" class="btn btn-sm btn-outline-primary"><i class="fas fa-save"></i> Save</button>
-                            <button id="backtest-btn" class="btn btn-sm btn-outline-info"><i class="fas fa-history"></i> Backtest</button>
-                        </div>
-                        <textarea placeholder="Define your strategy using natural language or code... e.g., BUY AAPL when 50-day MA crosses above 200-day MA"></textarea>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Backtesting Engine & Paper Trading -->
-            <div class="dashboard-section" id="backtesting-paper-trading-section">
-                <div class="paper-trading-layout">
-                    <div>
-                        <h2>Paper Trading</h2>
-                        <div class="paper-trade-form">
-                            <div class="form-group">
-                                <label for="paper-symbol">Symbol</label>
-                                <input type="text" id="paper-symbol" class="form-control" value="AAPL">
-                            </div>
-                            <div class="form-group">
-                                <label for="paper-quantity">Quantity</label>
-                                <input type="number" id="paper-quantity" class="form-control" value="10">
-                            </div>
-                            <div class="form-group">
-                                <label for="paper-stop-loss">Stop Loss ($)</label>
-                                <input type="number" id="paper-stop-loss" class="form-control" placeholder="e.g., 195.00">
-                            </div>
-                            <div class="form-group">
-                                <label for="paper-take-profit">Take Profit ($)</label>
-                                <input type="number" id="paper-take-profit" class="form-control" placeholder="e.g., 210.00">
-                            </div>
-                            <div class="form-group">
-                                <label for="paper-position-sizing">Position Sizing (%)</label>
-                                <input type="number" id="paper-position-sizing" class="form-control" placeholder="e.g., 2" value="2">
-                            </div>
-                            <div class="btn-group">
-                                <button id="paper-buy-btn" class="btn btn-success">Buy</button>
-                                <button id="paper-sell-btn" class="btn btn-danger">Sell</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div>
-                        <h4>Paper Portfolio (<span id="paper-total-value">$100,000.00</span>)</h4>
-                        <p>Cash: <span id="paper-cash-balance">$100,000.00</span></p>
-                        <div id="paper-positions"></div>
-                    </div>
-                </div>
-                <hr style="margin: 20px 0;">
-                <div id="backtesting-engine-section">
-                    <h2>Backtesting Engine</h2>
-                    <div id="backtest-results-container">
-                        <div id="backtest-results-grid" class="backtest-results-grid"></div>
-                    </div>
-                </div>
-
-                <hr style="margin: 20px 0;">
-
-                <div id="performance-analytics-section">
-                    <h2>Performance Analytics</h2>
-                    <div class="analytics-grid">
-                        <div class="analytics-card">
-                            <h4>Total P&L</h4>
-                            <p id="analytics-total-pnl">$0.00</p>
-                        </div>
-                        <div class="analytics-card">
-                            <h4>Win Rate</h4>
-                            <p id="analytics-win-rate">0%</p>
-                        </div>
-                        <div class="analytics-card">
-                            <h4>Sharpe Ratio</h4>
-                            <p id="analytics-sharpe-ratio">0.00</p>
-                        </div>
-                        <div class="analytics-card">
-                            <h4>Max Drawdown</h4>
-                            <p id="analytics-max-drawdown">0%</p>
-                        </div>
-                    </div>
-                    <!-- Placeholder for charts -->
-                    <div style="margin-top: 20px; background-color: var(--primary-bg); height: 200px; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-color);">
-                        <p>Placeholder for Performance Charts</p>
-                    </div>
-                </div>
-                <!-- Placeholder for backtesting and paper trading components -->
-            </div>
+<div class="app-container">
+    <!-- Offcanvas Sidebar -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebarOffcanvas" aria-labelledby="sidebarOffcanvasLabel"
+         data-bs-scroll="true" data-bs-backdrop="false">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="sidebarOffcanvasLabel">Menu</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
         </div>
-
-        <!-- AI Assistant Panel -->
-        <div class="ai-sidebar">
-            <h2>AI Assistant</h2>
-            <div class="ai-chat-window">
-                <p>Hello! How can I assist you with your finance today?</p>
-            </div>
-            <input type="text" class="ai-chat-input" placeholder="Ask FinanceAI anything...">
+        <div class="offcanvas-body p-0">
+            <nav class="nav flex-column nav-menu p-2">
+                <a class="nav-link nav-item" href="/"><i class="fas fa-home me-2"></i>Home</a>
+                <a class="nav-link nav-item" href="/dashboard"><i class="fas fa-brain me-2"></i>AI Dashboard</a>
+                <a class="nav-link nav-item" href="/learn"><i class="fas fa-graduation-cap me-2"></i>Learn with AI</a>
+                <a class="nav-link nav-item" href="/portfolio"><i class="fab fa-github me-2"></i>Portfolio Builder</a>
+                <a class="nav-link nav-item" href="/build"><i class="fas fa-cubes me-2"></i>Build Your Product</a>
+                <a class="nav-link nav-item active" href="/finance"><i class="fas fa-chart-line me-2"></i>Finance AI</a>
+                <a class="nav-link nav-item" href="/agents"><i class="fas fa-users-cog me-2"></i>Custom Agents</a>
+            </nav>
         </div>
     </div>
 
-    <!-- Broker Connection Modal -->
-    <div id="broker-connect-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <span class="close-button">&times;</span>
-                <h2 id="modal-title">Connect to Broker</h2>
+    <!-- Fixed Header / Nav Bar -->
+    <header class="header fixed-top">
+        <div class="header-content">
+            <div class="d-flex align-items-center gap-2">
+                <button class="btn-icon-only" id="hamburger-btn" type="button"
+                    data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas"
+                    aria-controls="sidebarOffcanvas" aria-label="Open menu"
+                    style="background:none;border:none;color:var(--primary-color);cursor:pointer;padding:0.25rem;">
+                    <i class="fas fa-bars fa-lg"></i>
+                </button>
+                <a href="/" class="nav-logo">
+                    <i class="fas fa-robot float"></i>
+                    <span>Custodian AI</span>
+                </a>
             </div>
-            <div class="modal-body">
-                <!-- Step 1: PAN + Mobile -->
-                <div id="step-1" class="step active">
-                    <div class="form-group">
-                        <label for="pan-number">PAN Card Number</label>
-                        <input type="text" id="pan-number" placeholder="Enter your PAN">
-                    </div>
-                    <div class="form-group">
-                        <label for="mobile-number">Registered Mobile Number</label>
-                        <input type="text" id="mobile-number" placeholder="Enter your mobile number">
-                    </div>
-                    <button id="send-otp-btn" class="btn btn-primary w-100">Send OTP</button>
+            <div class="dropdown">
+                <button class="btn p-0 dropdown-toggle" type="button"
+                    id="userProfileDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+                    style="background:none;border:1px solid var(--primary-color);border-radius:4px;padding:0.4rem 0.75rem !important;display:flex;align-items:center;gap:0.4rem;color:var(--primary-color);font-weight:600;font-size:0.875rem;">
+                    <i class="fas fa-user-circle me-1"></i>
+                    <span id="user-display-name">User</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userProfileDropdown"
+                    style="background:var(--secondary-bg);border:1px solid var(--primary-color);min-width:180px;">
+                    <li><a class="dropdown-item" href="/dashboard" style="color:var(--primary-color);font-size:0.875rem;"><i class="fas fa-brain me-2"></i>AI Dashboard</a></li>
+                    <li><a class="dropdown-item" href="/payment.html" style="color:var(--warning-color);font-size:0.875rem;"><i class="fas fa-crown me-2"></i>My Plan</a></li>
+                    <li><hr class="dropdown-divider" style="border-color:var(--border-color);"></li>
+                    <li id="guest-login-item">
+                        <a class="dropdown-item" href="/api/v1/auth/google" style="color:var(--success-color);font-size:0.875rem;"><i class="fab fa-google me-2"></i>Sign In with Google</a>
+                    </li>
+                    <li id="logout-item" style="display:none;">
+                        <button class="dropdown-item" style="color:#f87171;font-size:0.875rem;" onclick="logout()"><i class="fas fa-sign-out-alt me-2"></i>Logout</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <div class="content-area" style="padding-top:0;">
+        <div class="coming-soon-hero">
+            <div class="coming-soon-icon"><i class="fas fa-chart-line"></i></div>
+            <h2 style="color:var(--primary-color);margin-bottom:1rem;">Finance AI Dashboard</h2>
+            <p class="text-secondary" style="font-size:1.1rem;margin-bottom:1.5rem;">
+                AI-powered financial analysis with real-time market data, technical indicators, fundamental analysis, and intelligent trading insights — all in one place.
+            </p>
+            <span class="badge bg-warning text-dark px-3 py-2" style="font-size:1rem;">🚀 Coming Soon</span>
+
+            <div class="feature-preview-grid">
+                <div class="feature-preview-card">
+                    <i class="fas fa-chart-bar"></i>
+                    <strong>Real-Time Charts</strong>
+                    <p class="text-muted small mt-1">Live market data with TradingView professional charts</p>
                 </div>
-                <!-- Step 2: OTP -->
-                <div id="step-2" class="step">
-                    <p>Enter the OTP sent to your mobile number.</p>
-                    <div class="form-group">
-                        <label for="otp-code">OTP</label>
-                        <input type="text" id="otp-code" placeholder="Enter OTP">
-                    </div>
-                    <button id="verify-otp-btn" class="btn btn-primary w-100">Verify & Connect</button>
+                <div class="feature-preview-card">
+                    <i class="fas fa-microchip"></i>
+                    <strong>AI Analysis</strong>
+                    <p class="text-muted small mt-1">Technical & fundamental analysis powered by AI agents</p>
                 </div>
-                 <!-- Step 3: Status -->
-                <div id="step-3" class="step">
-                    <p id="connection-status-message">Connecting...</p>
+                <div class="feature-preview-card">
+                    <i class="fas fa-robot"></i>
+                    <strong>Strategy Studio</strong>
+                    <p class="text-muted small mt-1">Build, backtest, and deploy trading strategies</p>
                 </div>
+                <div class="feature-preview-card">
+                    <i class="fas fa-shield-alt"></i>
+                    <strong>Paper Trading</strong>
+                    <p class="text-muted small mt-1">Practice risk-free with simulated trading environment</p>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <a href="/dashboard" class="btn btn-outline-info me-2"><i class="fas fa-brain me-2"></i>Try AI Dashboard</a>
+                <a href="/" class="btn btn-outline-secondary"><i class="fas fa-home me-2"></i>Back to Home</a>
             </div>
         </div>
     </div>
+</div>
 
-    <script src="/static/js/shared.js"></script>
-    <script src="/static/js/app.js"></script>
-    <script src="/static/js/finance.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/static/js/shared.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.addEventListener('click', function(e) {
+            var offcanvasEl = document.getElementById('sidebarOffcanvas');
+            var hamburgerBtn = document.getElementById('hamburger-btn');
+            var offcanvasInstance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+            if (!offcanvasInstance) return;
+            if (!offcanvasEl.contains(e.target) && hamburgerBtn && !hamburgerBtn.contains(e.target)) {
+                offcanvasInstance.hide();
+            }
+        });
+    });
+    async function logout() {
+        try { await fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'include' }); } catch(e) {}
+        localStorage.removeItem('custodian_user');
+        window.location.href = '/';
+    }
+</script>
 </body>
 </html>

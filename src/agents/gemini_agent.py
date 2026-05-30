@@ -12,7 +12,7 @@ MCP Tool Calling:
 import httpx
 import json
 import os
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, AsyncGenerator
 from datetime import datetime
 
 from src.agents.base_agent import BaseAgent, AgentMessage, AgentStatus, AgentType, AgentCapability
@@ -250,6 +250,127 @@ class GeminiAgent(BaseAgent):
                 "agent_id": self.agent_id,
                 "agent_name": self.name
             }
+
+    async def stream_response(
+        self,
+        system_prompt: str,
+        user_message: str,
+        context: Dict[str, Any] = None,
+        max_tokens: int = 4096,
+        temperature: float = 0.7
+    ) -> AsyncGenerator[str, None]:
+        """
+        Stream responses from Gemini API in real-time.
+        
+        Args:
+            system_prompt: System prompt to guide the model
+            user_message: User's message
+            context: Additional context
+            max_tokens: Maximum tokens to generate
+            temperature: Temperature for sampling
+            
+        Yields:
+            Text chunks from the model
+        """
+        try:
+            api_key = self._get_api_key()
+            if not api_key:
+                yield "Error: GEMINI_API_KEY not configured"
+                return
+
+            model = self._get_model()
+            
+            # Build contents
+            full_prompt = f"{system_prompt}\n\nUser Request: {user_message}"
+            contents = [{"role": "user", "parts": [{"text": full_prompt}]}]
+            
+            # Build payload with streaming enabled
+            api_url = f"/models/{model}:streamGenerateContent?key={api_key}"
+            
+            payload = {
+                "contents": contents,
+                "generationConfig": {
+                    "maxOutputTokens": max_tokens,
+                    "temperature": temperature,
+                    "topP": 0.95,
+                    "topK": 40
+                }
+            }
+
+            self.logger.info(f"Starting Gemini stream with model: {model}")
+            
+            async with self.api_client.stream(
+                "POST",
+                api_url,
+                json=payload,
+                timeout=60.0
+            ) as response:
+                if response.status_code != 200:
+                    error_text = await response.aread()
+                    self.logger.error(f"Gemini API error: {response.status_code} - {error_text}")
+                    yield f"Error: Gemini API returned {response.status_code}"
+                    return
+
+                # Process streaming response
+                chunk_count = 0
+                async for line in response.aiter_lines():
+                    if line.strip():
+                        try:
+                            # Gemini returns newline-delimited JSON
+                            data = json.loads(line)
+                            
+                            # Extract text from candidates
+                            if "candidates" in data and len(data["candidates"]) > 0:
+                                for part in data["candidates"][0].get("content", {}).get("parts", []):
+                                    if "text" in part:
+                                        text = part["text"]
+                                        if text:
+                                            chunk_count += 1
+                                            yield text
+                            
+                            # Check for finish reason
+                            if data["candidates"][0].get("finishReason") in ["STOP", "MAX_TOKENS"]:
+                                break
+                        except json.JSONDecodeError as e:
+                            self.logger.warning(f"Failed to parse JSON: {e}")
+                            continue
+
+                self.logger.info(f"Gemini stream completed ({chunk_count} chunks)")
+
+        except Exception as e:
+            self.logger.error(f"Gemini stream failed: {str(e)}")
+            yield f"Error streaming from Gemini: {str(e)}"
+
+    async def stream_message(self, message: AgentMessage) -> AsyncGenerator[str, None]:
+        """
+        Stream a response to an incoming message using Gemini.
+        
+        Args:
+            message: The incoming agent message
+            
+        Yields:
+            Text chunks from the response
+        """
+        self.update_status(AgentStatus.BUSY)
+        
+        try:
+            system_prompt = self._get_system_prompt()
+            history = message.metadata.get("history", [])
+            context = message.metadata.get("context", {})
+            
+            async for chunk in self.stream_response(
+                system_prompt=system_prompt,
+                user_message=message.content,
+                context=context
+            ):
+                yield chunk
+            
+            self.update_status(AgentStatus.IDLE)
+            
+        except Exception as e:
+            self.logger.error(f"Error streaming message: {str(e)}")
+            self.update_status(AgentStatus.ERROR)
+            yield f"Error: {str(e)}"
 
     def _get_system_prompt(self) -> str:
         """Get system prompt based on agent specialization."""

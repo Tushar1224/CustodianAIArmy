@@ -3,7 +3,7 @@ Base Agent class for Custodian AI Army
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, AsyncGenerator
 from enum import Enum
 import uuid
 from datetime import datetime
@@ -83,6 +83,21 @@ class BaseAgent(ABC):
     async def execute_task(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a specific task"""
         pass
+    
+    async def stream_message(self, message: AgentMessage) -> AsyncGenerator[str, None]:
+        """
+        Stream a response to an incoming message.
+        Override this method in subclasses to provide streaming support.
+        
+        Args:
+            message: The incoming agent message
+            
+        Yields:
+            Text chunks from the response
+        """
+        # Default implementation: just process normally and yield the result
+        response = await self.process_message(message)
+        yield response.content
     
     def add_sub_agent(self, sub_agent: 'BaseAgent') -> None:
         """Add a sub-agent to this agent"""

@@ -104,11 +104,47 @@ document.addEventListener('DOMContentLoaded', () => {
             fileTreeEl.innerHTML = '<div class="empty-state">No files yet.</div>';
             return;
         }
-        // This is a simplified tree view. A more robust implementation would handle nested directories.
-        fileTreeEl.innerHTML = files.map(file => 
+        fileTreeEl.innerHTML = files.map(file =>
             `<div class="file-item" data-path="${file}"><i class="fas fa-file-code"></i> ${file}</div>`
         ).join('');
+
+        document.querySelectorAll('.file-item').forEach(item => {
+            item.addEventListener('click', async () => {
+                const path = item.dataset.path;
+                await loadFileContent(path);
+            });
+        });
     };
+
+    const loadFileContent = async (path) => {
+        if (!state.session) return;
+        try {
+            const resp = await fetch('/api/v1/mvp/session/' + state.session.session_id + '/file?path=' + encodeURIComponent(path), { credentials: 'include' });
+            const result = await resp.json();
+            if (result.success) {
+                const existing = document.querySelector('.tab[data-path="' + path + '"]');
+                if (existing) {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    existing.classList.add('active');
+                } else {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    const tab = document.createElement('div');
+                    tab.className = 'tab active';
+                    tab.dataset.path = path;
+                    tab.innerHTML = '<span>' + path.split('/').pop() + '</span><button class="tab-close" onclick="event.stopPropagation(); this.parentElement.remove();"><i class=\"fas fa-times\"></i></button>';
+                    editorTabsEl.appendChild(tab);
+                }
+                editorContentEl.innerHTML = '<pre><code>' + escHtml(result.content) + '</code></pre>';
+                state.currentFile = path;
+            }
+        } catch (error) {
+            addLog('Error loading file: ' + error.message, 'error');
+        }
+    };
+
+    const escHtml = (str) => { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; };
+
+
 
     // --- GitHub Connection ---
     
@@ -127,9 +163,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
     };
 
+    const showGitHubFallbackModal = () => {
+        const fallbackModal = document.getElementById('githubFallbackModal');
+        if (fallbackModal) {
+            const bsModal = new bootstrap.Modal(fallbackModal);
+            bsModal.show();
+        }
+    };
+
     const handleGitHubAuthPopup = (sessionId) => {
         if (!sessionId) {
             addLog("Session ID is required to initiate GitHub auth.", "error");
+            showToast("Session error. Please refresh and try again.", "error");
             return;
         }
 
@@ -137,9 +182,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const authUrl = `/api/v1/auth/github/login?session_id=${sessionId}`;
         const popup = window.open(authUrl, 'github-auth', 'width=600,height=700');
 
+        // Check if popup was blocked
+        if (!popup || popup.closed) {
+            addLog("Popup was blocked by your browser. Please allow popups and try again.", "error");
+            showToast("⚠️ Please allow popups for GitHub authentication", "warning");
+            showGitHubFallbackModal(); // Show manual auth fallback
+            return;
+        }
+
         const handleMessage = async (event) => {
-            // Security: Accept messages from our origin or from the popup itself
-            // When running locally or on Vercel, the origin should match
+            // Security: Accept messages from our origin
             console.log('Received postMessage event:', event.origin, event.data);
             
             const { data } = event;
@@ -162,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.addEventListener('message', handleMessage, false);
         
-        // Also check if popup was blocked or closed without completing
+        // Check if popup was blocked or closed without completing
         const checkPopup = setInterval(() => {
             if (popup && popup.closed) {
                 clearInterval(checkPopup);
@@ -269,6 +321,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         document.getElementById('github-disconnect-btn')?.addEventListener('click', disconnectGitHub);
     };
+                const createRepoBtn = document.getElementById('create-repo-btn');
+                if (createRepoBtn) createRepoBtn.addEventListener('click', createNewRepo);
 
     const cloneSelectedRepo = async (repoName) => {
         addLog(`Cloning repository ${repoName}...`, "info");
@@ -325,7 +379,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 githubConnectorContainer.innerHTML = `
                     <div class="github-connected-state">
                         <p><i class="fab fa-github"></i> Connected as <strong>${state.session.github_username}</strong></p>
-                        <p class="text-muted small">Building from scratch</p>
+                        <p class="text-muted small">No repo selected</p>
+                        <button id="create-repo-btn" class="btn btn-sm btn-outline-success w-100 mt-2"><i class="fas fa-plus-circle"></i> Create New Repo</button>
                         <button id="github-disconnect-btn" class="btn-text-danger">Disconnect</button>
                     </div>
                 `;
@@ -340,14 +395,24 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('github-connect-btn').addEventListener('click', async () => {
                 const isAuthed = await checkUserAuthBeforeGithubConnect();
                 if (isAuthed) {
-                    // Create a session if one doesn't exist
-                    if (!state.session) {
+                    // Ensure session exists
+                    if (!state.session || !state.session.session_id) {
                         const tempIdea = "New Product";
-                        await createNewSession(tempIdea);
+                        try {
+                            await createNewSession(tempIdea);
+                            if (!state.session || !state.session.session_id) {
+                                showToast("Failed to create session. Please refresh and try again.", "error");
+                                return;
+                            }
+                        } catch (error) {
+                            addLog(`Error creating session: ${error.message}`, "error");
+                            showToast("Session creation failed. Please refresh.", "error");
+                            return;
+                        }
                     }
-                    if (state.session && state.session.session_id) {
-                        handleGitHubAuthPopup(state.session.session_id);
-                    }
+                    
+                    // Now open popup with valid session ID
+                    handleGitHubAuthPopup(state.session.session_id);
                 }
             });
         }
@@ -400,6 +465,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Auto-initialize session on page load (if user is authenticated)
+    const autoInitializeSession = async () => {
+        // Only initialize if user is logged in and no session exists
+        if (!window.currentUser || !window.currentUser.email || state.session) {
+            return;
+        }
+        
+        try {
+            addLog("Initializing default session...", "info");
+            await createNewSession("My Product");
+            addLog("Session ready for GitHub connection.", "success");
+        } catch (error) {
+            addLog(`Note: Session initialization skipped (${error.message})`, "warning");
+        }
+    };
+
     const sendMessage = async () => {
         const message = cliInput.value.trim();
         if (!message || state.isSending) return;
@@ -439,6 +520,15 @@ document.addEventListener('DOMContentLoaded', () => {
             sendBtn.disabled = false;
             agentStatus.innerHTML = '<i class="fas fa-circle text-success"></i> Ready';
         }
+    runPreviewBtn.addEventListener('click', async () => {
+        if (!state.session) {
+            showToast('Start a project first by describing your product idea.', 'warning');
+            return;
+        }
+        window.open('/api/v1/mvp/session/' + state.session.session_id + '/preview', '_blank');
+        addLog('Opening preview in new tab...', 'info');
+    });
+
     };
 
     // --- Event Listeners ---
@@ -458,6 +548,21 @@ document.addEventListener('DOMContentLoaded', () => {
             state.mode = btn.dataset.mode;
             addLog(`Switched to ${state.mode.toUpperCase()} mode.`, "system");
         });
+    });
+
+    runPreviewBtn.addEventListener('click', async () => {
+        if (!state.session) {
+            showToast('Start a project first by describing your product idea.', 'warning');
+            return;
+        }
+        try {
+            const previewUrl = `/api/v1/mvp/session/${state.session.session_id}/preview`;
+            // Open in a new tab
+            window.open(previewUrl, '_blank');
+            addLog('Opening preview in new tab...', 'info');
+        } catch (error) {
+            addLog(`Error opening preview: ${error.message}`, "error");
+        }
     });
 
     newProjectBtn.addEventListener('click', () => {
@@ -489,5 +594,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial load
     addLog("MVP Builder UI Initialized.", "system");
-    updateGitHubConnector(); // Initial render of the button
+    
+    // Wait for currentUser to be available from shared.js
+    const waitForUserThenInit = async () => {
+        let attempts = 0;
+        while (!window.currentUser && attempts < 50) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+        
+        if (window.currentUser && window.currentUser.email) {
+            // User is authenticated - auto-create session
+            await autoInitializeSession();
+        }
+        
+        // Always render GitHub connector button (it will show error if session missing)
+        updateGitHubConnector();
+    };
+    
+    waitForUserThenInit();
 });

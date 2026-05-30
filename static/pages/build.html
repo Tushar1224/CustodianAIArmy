@@ -112,6 +112,38 @@
             </div>
         </div>
     </div>
+
+    <!-- GitHub Popup Fallback Modal (if popup is blocked) -->
+    <div class="modal fade" id="githubFallbackModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background-color: var(--secondary-bg); color: var(--text-primary); border-color: var(--border-color);">
+                <div class="modal-header border-bottom" style="border-color: var(--border-color) !important;">
+                    <h5 class="modal-title"><i class="fab fa-github"></i> GitHub Authentication - Manual Setup</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Your browser blocked the GitHub popup. Use one of these alternatives:</p>
+                    
+                    <div class="mb-4">
+                        <h6 class="mb-2">Option 1: Allow Popups (Recommended)</h6>
+                        <ol class="small text-muted">
+                            <li>Click the popup blocked icon in your browser's address bar</li>
+                            <li>Select "Always allow popups on this site"</li>
+                            <li>Click "Connect GitHub" again</li>
+                        </ol>
+                    </div>
+                    
+                    <div>
+                        <h6 class="mb-2">Option 2: Open GitHub Authorization Manually</h6>
+                        <button id="manual-github-auth-btn" class="btn btn-outline-primary btn-sm w-100">
+                            <i class="fab fa-github"></i> Open GitHub Authorization
+                        </button>
+                        <p class="small text-muted mt-2">You'll be redirected to GitHub to authorize this app. Come back and refresh this page afterwards.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <div class="mvp-builder-container">
         <!-- Left Panel -->
@@ -253,7 +285,19 @@
 <script src="/static/js/shared.js"></script>
 <script src="/static/js/build.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded',function(){
+// Handle manual GitHub auth button in fallback modal
+document.addEventListener('DOMContentLoaded', function() {
+    const manualAuthBtn = document.getElementById('manual-github-auth-btn');
+    if (manualAuthBtn) {
+        manualAuthBtn.addEventListener('click', () => {
+            // Get session ID from build.js state (exposed in global scope)
+            const sessionId = (typeof state !== 'undefined' && state && state.session) ? state.session.session_id : 'unknown';
+            const authUrl = `/api/v1/auth/github/login?session_id=${sessionId}`;
+            window.open(authUrl, '_blank');
+        });
+    }
+    
+    // Original theme and sidebar logic
     document.documentElement.setAttribute('data-theme','dark');
     document.addEventListener('click',function(e){
         var oc=document.getElementById('sidebarOffcanvas'),hb=document.getElementById('hamburger-btn'),oi=bootstrap.Offcanvas.getInstance(oc);

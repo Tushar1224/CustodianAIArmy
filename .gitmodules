@@ -1,12 +1,3 @@
-[submodule "dependencies/Programming-Slides"]
-	path = dependencies/Programming-Slides
-	url = https://github.com/Tushar120799/Programming-Slides.git
-[submodule "dependencies/BMAD-METHOD"]
-	path = dependencies/BMAD-METHOD
-	url = https://github.com/Tushar1224/BMAD-METHOD.git
-[submodule "dependencies/claudecode"]
-	path = dependencies/claudecode
-	url = https://github.com/Tushar120799/claudecode.git
 [submodule "Reinforced_MVP_Developer"]
 	path = Reinforced_MVP_Developer
 	url = https://github.com/Tushar1224/Reinforced_MVP_Developer.git

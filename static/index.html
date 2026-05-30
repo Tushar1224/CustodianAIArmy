@@ -85,6 +85,10 @@
                             <span class="stat-label d-block">System Status</span>
                             <span class="stat-value status-online d-block" id="system-status">Online</span>
                         </div>
+                        <div class="stat-item text-center">
+                            <span class="stat-label d-block">Provider</span>
+                            <span class="stat-value d-block" id="current-provider" style="color:var(--danger-color);">Bedrock</span>
+                        </div>
                     </div>
                     
                     <!-- User Profile Dropdown -->
@@ -139,7 +143,7 @@
                         <a class="nav-link nav-item" data-section="portfolio" href="/?section=portfolio"><i class="fab fa-github me-2"></i>Portfolio Builder</a>
                         <a class="nav-link nav-item" data-section="build" href="/?section=build"><i class="fas fa-cubes me-2"></i>Build Your Product</a>
                         <a class="nav-link nav-item" data-section="agents" href="/agents"><i class="fas fa-users-cog me-2"></i>Custom Agents</a>
-                        <a class="nav-link nav-item" data-section="finance" href="/finance"><i class="fas fa-chart-line me-2"></i>Finance AI</a>
+
                         <a class="nav-link nav-item" data-section="pricing" href="/#pricing"><i class="fas fa-tag me-2"></i>Pricing</a>
                         <a class="nav-link nav-item" data-section="coming-soon" href="/#coming-soon"><i class="fas fa-road me-2"></i>Coming Soon</a>
                     </nav>
@@ -217,6 +221,16 @@
                                 <button id="change-agent-btn" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#agentSelectModal">
                                     <i class="fas fa-users"></i>
                                 </button>
+                                <div class="dropdown provider-switcher">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" id="providerDropdown" title="Switch provider">
+                                        <span id="providerDropdownIcon"><i class="fab fa-google"></i></span>
+                                        <span id="providerDropdownLabel">Gemini</span>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="#" data-provider="gemini" onclick="window.app && window.app.switchToProvider('gemini')"><i class="fab fa-google me-1"></i>Gemini</a></li>
+                                        <li><a class="dropdown-item" href="#" data-provider="anthropic" onclick="window.app && window.app.switchToProvider('anthropic')"><i class="fas fa-brain me-1"></i>Claude</a></li>
+                                    </ul>
+                                </div>
                                 <textarea id="chat-input" placeholder="Type your message..." disabled rows="1"></textarea>
                                 <button id="send-btn" onclick="sendMessage()" disabled>
                                     <i class="fas fa-paper-plane"></i>
@@ -600,7 +614,7 @@ print(f'Hello, {name}!')
                         <ul class="text-muted small mb-3">
                             <li><strong>Free plan:</strong> 20 requests/day</li>
                             <li><strong>Pro plan:</strong> 50 requests/day</li>
-                            <li>Access to all providers: Gemini, Claude &amp; NIM</li>
+                            <li>Access to all providers: Gemini, Claude &amp; Amazon Bedrock</li>
                         </ul>
                         <button class="btn btn-warning text-dark w-100 fw-bold mb-2" onclick="bootstrap.Modal.getInstance(document.getElementById('rateLimitModal'))?.hide(); setTimeout(() => window.app && window.app.openPaymentPage(), 300);">
                             <i class="fas fa-crown me-2"></i>Upgrade to Pro — $9.99/mo
@@ -644,7 +658,7 @@ print(f'Hello, {name}!')
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
-    <script src="/static/js/app.js?v=11"></script>
+    <script src="/static/js/app.js?v=13"></script>
     
     <!-- API Keys Modal -->
     <div class="modal fade" id="apiKeysModal" tabindex="-1" aria-labelledby="apiKeysModalLabel" aria-hidden="true">
@@ -676,10 +690,7 @@ print(f'Hello, {name}!')
                             <button class="btn btn-sm btn-outline-warning" onclick="window.app && window.app.switchToProvider('anthropic')" title="Switch to Anthropic Claude agents">
                                 <i class="fas fa-brain me-1"></i>Claude
                             </button>
-                            <button class="btn btn-sm btn-outline-success" onclick="window.app && window.app.switchToProvider('nim')" title="Switch to NVIDIA NIM agents">
-                                <i class="fas fa-microchip me-1"></i>NIM
-                            </button>
-                        </div>
+
                     </div>
 
                     <p class="text-muted small mb-4">
@@ -733,28 +744,16 @@ print(f'Hello, {name}!')
                             </div>
                         </div>
                     </div>
-
-                    <!-- NVIDIA NIM API Key -->
-                    <div class="card bg-dark border-secondary mb-3">
+                    <div class="card mb-3" style="background:var(--tertiary-bg, #1a1a1a);border-color:var(--border-color, #444);">
                         <div class="card-body">
                             <div class="d-flex align-items-center mb-2">
-                                <span class="badge bg-success text-dark me-2">NVIDIA</span>
-                                <h6 class="mb-0 text-info">NIM API Key <span class="badge bg-success ms-1">FREE Tier</span></h6>
-                                <span id="nim-key-status" class="ms-auto badge bg-secondary">Using server default</span>
-                            </div>
-                            <p class="text-muted small mb-2">
-                                Get your <strong>FREE</strong> key at <a href="https://build.nvidia.com" target="_blank" class="text-info">build.nvidia.com</a>
-                                &nbsp;— 1000 free credits/month. Runs Llama 3.3 70B, DeepSeek R1, and more.
-                            </p>
-                            <div class="input-group">
-                                <input type="password" class="form-control bg-dark text-white border-secondary" id="nim-key-input" placeholder="nvapi-...">
-                                <button class="btn btn-outline-info" onclick="saveApiKey('nim')">
-                                    <i class="fas fa-save me-1"></i>Save
-                                </button>
-                                <button class="btn btn-outline-danger" onclick="deleteApiKey('nim')">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
+                                <span class="badge bg-success text-dark me-2">AWS</span>
+                                <h6 class="mb-0 text-info">Bedrock API Key</h6>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
                         </div>
                     </div>
 
@@ -930,3 +929,5 @@ print(f'Hello, {name}!')
 
 </file_content>
 </write_to_file>
+
+

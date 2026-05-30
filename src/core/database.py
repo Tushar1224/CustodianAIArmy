@@ -5,9 +5,12 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional, Iterator
 import os
 
-# Use /tmp for serverless environments (Vercel, AWS Lambda, etc.)
-# Vercel only allows writing to /tmp directory
-DB_PATH = os.getenv('DATABASE_PATH', '/tmp/chat_history.db')
+if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+    default_db_path = "/tmp/chat_history.db"
+else:
+    default_db_path = os.path.abspath("chat_history.db")
+
+DB_PATH = os.getenv("DATABASE_PATH", default_db_path)
 
 def init_db():
     try:
@@ -118,28 +121,6 @@ def init_db():
             )
         ''')
 
-        # User Strategies table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS user_strategies (
-                id TEXT PRIMARY KEY,
-                user_email TEXT NOT NULL,
-                name TEXT NOT NULL,
-                description TEXT,
-                content TEXT NOT NULL,
-                is_prebuilt INTEGER DEFAULT 0,
-                last_updated TEXT NOT NULL
-            )
-        ''')
-
-        # Paper Trading Portfolios table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS paper_portfolios (
-                user_email TEXT PRIMARY KEY,
-                portfolio_data TEXT NOT NULL,
-                last_updated TEXT NOT NULL
-            )
-        ''')
-
         conn.commit()
         conn.close()
         print(f"Database initialized at {DB_PATH}")
@@ -223,7 +204,7 @@ def get_user_api_keys(user_email: str) -> Dict[str, Any]:
     conn = sqlite3.connect(DB_PATH, timeout=20)
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT gemini_api_key, anthropic_api_key, nim_api_key, last_updated
+        SELECT gemini_api_key, anthropic_api_key, last_updated
         FROM user_api_keys
         WHERE user_email = ?
     ''', (user_email,))
@@ -234,10 +215,8 @@ def get_user_api_keys(user_email: str) -> Dict[str, Any]:
         return {
             "gemini_api_key": None,
             "anthropic_api_key": None,
-            "nim_api_key": None,
             "has_gemini": False,
             "has_anthropic": False,
-            "has_nim": False,
             "last_updated": None
         }
 
@@ -251,11 +230,9 @@ def get_user_api_keys(user_email: str) -> Dict[str, Any]:
     return {
         "gemini_api_key": mask_key(row[0]),
         "anthropic_api_key": mask_key(row[1]),
-        "nim_api_key": mask_key(row[2]),
         "has_gemini": bool(row[0]),
         "has_anthropic": bool(row[1]),
-        "has_nim": bool(row[2]),
-        "last_updated": row[3]
+        "last_updated": row[2]
     }
 
 
@@ -264,7 +241,7 @@ def get_user_api_keys_raw(user_email: str) -> Dict[str, Optional[str]]:
     conn = sqlite3.connect(DB_PATH, timeout=20)
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT gemini_api_key, anthropic_api_key, nim_api_key
+        SELECT gemini_api_key, anthropic_api_key
         FROM user_api_keys
         WHERE user_email = ?
     ''', (user_email,))
@@ -272,12 +249,11 @@ def get_user_api_keys_raw(user_email: str) -> Dict[str, Optional[str]]:
     conn.close()
 
     if not row:
-        return {"gemini_api_key": None, "anthropic_api_key": None, "nim_api_key": None}
+        return {"gemini_api_key": None, "anthropic_api_key": None}
 
     return {
         "gemini_api_key": row[0],
-        "anthropic_api_key": row[1],
-        "nim_api_key": row[2]
+        "anthropic_api_key": row[1]
     }
 
 
@@ -296,7 +272,6 @@ def save_user_api_keys(user_email: str, keys: Dict[str, Optional[str]]) -> bool:
         existing = cursor.fetchone()
 
         if existing:
-            # Update only provided keys (None means "don't change")
             new_gemini = keys.get("gemini_api_key", None)
             new_anthropic = keys.get("anthropic_api_key", None)
             new_nim = keys.get("nim_api_key", None)
@@ -305,7 +280,6 @@ def save_user_api_keys(user_email: str, keys: Dict[str, Optional[str]]) -> bool:
             final_anthropic = new_anthropic if new_anthropic is not None else existing[1]
             final_nim = new_nim if new_nim is not None else existing[2]
 
-            # Empty string means "clear the key"
             final_gemini = None if final_gemini == "" else final_gemini
             final_anthropic = None if final_anthropic == "" else final_anthropic
             final_nim = None if final_nim == "" else final_nim
@@ -334,7 +308,7 @@ def save_user_api_keys(user_email: str, keys: Dict[str, Optional[str]]) -> bool:
 
 def delete_user_api_key(user_email: str, provider: str) -> bool:
     """Delete a specific provider's API key for a user"""
-    valid_providers = {"gemini": "gemini_api_key", "anthropic": "anthropic_api_key", "nim": "nim_api_key"}
+    valid_providers = {"gemini": "gemini_api_key", "anthropic": "anthropic_api_key"}
     if provider not in valid_providers:
         return False
 
@@ -361,9 +335,9 @@ def delete_user_api_key(user_email: str, provider: str) -> bool:
 # ─────────────────────────────────────────────────────────────────────────────
 
 PLAN_LIMITS = {
-    "guest": {"daily_limit": 3,  "providers": ["nim"]},
-    "free":  {"daily_limit": 20, "providers": ["gemini", "anthropic", "nim"]},
-    "pro":   {"daily_limit": 50, "providers": ["gemini", "anthropic", "nim"]},
+    "guest": {"daily_limit": 3,  "providers": ["gemini", "anthropic"]},
+    "free":  {"daily_limit": 20, "providers": ["gemini", "anthropic"]},
+    "pro":   {"daily_limit": 50, "providers": ["gemini", "anthropic"]},
 }
 
 
@@ -627,108 +601,6 @@ def get_user_github_repo_permissions(user_email: str) -> List[Dict[str, Any]]:
         {"repo_name": row[0], "permission_granted": bool(row[1]), "last_updated": row[2]}
         for row in rows
     ]
-
-# ─────────────────────────────────────────────────────────────────────────────
-# FINANCE DASHBOARD FUNCTIONS
-# ─────────────────────────────────────────────────────────────────────────────
-
-def get_user_paper_portfolio(user_email: str) -> Dict[str, Any]:
-    """
-    Retrieves a user's paper trading portfolio from the database.
-    If no portfolio exists, creates and returns a default one.
-    """
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT portfolio_data FROM paper_portfolios WHERE user_email = ?", (user_email,))
-    row = cursor.fetchone()
-    conn.close()
-
-    if row:
-        return json.loads(row[0])
-    else:
-        # Return a default portfolio structure for new users
-        return {
-            "cash": 100000.00,
-            "positions": {}
-        }
-
-def save_user_paper_portfolio(user_email: str, portfolio_data: Dict[str, Any]):
-    """
-    Saves a user's paper trading portfolio to the database.
-    """
-    conn = get_db()
-    cursor = conn.cursor()
-    now = datetime.utcnow().isoformat()
-    portfolio_json = json.dumps(portfolio_data)
-
-    cursor.execute('''
-        INSERT INTO paper_portfolios (user_email, portfolio_data, last_updated)
-        VALUES (?, ?, ?)
-        ON CONFLICT(user_email) DO UPDATE SET
-            portfolio_data=excluded.portfolio_data,
-            last_updated=excluded.last_updated
-    ''', (user_email, portfolio_json, now))
-
-    conn.commit()
-    conn.close()
-
-# ─────────────────────────────────────────────────────────────────────────────
-# STRATEGY STUDIO FUNCTIONS
-# ─────────────────────────────────────────────────────────────────────────────
-
-def save_user_strategy(user_email: str, strategy_data: Dict[str, Any]) -> str:
-    """
-    Saves or updates a user's trading strategy in the database.
-    """
-    conn = get_db()
-    cursor = conn.cursor()
-    now = datetime.utcnow().isoformat()
-
-    strategy_id = strategy_data.get("id") or str(uuid.uuid4())
-
-    cursor.execute('''
-        INSERT INTO user_strategies (id, user_email, name, description, content, last_updated)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-            name=excluded.name,
-            description=excluded.description,
-            content=excluded.content,
-            last_updated=excluded.last_updated
-    ''', (
-        strategy_id,
-        user_email,
-        strategy_data.get("name", "Untitled Strategy"),
-        strategy_data.get("description", ""),
-        strategy_data.get("content", ""),
-        now
-    ))
-
-    conn.commit()
-    conn.close()
-    return strategy_id
-
-def get_user_strategies(user_email: str) -> List[Dict[str, Any]]:
-    """
-    Retrieves all strategies for a given user from the database.
-    """
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT id, name, description, content, is_prebuilt, last_updated FROM user_strategies WHERE user_email = ? OR is_prebuilt = 1 ORDER BY name",
-        (user_email,)
-    )
-    rows = cursor.fetchall()
-    conn.close()
-
-    return [{
-        "id": row[0],
-        "name": row[1],
-        "description": row[2],
-        "content": row[3],
-        "is_prebuilt": bool(row[4]),
-        "last_updated": row[5]
-    } for row in rows]
-
 
 # Initialize the database when this module is loaded
 try:

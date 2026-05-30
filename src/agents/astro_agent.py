@@ -29,7 +29,4 @@ class AstroAgent(GeminiAgent):
         # Implement Astro Bot's general message handling logic here.
         # This could include intent recognition for navigation, general Q&A, etc.
         response_content = f"AstroBot received your message: '{message.content}'. I am a general assistant. How can I help you today?"
-        if "finance dashboard" in message.content.lower():
-            response_content += "\n\nNavigating to Finance Dashboard..."
-            # In a real implementation, this would trigger a client-side navigation.
         return self.create_response(message, response_content)

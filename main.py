@@ -85,21 +85,25 @@ async def build_page():
 async def payment_page():
     return FileResponse("static/payment.html")
 
+
+@app.get("/finance")
+async def finance_page():
+    """Serve the Finance AI page (placeholder)"""
+    return FileResponse("static/pages/finance.html")
+
+
 @app.get("/agents")
 async def agents_page():
     """Serve the Custom Agents page"""
     return FileResponse("static/pages/customagents.html")
 
-@app.get("/finance")
-async def finance_page():
-    """Serve the Finance AI page"""
-    return FileResponse("static/pages/finance.html")
 
 if __name__ == "__main__":
+    port = int(os.getenv("APP_PORT") or os.getenv("FASTAPI_PORT") or settings.APP_PORT)
     uvicorn.run(
         "main:app",
         host=settings.APP_HOST,
-        port=settings.APP_PORT,
-        reload=settings.DEBUG,
-        log_level=settings.LOG_LEVEL.lower()
+        port=port,
+        reload=settings.DEBUG is True,
     )
+

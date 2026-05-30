@@ -292,6 +292,20 @@ async def google_login():
     Initiate Google OAuth flow.
     Redirects user to Google's OAuth consent screen.
     """
+    if (
+        not settings.GOOGLE_CLIENT_ID
+        or not settings.GOOGLE_CLIENT_SECRET
+        or settings.GOOGLE_CLIENT_ID == "your_google_client_id_here"
+        or settings.GOOGLE_CLIENT_SECRET == "your_google_client_secret_here"
+    ):
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Google OAuth is not configured. Set GOOGLE_CLIENT_ID and "
+                "GOOGLE_CLIENT_SECRET in .env, then restart the server."
+            ),
+        )
+
     # Debug: print the credentials being used
     print(f"DEBUG: GOOGLE_CLIENT_ID = {settings.GOOGLE_CLIENT_ID}")
     print(f"DEBUG: GOOGLE_REDIRECT_URI = {settings.GOOGLE_REDIRECT_URI}")
