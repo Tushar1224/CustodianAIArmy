@@ -71,7 +71,6 @@ def init_db():
                 user_email TEXT PRIMARY KEY,
                 gemini_api_key TEXT,
                 anthropic_api_key TEXT,
-                nim_api_key TEXT,
                 last_updated TEXT NOT NULL
             )
         ''')
@@ -266,7 +265,7 @@ def save_user_api_keys(user_email: str, keys: Dict[str, Optional[str]]) -> bool:
 
         # Get existing keys first
         cursor.execute('''
-            SELECT gemini_api_key, anthropic_api_key, nim_api_key
+            SELECT gemini_api_key, anthropic_api_key
             FROM user_api_keys WHERE user_email = ?
         ''', (user_email,))
         existing = cursor.fetchone()
@@ -274,29 +273,25 @@ def save_user_api_keys(user_email: str, keys: Dict[str, Optional[str]]) -> bool:
         if existing:
             new_gemini = keys.get("gemini_api_key", None)
             new_anthropic = keys.get("anthropic_api_key", None)
-            new_nim = keys.get("nim_api_key", None)
 
             final_gemini = new_gemini if new_gemini is not None else existing[0]
             final_anthropic = new_anthropic if new_anthropic is not None else existing[1]
-            final_nim = new_nim if new_nim is not None else existing[2]
 
             final_gemini = None if final_gemini == "" else final_gemini
             final_anthropic = None if final_anthropic == "" else final_anthropic
-            final_nim = None if final_nim == "" else final_nim
 
             cursor.execute('''
                 UPDATE user_api_keys
-                SET gemini_api_key = ?, anthropic_api_key = ?, nim_api_key = ?, last_updated = ?
+                SET gemini_api_key = ?, anthropic_api_key = ?, last_updated = ?
                 WHERE user_email = ?
-            ''', (final_gemini, final_anthropic, final_nim, now, user_email))
+            ''', (final_gemini, final_anthropic, now, user_email))
         else:
             gemini = keys.get("gemini_api_key") or None
             anthropic = keys.get("anthropic_api_key") or None
-            nim = keys.get("nim_api_key") or None
             cursor.execute('''
-                INSERT INTO user_api_keys (user_email, gemini_api_key, anthropic_api_key, nim_api_key, last_updated)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (user_email, gemini, anthropic, nim, now))
+                INSERT INTO user_api_keys (user_email, gemini_api_key, anthropic_api_key, last_updated)
+                VALUES (?, ?, ?, ?)
+            ''', (user_email, gemini, anthropic, now))
 
         conn.commit()
         conn.close()

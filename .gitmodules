@@ -6,4 +6,4 @@
 	url = https://github.com/Tushar1224/Reinforced_MVP_Developer.git
 [submodule "dependencies/python-sdk"]
 	path = dependencies/python-sdk
-	url = https://github.com/Tushar120799/python-sdk.git
+	url = https://github.com/tushar1224/python-sdk.git

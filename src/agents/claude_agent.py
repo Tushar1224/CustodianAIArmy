@@ -539,17 +539,5 @@ class ClaudeAgent(BaseAgent):
         return "I reached the maximum number of tool-calling steps. Please try rephrasing your request."
 
     def _format_code_blocks(self, text: str) -> str:
-        """Ensure all code blocks are properly formatted."""
-        import re
-        if '```' in text:
-            code_blocks = [m for m in re.finditer(r'```[a-zA-Z]*\n[\s\S]*?```', text)]
-            if not code_blocks:
-                return text + "\n\n⚠️ Warning: The code block above appears incomplete."
-            return text
-        if re.search(r"def |class |import |print\(", text):
-            return f"```python\n{text}\n```"
-        if text.strip().startswith('{') and text.strip().endswith('}'):
-            return f"```json\n{text}\n```"
-        if re.search(r"<\w+>|SELECT |INSERT |UPDATE |DELETE ", text):
-            return f"```\n{text}\n```"
-        return text
+        from src.agents.output_validator import format_code_blocks, validate_and_format_output
+        return validate_and_format_output(format_code_blocks(text))

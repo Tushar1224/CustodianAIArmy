@@ -24,12 +24,6 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: Optional[str] = None
     CLAUDE_MODEL: str = "claude-sonnet-4-5"
 
-    # Retained so existing .env files do not fail validation; not exposed as selectable providers.
-    GROQ_API_KEY: Optional[str] = None
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
-    NIM_API_KEY: Optional[str] = None
-    NIM_MODEL: str = "meta/llama-3.3-70b-instruct"
-
     # Primary LLM Provider
     PRIMARY_LLM_PROVIDER: Optional[str] = "gemini"  # Options: gemini, anthropic
 
