@@ -1482,11 +1482,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Auth] DOMContentLoaded fired');
     window.app = new CustodianAIApp();
     
-    // Set default provider display to Bedrock
+    // Fetch and display the actual active provider from the backend
     const providerDisplay = document.getElementById('current-provider');
     if (providerDisplay) {
-        providerDisplay.textContent = 'Bedrock';
-        providerDisplay.style.color = 'var(--danger-color)';
+        fetch('/api/v1/provider/active', { credentials: 'include' })
+            .then(r => r.json())
+            .then(data => {
+                const label = data.active_provider === 'anthropic' ? 'Claude' :
+                              data.active_provider === 'gemini' ? 'Gemini' :
+                              data.active_provider || 'Unknown';
+                providerDisplay.textContent = label;
+                if (data.active_provider === 'gemini') providerDisplay.style.color = 'var(--info-color)';
+                else if (data.active_provider === 'anthropic') providerDisplay.style.color = 'var(--warning-color)';
+                else providerDisplay.style.color = 'var(--danger-color)';
+            })
+            .catch(() => {
+                providerDisplay.textContent = 'Unknown';
+                providerDisplay.style.color = 'var(--danger-color)';
+            });
     }
     
     // First check if we have a cached user in localStorage
@@ -1949,11 +1962,6 @@ const _providerModels = {
         { id: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
         { id: 'claude-3-opus-20240229',     label: 'Claude 3 Opus' }
     ],
-    bedrock: [
-        { id: 'anthropic.claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (default)' },
-        { id: 'anthropic.claude-opus-4-1', label: 'Claude Opus 4.1' },
-        { id: 'anthropic.claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' }
-    ]
 };
 
 /**
@@ -2069,7 +2077,7 @@ CustodianAIApp.prototype.selectModel = function(modelId, modelLabel) {
 
 /**
  * Switch the active chat agent to the first available agent for the given provider.
- * Called by the Gemini / Claude / Bedrock quick-switch buttons in the API Keys modal.
+ * Called by the Gemini / Claude quick-switch buttons in the API Keys modal.
  */
 CustodianAIApp.prototype.switchToProvider = async function(provider) {
     const validProviders = ['gemini', 'anthropic'];

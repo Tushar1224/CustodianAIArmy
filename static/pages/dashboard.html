@@ -115,7 +115,7 @@
         <div class="sub-header-divider"></div>
         <div class="sub-header-stat">
             <span class="stat-label">Current Provider</span>
-            <span class="stat-value" id="current-provider" style="color:var(--success-color);">Bedrock</span>
+            <span class="stat-value" id="current-provider" style="color:var(--success-color);">Unknown</span>
         </div>
     </div>
 
@@ -337,7 +337,7 @@
                         <ul class="small mb-3" style="color:var(--text-muted);">
                             <li><strong>Free plan:</strong> 20 requests/day</li>
                             <li><strong>Pro plan:</strong> 50 requests/day</li>
-                            <li>Access to all providers: Gemini, Claude &amp; Amazon Bedrock</li>
+                            <li>Access to all providers: Gemini, Claude &amp; Claude</li>
                         </ul>
                         <button class="btn btn-warning text-dark w-100 fw-bold mb-2" onclick="bootstrap.Modal.getInstance(document.getElementById('rateLimitModal'))?.hide(); setTimeout(() => window.app && window.app.openPaymentPage(), 300);">
                             <i class="fas fa-crown me-2"></i>Upgrade to Pro — $9.99/mo
@@ -442,8 +442,8 @@
                     <div class="card mb-3" style="background:var(--tertiary-bg, #1a1a1a);border-color:var(--border-color, #444);">
                         <div class="card-body">
                             <div class="d-flex align-items-center mb-2">
-                                <span class="badge bg-success text-dark me-2">AWS</span>
-                                <h6 class="mb-0" style="color:var(--primary-color);">Bedrock API Key</h6>
+                                <span class="badge bg-success text-dark me-2">Anthropic</span>
+                                <h6 class="mb-0" style="color:var(--primary-color);">Anthropic API Key</h6>
                         </div>
                     </div>
                 </div>
