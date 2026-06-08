@@ -1,0 +1,54 @@
+{
+  "id": "git",
+  "category": "Tools",
+  "icon": "fab fa-git-alt",
+  "langs": {
+    "en": {
+      "title": "git",
+      "description": "",
+      "sections": [
+        {
+          "file": "10-basics-en.md",
+          "title": "Basics"
+        },
+        {
+          "file": "20-branches-en.md",
+          "title": "Branches"
+        },
+        {
+          "file": "30-remote-en.md",
+          "title": "Remote"
+        },
+        {
+          "file": "git-en.md",
+          "title": "Git"
+        },
+        {
+          "file": "tutorialspoint-git-create-en.md",
+          "title": "Tutorialspoint git create"
+        },
+        {
+          "file": "tutorialspoint-git-en.md",
+          "title": "Tutorialspoint git"
+        },
+        {
+          "file": "tutorialspoint-git-lifecycle-en.md",
+          "title": "Tutorialspoint git lifecycle"
+        },
+        {
+          "file": "w3schools-git-branch-en.md",
+          "title": "W3schools git branch"
+        },
+        {
+          "file": "w3schools-git-intro-en.md",
+          "title": "W3schools git intro"
+        },
+        {
+          "file": "w3schools-git-merge-en.md",
+          "title": "W3schools git merge"
+        }
+      ]
+    }
+  },
+  "slide_count": 10
+}

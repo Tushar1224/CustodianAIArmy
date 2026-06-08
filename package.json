@@ -1,5 +1,12 @@
 {
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "dev:backend": "python main.py",
+    "dev:all": "concurrently -n fe,be -c cyan,green \"npm run dev\" \"npm run dev:backend\"",
+    "vercel-build": "cd frontend && npm ci && npm run build"
+  },
   "devDependencies": {
+    "concurrently": "^10.0.3",
     "jest-environment-jsdom": "^30.3.0"
   },
   "dependencies": {

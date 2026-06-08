@@ -1,0 +1,50 @@
+{
+  "id": "python-data-science-5-neural-networks",
+  "category": "Python",
+  "icon": "fas fa-project-diagram",
+  "langs": {
+    "en": {
+      "title": "python-data-science-5-neural-networks",
+      "description": "",
+      "sections": [
+        {
+          "file": "05-keras-example-mnist-en.md",
+          "title": "Keras example mnist"
+        },
+        {
+          "file": "10-keras-functional-and-sequential-api-en.md",
+          "title": "Keras functional and sequential api"
+        },
+        {
+          "file": "example-california-housing-en.md",
+          "title": "Example california housing"
+        },
+        {
+          "file": "example-iris-en.md",
+          "title": "Example iris"
+        },
+        {
+          "file": "example-iris-inspecting-network-en.md",
+          "title": "Example iris inspecting network"
+        },
+        {
+          "file": "geeksforgeeks-nn-intro-en.md",
+          "title": "Geeksforgeeks nn intro"
+        },
+        {
+          "file": "geeksforgeeks-nn-python-en.md",
+          "title": "Geeksforgeeks nn python"
+        },
+        {
+          "file": "neural-networks-en.md",
+          "title": "Neural networks"
+        },
+        {
+          "file": "tutorialspoint-keras-en.md",
+          "title": "Tutorialspoint keras"
+        }
+      ]
+    }
+  },
+  "slide_count": 9
+}

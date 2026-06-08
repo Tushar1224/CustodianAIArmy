@@ -961,33 +961,59 @@ async def debug_agents():
 # COURSE ENDPOINTS
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Path to the course data JSON (served from static/data/)
-COURSE_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "static", "data", "course-data.json")
-# Path to Programming-Slides sections
-SLIDES_SECTIONS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "dependencies", "Programming-Slides", "sections")
+# Path to course content data
+COURSES_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "courses")
 
 
-def _load_course_data() -> List[Dict[str, Any]]:
-    """Load course data from JSON file"""
-    try:
-        with open(COURSE_DATA_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data.get("courses", [])
-    except Exception as e:
-        logger.error(f"Error loading course data: {str(e)}")
-        return []
+def _load_all_courses() -> List[Dict[str, Any]]:
+    """Load all course metadata from courses/ directories"""
+    courses = []
+    if not os.path.isdir(COURSES_PATH):
+        logger.error(f"Courses directory not found: {COURSES_PATH}")
+        return courses
+    for cid in sorted(os.listdir(COURSES_PATH)):
+        course_json_path = os.path.join(COURSES_PATH, cid, "course.json")
+        if os.path.isfile(course_json_path):
+            try:
+                with open(course_json_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                langs = data.get("langs", {})
+                for lang_code, lang_data in langs.items():
+                    sections = lang_data.get("sections", [])
+                    courses.append({
+                        "id": data["id"],
+                        "lang": lang_code,
+                        "title": lang_data.get("title", cid),
+                        "category": data.get("category", "General"),
+                        "description": lang_data.get("description", ""),
+                        "icon": data.get("icon", "fas fa-book"),
+                        "slide_count": sum(s.get("slide_count", 0) for s in sections),
+                        "section_count": len(sections),
+                        "sections": sections,
+                    })
+            except Exception as e:
+                logger.error(f"Error loading course {cid}: {str(e)}")
+    return courses
+
+
+def _get_course_data(course_id: str, lang: str) -> Optional[Dict[str, Any]]:
+    """Get a single course by ID and language"""
+    courses = _load_all_courses()
+    course = next((c for c in courses if c["id"] == course_id and c["lang"] == lang), None)
+    if not course:
+        course = next((c for c in courses if c["id"] == course_id), None)
+    return course
 
 
 @router.get("/courses")
 async def list_courses(lang: Optional[str] = None, category: Optional[str] = None):
     """List all available courses, optionally filtered by language and/or category"""
     try:
-        courses = _load_course_data()
+        courses = _load_all_courses()
         if lang:
             courses = [c for c in courses if c.get("lang") == lang]
         if category:
             courses = [c for c in courses if c.get("category", "").lower() == category.lower()]
-        # Strip sections from list view for brevity
         summary = []
         for c in courses:
             summary.append({
@@ -998,7 +1024,7 @@ async def list_courses(lang: Optional[str] = None, category: Optional[str] = Non
                 "description": c.get("description", ""),
                 "icon": c.get("icon", "fas fa-book"),
                 "slide_count": c.get("slide_count", 0),
-                "section_count": len(c.get("sections", []))
+                "section_count": c.get("section_count", 0)
             })
         return {"courses": summary, "total": len(summary)}
     except Exception as e:
@@ -1010,11 +1036,7 @@ async def list_courses(lang: Optional[str] = None, category: Optional[str] = Non
 async def get_course(course_id: str, lang: str = "en"):
     """Get full course details including sections"""
     try:
-        courses = _load_course_data()
-        course = next((c for c in courses if c["id"] == course_id and c["lang"] == lang), None)
-        if not course:
-            # Try any language
-            course = next((c for c in courses if c["id"] == course_id), None)
+        course = _get_course_data(course_id, lang)
         if not course:
             raise HTTPException(status_code=404, detail="Course not found")
         return course
@@ -1029,15 +1051,15 @@ async def get_course(course_id: str, lang: str = "en"):
 async def get_course_slides(course_id: str, lang: str):
     """Get all slide content for a course as a list of sections with markdown content"""
     try:
-        courses = _load_course_data()
-        course = next((c for c in courses if c["id"] == course_id and c["lang"] == lang), None)
+        course = _get_course_data(course_id, lang)
         if not course:
             raise HTTPException(status_code=404, detail="Course not found")
 
-        section_dir = os.path.join(SLIDES_SECTIONS_PATH, course_id)
+        knowledge_dir = os.path.join(COURSES_PATH, course_id, "knowledge")
         slides = []
         for i, section in enumerate(course.get("sections", [])):
-            file_path = os.path.join(section_dir, section["file"])
+            file_name = section["file"]
+            file_path = os.path.join(knowledge_dir, file_name)
             content = ""
             if os.path.isfile(file_path):
                 with open(file_path, "r", encoding="utf-8") as f:
@@ -1045,7 +1067,7 @@ async def get_course_slides(course_id: str, lang: str):
             slides.append({
                 "index": i,
                 "title": section["title"],
-                "file": section["file"],
+                "file": file_name,
                 "content": content
             })
         return {"course_id": course_id, "lang": lang, "slides": slides}
@@ -1060,8 +1082,7 @@ async def get_course_slides(course_id: str, lang: str):
 async def get_single_slide(course_id: str, lang: str, section_index: int):
     """Get a single slide's content by index"""
     try:
-        courses = _load_course_data()
-        course = next((c for c in courses if c["id"] == course_id and c["lang"] == lang), None)
+        course = _get_course_data(course_id, lang)
         if not course:
             raise HTTPException(status_code=404, detail="Course not found")
 
@@ -1070,8 +1091,8 @@ async def get_single_slide(course_id: str, lang: str, section_index: int):
             raise HTTPException(status_code=404, detail="Section index out of range")
 
         section = sections[section_index]
-        section_dir = os.path.join(SLIDES_SECTIONS_PATH, course_id)
-        file_path = os.path.join(section_dir, section["file"])
+        knowledge_dir = os.path.join(COURSES_PATH, course_id, "knowledge")
+        file_path = os.path.join(knowledge_dir, section["file"])
         content = ""
         if os.path.isfile(file_path):
             with open(file_path, "r", encoding="utf-8") as f:

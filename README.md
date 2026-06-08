@@ -1,375 +1,478 @@
+# Custodian AI Army
 
-# Custodian AI Army 🤖⚡
-
-
-A futuristic AI agent orchestration system inspired by Abacus.ai, featuring multiple specialized agents powered by Google's Gemini model. Each main agent can orchestrate sub-agents to handle complex tasks efficiently.
+A futuristic multi-agent AI orchestration system — chat with specialized AI agents (Gemini, Claude), build full-stack products via a 5-phase MVP pipeline, learn programming with AI tutoring across 23 courses + 17 career pathways, and manage custom agents.
 
 ---
 
-## 📝 Project Overview
+## Tech Stack
 
-Custodian AI Army is a modular, multi-agent orchestration platform. It leverages Google's Gemini models for all agent intelligence, with a focus on extensibility, real-time communication, and a modern UI. The system is built with Python (FastAPI backend) and a vanilla JS/CSS frontend.
-
-**Key Agent:** All advanced agent capabilities are now powered by the GeminiAgent (formerly NemotronAgent), using the `gemini-2.5-flash` model for fast, high-quality responses.
-
----
-
-## 🌟 Features
-
-- **Multi-Agent Architecture**: Main agents with specialized sub-agents
-- **Futuristic UI**: Inspired by Abacus.ai with cyberpunk aesthetics
-- **Real-time Communication**: WebSocket-based agent communication
-- **Task Orchestration**: Intelligent task delegation and synthesis
-- **Specialized Agents**: 
-  - CommanderAI (Coordinator)
-  - AnalystAI (Data & Market Analysis)
-  - CreativeAI (Writing & Design)
-  - TechnicalAI (Coding & Architecture)
-  - ResearchAI (Fact-checking & Trends)
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Python 3.8+
-- Google Gemini API Key (add to .env file)
-
-
-### Installation & Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd CustodianAIArmy
-   ```
-
-2. **Create virtual environment**
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
-
-3. **Upgrade pip and install setuptools**
-   ```bash
-   pip install --upgrade pip setuptools wheel
-   ```
-
-4. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-
-5. **Configure environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your GEMINI_API_KEY (from Google Generative Language API)
-   # Optionally adjust APP_PORT, DATABASE_URL, etc.
-   ```
-
-
-6. **Run the application**
-   ```bash
-   python3 main.py
-   ```
-
-   Or, for development with auto-reload (if supported):
-   ```bash
-   uvicorn src.api.routes:app --reload
-   ```
-
-
-7. **Access the interface**
-   Open your browser and navigate to [http://localhost:8000](http://localhost:8000)
-
+| Layer | Technology |
+|-------|-----------|
+| Backend | Python 3.11+, FastAPI, Uvicorn |
+| Frontend | React 19, Vite, React Router 7, Bootstrap 5 |
+| Auth | Google OAuth, GitHub OAuth, JWT |
+| AI | Google Gemini, Anthropic Claude |
+| Database | SQLite |
+| MCP | fetch, duckduckgo, filesystem, memory, sequential_thinking, **crawl_course_pathway** |
+| Agent Skills | Ollama tool-use models (qwen2.5-coder, qwen3-coder) |
+| Deployment | Vercel (Python serverless) |
 
 ---
 
-## 🏗️ Architecture & Components
+## Project Structure
 
-
-### Agent Hierarchy
-
-```
-CommanderAI (Main Coordinator)
-├── AnalystAI (Main)
-│   ├── DataAnalystAI (Sub)
-│   └── MarketAnalystAI (Sub)
-├── CreativeAI (Main)
-│   ├── WriterAI (Sub)
-│   └── DesignerAI (Sub)
-├── TechnicalAI (Main)
-│   ├── CoderAI (Sub)
-│   └── ArchitectAI (Sub)
-└── ResearchAI (Main)
-   ├── FactCheckerAI (Sub)
-   └── TrendAnalystAI (Sub)
-
-**All agent logic is now implemented in `src/agents/gemini_agent.py`.**
-```
-
-
-### System Components
-
-- **FastAPI Backend**: RESTful API for agent management
-- **Agent Manager**: Orchestrates all agents and communication
-- **Gemini Integration**: Google's Gemini model (all agents use `gemini-2.5-flash`)
-- **Futuristic Frontend**: React-like vanilla JS with cyberpunk UI
-- **Real-time Updates**: WebSocket communication for live status
-
-## 🎮 Usage
-
-### Dashboard
-- Monitor all agents in real-time
-- View system statistics and health
-- Quick access to main functions
-
-### Agent Army
-- Browse all available agents
-- View capabilities and specializations
-- Monitor agent status and hierarchy
-
-### AI Chat
-- Direct communication with any agent
-- Context-aware conversations
-- Multi-agent collaboration
-
-### Task Center
-- Create and execute complex tasks
-- Automatic agent selection
-- Task result synthesis
-
-### Analytics
-- Performance monitoring
-- Usage statistics
-- Agent efficiency metrics
-
-## 🔧 Configuration
-
-### Environment Variables
-
-```bash
-# Google Gemini API Configuration
-GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_API_URL=https://generativelanguage.googleapis.com/v1beta
-
-# Application Configuration
-APP_HOST=localhost
-APP_PORT=8000
-DEBUG=True
-
-# Database Configuration
-DATABASE_URL=sqlite:///./custodian_ai.db
-
-# Redis Configuration (for agent communication)
-REDIS_URL=redis://localhost:6379
-
-# Security
-SECRET_KEY=your_secret_key_here
-JWT_SECRET=your_jwt_secret_here
-
-# Logging
-LOG_LEVEL=INFO
-```
-
-## 📡 API Endpoints
-
-### Agent Management
-- `GET /api/v1/agents` - List all agents
-- `GET /api/v1/agents/{agent_id}` - Get agent details
-- `GET /api/v1/army/status` - Get army status
-
-### Communication
-- `POST /api/v1/chat` - Chat with agents
-- `POST /api/v1/messages/send` - Send direct messages
-- `POST /api/v1/messages/broadcast` - Broadcast to all agents
-
-### Task Execution
-- `POST /api/v1/tasks/execute` - Execute tasks
-- `GET /api/v1/specializations` - Get available specializations
-
-## 🎨 UI Features
-
-### Futuristic Design Elements
-- **Cyberpunk Color Scheme**: Neon blues, cyans, and purples
-- **Animated Components**: Smooth transitions and hover effects
-- **Particle Background**: Dynamic particle system
-- **Glowing Effects**: CSS-based neon glow effects
-- **Responsive Design**: Mobile-friendly interface
-
-### Interactive Components
-- **Real-time Status Updates**: Live agent monitoring
-- **Drag & Drop**: Task assignment interface
-- **Voice Commands**: Speech-to-text integration (planned)
-- **Dark Theme**: Optimized for extended use
-
-## 🔮 Agent Specializations
-
-### CommanderAI (Coordinator)
-- Task delegation and orchestration
-- System-wide coordination
-- Resource management
-
-### AnalystAI (Analysis)
-- Data analysis and interpretation
-- Market research and trends
-- Statistical modeling
-
-### CreativeAI (Creative)
-- Content creation and writing
-- Design and visual concepts
-- Creative problem solving
-
-### TechnicalAI (Technical)
-- Code generation and review
-- System architecture design
-- Technical documentation
-
-### ResearchAI (Research)
-- Information gathering and verification
-- Trend analysis and forecasting
-- Fact-checking and validation
-
-## 🚀 Advanced Features
-
-### Task Orchestration
-- **Intelligent Routing**: Automatic agent selection based on task type
-- **Sub-agent Delegation**: Main agents can delegate to specialized sub-agents
-- **Result Synthesis**: Combine outputs from multiple agents
-- **Error Handling**: Graceful failure recovery and retry logic
-
-### Communication System
-- **Message Queue**: Asynchronous message processing
-- **Broadcasting**: System-wide announcements
-- **Context Preservation**: Maintain conversation history
-- **Real-time Updates**: Live status and progress tracking
-
-## 🛠️ Development
-
-### Project Structure
 ```
 CustodianAIArmy/
-├── main.py                 # Application entry point
-├── requirements.txt        # Python dependencies
-├── .env.example           # Environment configuration template
+├── main.py                     # FastAPI entry point
+├── requirements.txt            # Python dependencies
+├── package.json                # Root (vercel-build script)
+├── vercel.json                 # Vercel deployment config
+├── .env                        # Environment variables
+├── AGENTS.md                   # Agent workflow docs (graph tools, MCP, oll-mcp)
+├── courses/                    # Course content (23 courses)
+│   ├── frontend-html/
+│   │   ├── course.json         # Course config + section list
+│   │   └── knowledge/          # Markdown knowledge files
+│   ├── python-beginner/
+│   ├── react/
+│   └── ... (23 total)
+├── scripts/                    # Utility scripts
+│   ├── crawl_all_courses.py    # Bulk crawl from W3Schools/GFG/TutorialsPoint
+│   ├── crawl_course_pathway_mcp.py  # MCP server for agent-driven crawling
+│   ├── crawl_html_w3.py        # Targeted W3Schools HTML crawl
+│   ├── rebuild_course_json.py  # Regenerate course.json from disk files
+│   ├── boot_courses.py         # Full course infrastructure setup
+│   └── migrate_course_skills.py# Skill definitions migration
+├── frontend/
+│   ├── package.json            # React app + scripts
+│   ├── vite.config.js          # Vite config (/api proxy to :8000)
+│   ├── dist/                   # Built output (auto-generated)
+│   └── src/
+│       ├── main.jsx            # React entry + Bootstrap JS import
+│       ├── index.css           # Global styles (CSS custom properties)
+│       ├── App.jsx             # Router (7 routes via react-router-dom)
+│       ├── pages/              # HomePage, DashboardPage, LearnPage,
+│       │                       # PortfolioPage, BuildPage,
+│       │                       # CustomAgentsPage, PaymentPage
+│       ├── components/
+│       │   ├── layout/         # Header, Sidebar, Footer, MainLayout
+│       │   └── shared/         # LoadingOverlay
+│       └── hooks/              # useAuth, useTheme
 ├── src/
-│   ├── agents/            # Agent implementations
-│   ├── api/               # FastAPI routes and endpoints
-│   └── core/              # Core utilities and configuration
-└── static/
-    ├── index.html         # Main UI
-    ├── css/styles.css     # Futuristic styling
-    └── js/app.js          # Frontend application logic
+│   ├── agents/                 # Agent implementations (Gemini, Claude)
+│   │   ├── agent_manager.py
+│   │   ├── gemini_agent.py
+│   │   ├── claude_agent.py
+│   │   ├── claude_code_agent.py
+│   │   ├── astro_agent.py
+│   │   └── prompts/            # Agent system prompts
+│   ├── api/
+│   │   ├── routes.py           # All API endpoints
+│   │   ├── auth.py             # OAuth + JWT auth
+│   │   ├── build.py            # MVP Builder endpoints
+│   │   └── finance_ui.py
+│   ├── core/
+│   │   ├── config.py           # Settings from .env
+│   │   ├── database.py         # SQLite operations
+│   │   └── logging_config.py
+│   └── mcp/
+│       ├── mcp_client.py       # MCP client bridge
+│       └── mcp_config.py       # MCP server definitions + agent tool mapping
+├── static/                     # Legacy HTML/CSS/JS frontend
+├── dependencies/               # Legacy git submodules (deprecated)
+└── install.sh                  # Automated setup script
 ```
 
+---
 
-### Adding New Agents
+## Available Commands
 
-1. **Create Agent Class**
-   ```python
-   from src.agents.gemini_agent import GeminiAgent
-   
-   class CustomAgent(GeminiAgent):
-       def __init__(self):
-           super().__init__(
-               name="CustomAgent",
-               specialization="custom",
-               agent_type=AgentType.MAIN
-           )
-   ```
+### From Project Root
 
-2. **Register with Manager**
-   ```python
-   # In agent_manager.py
-   custom_agent = CustomAgent()
-   self.register_agent(custom_agent)
-   ```
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start Vite dev server (port 5173) |
+| `npm run dev:backend` | Start FastAPI backend (port 8000) |
+| `npm run dev:all` | Run both concurrently (hot reload + API) |
+| `npm run vercel-build` | Build React app for Vercel deployment |
 
-3. **Update UI**
-   - Add agent to frontend display
-   - Update specialization mappings
-   - Add custom capabilities
+### From `frontend/`
 
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start Vite dev server (port 5173) |
+| `npm run dev:backend` | Start FastAPI backend (port 8000) |
+| `npm run dev:all` | Run both concurrently (requires `concurrently` in root) |
+| `npm run build` | Build React app to `frontend/dist/` |
+| `npm run preview` | Preview built app locally |
+| `npm run lint` | Run ESLint |
+
+### Backend
+
+| Command | Description |
+|---------|-------------|
+| `python main.py` | Start production server (port 8000) |
+| `uvicorn main:app --reload` | Dev server with auto-reload |
+
+### Python Environment
+
+| Command | Description |
+|---------|-------------|
+| `pip install -r requirements.txt` | Install Python deps |
+| `pip install --upgrade pip setuptools wheel` | Upgrade pip |
+| `bash install.sh` | Automated setup (venv + deps) |
+
+### Course Infrastructure
+
+| Command | Description |
+|---------|-------------|
+| `python scripts/boot_courses.py` | Full setup: sync skills, rebuild course.json, copy to agent dirs |
+| `python scripts/crawl_all_courses.py` | Bulk crawl W3Schools/GFG/TutorialsPoint for all courses |
+| `python scripts/crawl_html_w3.py` | Targeted crawl of W3Schools HTML tutorial pages |
+| `python scripts/rebuild_course_json.py` | Regenerate course.json from knowledge files on disk |
 
 ---
 
-## 🔒 Security
+## Frontend Architecture
 
-- **API Key Management**: Secure storage of Gemini API keys
-- **Input Validation**: Comprehensive request validation
-- **Rate Limiting**: Prevent API abuse
-- **Error Handling**: Secure error messages
-- **CORS Configuration**: Controlled cross-origin requests
+### Layout System
 
+Two layout patterns are used depending on the page:
 
----
+| Pattern | Pages | Components | Navigation |
+|---------|-------|------------|------------|
+| **Full layout** via `MainLayout` | DashboardPage, LearnPage, PortfolioPage, BuildPage, CustomAgentsPage | `<Header />` (fixed top), `<Sidebar />` (offcanvas), `<Footer />` | Client-side via `useNavigate()` + `window.bootstrap.Offcanvas` |
+| **Standalone** (custom) | HomePage, PaymentPage | Inline navbar/offcanvas | Same client-side pattern in HomePage; `PaymentPage` has no nav |
 
-## 📊 Monitoring
+### Client-Side Navigation Pattern
 
-### Health Checks
-- Agent status monitoring
-- API endpoint health
-- System resource usage
-- Error rate tracking
+All sidebar/menu links use `<a>` tags with `onClick` handlers instead of traditional `<a href>` or `<Link>`:
 
-### Logging
-- Structured logging with timestamps
-- Agent activity tracking
-- Performance metrics
-- Error reporting
+```
+onClick → e.preventDefault()
+       → close offcanvas via window.bootstrap.Offcanvas.getInstance(el).hide()
+       → navigate(path) via react-router-dom
+```
 
+This avoids full page reloads (which lose React state) while still using native `<a>` elements for accessibility. The offcanvas close button (`data-bs-dismiss="offcanvas"`) continues to work natively.
 
----
+**Key files:**
+- `src/components/layout/Sidebar.jsx` — Sidebar offcanvas for sub-pages
+- `src/pages/HomePage.jsx` — Inline offcanvas on landing page (same pattern)
 
-## 🤝 Contributing
+### SPA Routing (Production)
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
+FastAPI serves React's `index.html` for all unmatched routes via a catch-all route (`/{full_path:path}`) in `main.py`. Must be registered last so API and `/assets` routes take priority.
 
 ---
 
-## 📄 License
+## Quick Start
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+### Prerequisites
+- Python 3.8+
+- Node.js 18+
+- Google Gemini API key (or Anthropic Claude key)
 
+### 1. Backend Setup
+```bash
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+# source .venv/bin/activate   # Linux/Mac
+
+pip install -r requirements.txt
+cp .env.example .env          # Then edit .env with your API keys
+```
+
+### 2. Frontend Setup
+```bash
+cd frontend
+npm install
+```
+
+### 3. Run (choose one)
+
+**Development mode** (hot reload + backend):
+```bash
+# From root (preferred)
+npm run dev:all
+
+# Or from frontend/
+cd frontend && npm run dev:all
+```
+- Frontend: http://localhost:5173 (proxies `/api` to backend)
+- Backend: http://localhost:8000
+
+**Production mode** (single port):
+```bash
+cd frontend && npm run build && cd .. && python main.py
+```
+- Open http://localhost:8000
 
 ---
 
-## 🙏 Acknowledgments
+## Frontend Routes
 
-- **Google** for the Gemini model
-- **Abacus.ai** for UI inspiration
-
----
-
-## 🏁 Quick Run Steps (Summary)
-
-1. Clone the repo and enter the directory.
-2. Create and activate a Python virtual environment.
-3. Install dependencies with `pip install -r requirements.txt`.
-4. Copy `.env.example` to `.env` and add your Gemini API key.
-5. Run `python3 main.py`.
-6. Open [http://localhost:8000](http://localhost:8000) in your browser.
-
-**All agents are now powered by GeminiAgent and the `gemini-2.5-flash` model for best speed and quality.**
-- **FastAPI** for the excellent web framework
-- **The open-source community** for various libraries and tools
-
-## 🔮 Future Roadmap
-
-- [ ] Voice interface integration
-- [ ] Advanced analytics dashboard
-- [ ] Custom agent creation UI
-- [ ] Multi-language support
-- [ ] Mobile application
-- [ ] Plugin system for extensions
-- [ ] Advanced task scheduling
-- [ ] Agent learning and adaptation
+| Path | Page | Description |
+|------|------|-------------|
+| `/` | HomePage | Landing, features, pricing, sign in |
+| `/dashboard` | DashboardPage | Chat with AI agents |
+| `/learn` | LearnPage | Interactive programming courses (23 courses) |
+| `/portfolio` | PortfolioPage | AI-generated developer portfolios |
+| `/build` | BuildPage | 5-phase MVP Builder pipeline |
+| `/agents` | CustomAgentsPage | Create/manage custom agents |
+| `/payment` | PaymentPage | Upgrade to Pro plan |
 
 ---
 
-**Built with ❤️ for the future of AI orchestration**
+## API Overview
+
+All endpoints under `/api/v1/`. Swagger docs at `/api/docs`.
+
+### Agent Management
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/agents` | List all agents |
+| GET | `/agents/{id}` | Agent details |
+| POST | `/agents/custom` | Create custom agent |
+| GET | `/agents/available` | Available (idle) agents |
+
+### Chat
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/chat` | Chat with agent (authenticated) |
+| POST | `/chat/stream` | SSE stream (authenticated) |
+| POST | `/chat/guest` | Guest chat (3/day limit) |
+| POST | `/chat/stream/guest` | Guest SSE stream |
+
+### Auth
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/auth/google` | Google OAuth login |
+| GET | `/auth/status` | Check auth status |
+| GET | `/auth/me` | Get current user |
+| POST | `/auth/logout` | Logout |
+
+### MVP Builder
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/mvp/create-session` | Start new build |
+| POST | `/mvp/send-message` | Chat in current phase |
+| POST | `/mvp/advance-phase` | Next phase |
+| POST | `/mvp/publish` | Push to GitHub |
+| GET | `/mvp/sessions` | List user sessions |
+
+### Courses & Learning
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/courses` | List all courses (with section counts) |
+| GET | `/api/v1/courses/{id}` | Get course details (sections) |
+| GET | `/api/v1/courses/{id}/slides/{lang}/{index}` | Get slide content |
+| POST | `/chat/course` | Course-aware chat (AI tutor) |
+
+---
+
+## Course System
+
+The learning platform provides **23 courses** organized into **17 career pathways**. Content is crawled from W3Schools, GeeksforGeeks, TutorialsPoint, and official documentation.
+
+### Course Architecture
+
+```
+courses/
+├── frontend-html/             # 73 sections
+├── frontend-css/              # 43 sections
+├── python-beginner/           # 57 sections
+├── python-intermediate/       # 34 sections
+├── python-advanced/           # 28 sections
+├── react/                     # 36 sections
+├── react-advanced/            # 23 sections
+├── react-redux/               # 29 sections
+├── javascript-es-2015/        # 15 sections
+├── javascript-async/          # 14 sections
+├── javascript-testing/        # 9 sections
+├── node-and-npm/              # 23 sections
+├── typescript/                # 12 sections
+├── terminal-basics/           # 16 sections
+├── git/                       # 10 sections
+├── http/                      # 11 sections
+├── databases-datastore/       # 27 sections
+├── python-data-science-1-5/   # 4 levels (87 sections total)
+└── python-in-practice/        # 23 sections
+```
+
+Each course directory contains:
+- **`course.json`** — Metadata, section list, paths to knowledge files
+- **`knowledge/*-en.md`** — Markdown content files crawled from tutorial sites
+
+Courses are only available in **English** (German support removed). Pathways on the LearnPage are **collapsible** (collapsed by default) with "Coming Soon" badges for placeholder courses.
+
+### Career Pathways
+
+| Pathway | Courses |
+|---------|---------|
+| Web Development | HTML, CSS, JavaScript, React |
+| App Development | React, TypeScript, Node.js |
+| Data Engineering | Python DS, SQL, Pandas |
+| Cloud Engineering | Terminal, Git, HTTP |
+| DevOps | Git, Terminal, Node.js |
+| Data Science | NumPy, Pandas, ML, Neural Networks |
+| AI Engineering | Python DS, ML, Neural Networks |
+| Machine Learning | Scikit-learn, Pandas, NumPy |
+| Deep Learning | Neural Networks, Pandas |
+| Reinforcement Learning | Coming Soon |
+| Cybersecurity | Coming Soon |
+| Backend Development | Python, Node, HTTP, DB |
+| Frontend Development | HTML, CSS, JS, React, TS |
+| System Design | Coming Soon |
+| Software Testing & QA | Jest, Testing |
+| MLOps | Coming Soon |
+
+---
+
+## Agent System
+
+### Agent Hierarchy
+```
+CommanderAI (Coordinator)
+├── AnalystAI
+│   ├── DataAnalystAI
+│   └── MarketAnalystAI
+├── CreativeAI
+│   ├── WriterAI
+│   └── DesignerAI
+├── TechnicalAI
+│   ├── CoderAI
+│   └── ArchitectAI
+├── ResearchAI
+│   ├── FactCheckerAI
+│   └── TrendAnalystAI
+└── TutorAI
+    └── Course-aware tutoring using `crawl_course_pathway` MCP tool
+```
+
+All agents use either **Google Gemini** (`gemini-2.5-flash`) or **Anthropic Claude** (`claude-sonnet-4-5`), switchable via the UI.
+
+### MCP Tools Available to Agents
+
+| Server | Tools | Assigned To |
+|--------|-------|-------------|
+| **fetch** | `fetch` | All agents |
+| **duckduckgo** | `duckduckgo_web_search`, `duckduckgo_news_search` | All research/analyst agents |
+| **filesystem** | `read_file`, `write_file`, `list_directory`, `search_files`, `create_directory` | Coder, architect, technical |
+| **memory** | Knowledge graph (entities, relations, observations) | Coordinator, researcher |
+| **sequential_thinking** | `sequentialthinking` | Coordinator, analyst, technical, researcher |
+| **crawl_course_pathway** | `crawl_course_pathway` — crawl tutorial sites into markdown pathways | Tutor, researcher, coder |
+
+### Agent-to-Tools Mapping
+
+Each agent specialization has a curated set of tools. See `src/mcp/mcp_config.py` for the full mapping. Custom agents created via the UI default to general-purpose tool access.
+
+---
+
+## Authentication & Plans
+
+| Plan | Daily Limit | Features |
+|------|-------------|----------|
+| Guest | 3 requests | Try without signup |
+| Free | 20 requests | Google sign-in, all agents |
+| Pro | 50 requests ($9/mo) | Priority, all providers, history |
+
+Auth providers: Google OAuth, GitHub OAuth
+
+---
+
+## MCP Ecosystem
+
+This project uses the Model Context Protocol extensively. Two configuration files manage MCP servers:
+
+### Editor/IDE Servers (`.mcp.json`)
+Servers for VS Code / Continue extension:
+- **code-review-graph** — Graph-based code analysis for reviews
+- **kite**, **groww**, **zerodha** — Financial data APIs
+
+### Application Servers (`src/mcp/mcp_config.py`)
+Servers used by CustodianAIArmy agents at runtime (see table above).
+
+### Ollama MCP Bridge (`oll-mcp`)
+The `mcp_client_for_ollama` package bridges Ollama models to MCP servers:
+```bash
+ollmcp --mcp-server scripts/crawl_course_pathway_mcp.py --model qwen2.5-coder:7b
+```
+
+Recommended tool-use capable models: `qwen2.5-coder:7b`, `qwen3.5:35b`, `qwen3-coder:30b`
+
+---
+
+## Content Crawling Pipeline
+
+Course content is sourced from live tutorial websites via a modular crawling system:
+
+| Script | Description |
+|--------|-------------|
+| `scripts/crawl_all_courses.py` | Bulk crawl all 23 courses from W3Schools/GFG/TutorialsPoint |
+| `scripts/crawl_all_sources.py` | Multi-source crawl targeting TutorialsPoint primarily |
+| `scripts/crawl_html_w3.py` | Targeted crawl of W3Schools HTML tutorial (46 pages) |
+| `scripts/crawl_course_pathway_mcp.py` | MCP server — agents can call this tool to crawl on demand |
+| `scripts/crawl_courses_multi.py` | Multi-threaded crawl with parallel sources |
+| `scripts/rebuild_course_json.py` | Rebuild course.json to match actual knowledge files on disk |
+
+### `crawl_course_pathway` MCP Tool
+
+Registered in `.opencode.json` and `src/mcp/mcp_config.py`, this tool lets AI agents (tutor, researcher, coder) crawl tutorial websites (W3Schools, GeeksforGeeks, Javatpoint) directly, extracting learning pathways as clean Markdown saved into the `courses/` directory.
+
+---
+
+## Deployment (Vercel)
+
+The project auto-deploys to Vercel via GitHub. During build:
+1. `vercel-build` runs (`cd frontend && npm ci && npm run build`)
+2. Built React app is placed at `frontend/dist/`
+3. `main.py` serves both API and the SPA
+
+Zero config needed — just push to GitHub.
+
+### Environment Variables for Production
+Set these in Vercel dashboard:
+```
+GEMINI_API_KEY, ANTHROPIC_API_KEY
+GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
+JWT_SECRET, SECRET_KEY
+DATABASE_PATH=/tmp/chat_history.db
+```
+
+---
+
+## Environment Variables (.env)
+
+```
+GEMINI_API_KEY=your_key
+ANTHROPIC_API_KEY=your_key
+PRIMARY_LLM_PROVIDER=anthropic|gemini
+GOOGLE_CLIENT_ID=your_oauth_client_id
+GOOGLE_CLIENT_SECRET=your_oauth_secret
+GITHUB_CLIENT_ID=your_github_oauth_id
+GITHUB_CLIENT_SECRET=your_github_oauth_secret
+JWT_SECRET=your_jwt_secret
+SECRET_KEY=your_secret_key
+DEBUG=True|False
+LOG_LEVEL=INFO|DEBUG
+FASTAPI_PORT=8000
+```
+
+---
+
+## MVP Builder Pipeline
+
+The 5-phase product development pipeline:
+1. **Ideation** — Brainstorm features, audience, positioning
+2. **Planning** — Architecture, tech stack, route design
+3. **Review** — Code review, optimization
+4. **Polish** — UI/UX improvements, edge cases
+5. **Build** — Generate and publish to GitHub
+
+---
+
+## License
+
+MIT

@@ -1,0 +1,122 @@
+{
+  "id": "databases-datastore",
+  "category": "Databases",
+  "icon": "fas fa-database",
+  "langs": {
+    "en": {
+      "title": "databases-datastore",
+      "description": "",
+      "sections": [
+        {
+          "file": "03-data-formats-en.md",
+          "title": "Data formats"
+        },
+        {
+          "file": "04-datatypes-en.md",
+          "title": "Datatypes"
+        },
+        {
+          "file": "05-datatypes-numbers-en.md",
+          "title": "Datatypes numbers"
+        },
+        {
+          "file": "06-datatypes-booleans-en.md",
+          "title": "Datatypes booleans"
+        },
+        {
+          "file": "07-datatypes-text-en.md",
+          "title": "Datatypes text"
+        },
+        {
+          "file": "20-csv-en.md",
+          "title": "Csv"
+        },
+        {
+          "file": "21-json-en.md",
+          "title": "Json"
+        },
+        {
+          "file": "22-xml-en.md",
+          "title": "Xml"
+        },
+        {
+          "file": "40-databases-en.md",
+          "title": "Databases"
+        },
+        {
+          "file": "41-sql-vs-mongodb-en.md",
+          "title": "Sql vs mongodb"
+        },
+        {
+          "file": "45-mongodb-basics-en.md",
+          "title": "Mongodb basics"
+        },
+        {
+          "file": "46-sql-basics-en.md",
+          "title": "Sql basics"
+        },
+        {
+          "file": "50-mongodb-schema-en.md",
+          "title": "Mongodb schema"
+        },
+        {
+          "file": "51-sql-schema-and-indexes-en.md",
+          "title": "Sql schema and indexes"
+        },
+        {
+          "file": "60-sql-vs-mongodb-2-en.md",
+          "title": "Sql vs mongodb 2"
+        },
+        {
+          "file": "61-databases-intermediate-en.md",
+          "title": "Databases intermediate"
+        },
+        {
+          "file": "62-sql-joins-en.md",
+          "title": "Sql joins"
+        },
+        {
+          "file": "70-querying-data-en.md",
+          "title": "Querying data"
+        },
+        {
+          "file": "geeksforgeeks-sql-en.md",
+          "title": "Geeksforgeeks sql"
+        },
+        {
+          "file": "sql-basics-en.md",
+          "title": "Sql basics"
+        },
+        {
+          "file": "tutorialspoint-mongodb-en.md",
+          "title": "Tutorialspoint mongodb"
+        },
+        {
+          "file": "tutorialspoint-sql-constraints-en.md",
+          "title": "Tutorialspoint sql constraints"
+        },
+        {
+          "file": "tutorialspoint-sql-en.md",
+          "title": "Tutorialspoint sql"
+        },
+        {
+          "file": "w3schools-sql-groupby-en.md",
+          "title": "W3schools sql groupby"
+        },
+        {
+          "file": "w3schools-sql-intro-en.md",
+          "title": "W3schools sql intro"
+        },
+        {
+          "file": "w3schools-sql-join-en.md",
+          "title": "W3schools sql join"
+        },
+        {
+          "file": "w3schools-sql-select-en.md",
+          "title": "W3schools sql select"
+        }
+      ]
+    }
+  },
+  "slide_count": 27
+}

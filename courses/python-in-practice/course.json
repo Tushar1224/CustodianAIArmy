@@ -1,0 +1,106 @@
+{
+  "id": "python-in-practice",
+  "category": "Python",
+  "icon": "fab fa-python",
+  "langs": {
+    "en": {
+      "title": "python-in-practice",
+      "description": "",
+      "sections": [
+        {
+          "file": "01-title-topics-en.md",
+          "title": "Title topics"
+        },
+        {
+          "file": "10-working-with-files-en.md",
+          "title": "Working with files"
+        },
+        {
+          "file": "11-working-with-various-file-formats-en.md",
+          "title": "Working with various file formats"
+        },
+        {
+          "file": "12-io-file-system-en.md",
+          "title": "Io file system"
+        },
+        {
+          "file": "15-regular-expressions-in-python-en.md",
+          "title": "Regular expressions in python"
+        },
+        {
+          "file": "16-date-time-en.md",
+          "title": "Date time"
+        },
+        {
+          "file": "17-sys-en.md",
+          "title": "Sys"
+        },
+        {
+          "file": "20-http-client-en.md",
+          "title": "Http client"
+        },
+        {
+          "file": "31-http-server-en.md",
+          "title": "Http server"
+        },
+        {
+          "file": "33-http-api-en.md",
+          "title": "Http api"
+        },
+        {
+          "file": "44-sql-with-python-en.md",
+          "title": "Sql with python"
+        },
+        {
+          "file": "45-sqlite-with-python-en.md",
+          "title": "Sqlite with python"
+        },
+        {
+          "file": "46-sqlalchemy-en.md",
+          "title": "Sqlalchemy"
+        },
+        {
+          "file": "50-excel-files-en.md",
+          "title": "Excel files"
+        },
+        {
+          "file": "70-gui-overview-en.md",
+          "title": "Gui overview"
+        },
+        {
+          "file": "71-gui-tkinter-en.md",
+          "title": "Gui tkinter"
+        },
+        {
+          "file": "72-pyinstaller-en.md",
+          "title": "Pyinstaller"
+        },
+        {
+          "file": "80-email-en.md",
+          "title": "Email"
+        },
+        {
+          "file": "geeksforgeeks-python-api-en.md",
+          "title": "Geeksforgeeks python api"
+        },
+        {
+          "file": "geeksforgeeks-python-csv-en.md",
+          "title": "Geeksforgeeks python csv"
+        },
+        {
+          "file": "geeksforgeeks-python-json-en.md",
+          "title": "Geeksforgeeks python json"
+        },
+        {
+          "file": "geeksforgeeks-python-webscraping-en.md",
+          "title": "Geeksforgeeks python webscraping"
+        },
+        {
+          "file": "python-practice-en.md",
+          "title": "Python practice"
+        }
+      ]
+    }
+  },
+  "slide_count": 23
+}

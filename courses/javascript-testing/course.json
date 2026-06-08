@@ -1,0 +1,50 @@
+{
+  "id": "javascript-testing",
+  "category": "JavaScript",
+  "icon": "fab fa-js-square",
+  "langs": {
+    "en": {
+      "title": "javascript-testing",
+      "description": "",
+      "sections": [
+        {
+          "file": "01-overview-en.md",
+          "title": "Overview"
+        },
+        {
+          "file": "02-assertions-en.md",
+          "title": "Assertions"
+        },
+        {
+          "file": "03-test-runners-en.md",
+          "title": "Test runners"
+        },
+        {
+          "file": "10-test-setup-and-mocking-with-jest-en.md",
+          "title": "Test setup and mocking with jest"
+        },
+        {
+          "file": "20-end-to-end-tests-with-puppeteer-en.md",
+          "title": "End to end tests with puppeteer"
+        },
+        {
+          "file": "geeksforgeeks-jest-en.md",
+          "title": "Geeksforgeeks jest"
+        },
+        {
+          "file": "geeksforgeeks-js-testing-en.md",
+          "title": "Geeksforgeeks js testing"
+        },
+        {
+          "file": "testing-en.md",
+          "title": "Testing"
+        },
+        {
+          "file": "tutorialspoint-jest-en.md",
+          "title": "Tutorialspoint jest"
+        }
+      ]
+    }
+  },
+  "slide_count": 9
+}

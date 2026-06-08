@@ -1,0 +1,86 @@
+{
+  "id": "python-data-science-1-overview-and-numpy",
+  "category": "Python",
+  "icon": "fas fa-chart-bar",
+  "langs": {
+    "en": {
+      "title": "python-data-science-1-overview-and-numpy",
+      "description": "",
+      "sections": [
+        {
+          "file": "10-packages-en.md",
+          "title": "Packages"
+        },
+        {
+          "file": "11-jupyter-and-ipython-en.md",
+          "title": "Jupyter and ipython"
+        },
+        {
+          "file": "20-numpy-en.md",
+          "title": "Numpy"
+        },
+        {
+          "file": "22-more-than-one-way-to-do-it-en.md",
+          "title": "More than one way to do it"
+        },
+        {
+          "file": "32-array-types-en.md",
+          "title": "Array types"
+        },
+        {
+          "file": "40-creating-arrays-en.md",
+          "title": "Creating arrays"
+        },
+        {
+          "file": "50-selecting-array-entries-en.md",
+          "title": "Selecting array entries"
+        },
+        {
+          "file": "55-operations-on-arrays-en.md",
+          "title": "Operations on arrays"
+        },
+        {
+          "file": "70-advanced-indexing-and-filtering-en.md",
+          "title": "Advanced indexing and filtering"
+        },
+        {
+          "file": "80-advanced-en.md",
+          "title": "Advanced"
+        },
+        {
+          "file": "90-linear-algebra-en.md",
+          "title": "Linear algebra"
+        },
+        {
+          "file": "geeksforgeeks-numpy-en.md",
+          "title": "Geeksforgeeks numpy"
+        },
+        {
+          "file": "numpy-en.md",
+          "title": "Numpy"
+        },
+        {
+          "file": "numpy-tutorial-en.md",
+          "title": "Numpy tutorial"
+        },
+        {
+          "file": "tutorialspoint-numpy-en.md",
+          "title": "Tutorialspoint numpy"
+        },
+        {
+          "file": "w3schools-numpy-array-en.md",
+          "title": "W3schools numpy array"
+        },
+        {
+          "file": "w3schools-numpy-indexing-en.md",
+          "title": "W3schools numpy indexing"
+        },
+        {
+          "file": "w3schools-numpy-intro-en.md",
+          "title": "W3schools numpy intro"
+        }
+      ]
+    }
+  },
+  "slide_count": 18
+}

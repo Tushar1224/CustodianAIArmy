@@ -44,58 +44,68 @@ app.add_middleware(
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(auth_router)
 
-# Mount static files
+# Mount legacy static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-from fastapi.responses import FileResponse
+# ── Frontend (React SPA) ────────────────────────────────────────────────────
+# Serve the built React app from frontend/dist/ when available
+frontend_dist = "frontend/dist"
+if os.path.isdir(frontend_dist):
+    from fastapi.responses import FileResponse
 
-# ── Page Routes ──────────────────────────────────────────────────────────────
+    # Serve Vite's built JS/CSS assets
+    assets_dir = os.path.join(frontend_dist, "assets")
+    if os.path.isdir(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="frontend_assets")
 
-@app.get("/")
-async def homepage():
-    """Serve the futuristic homepage"""
-    return FileResponse("static/home.html")
+    # SPA catch-all: serves existing files or falls back to index.html
+    # Must be the LAST route so API routes and /static mount take priority
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        if not full_path:
+            full_path = "index.html"
+        file_path = os.path.join(frontend_dist, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(frontend_dist, "index.html"))
+else:
+    from fastapi.responses import FileResponse
 
-@app.get("/app")
-async def legacy_app():
-    """Serve the legacy single-page app (old index.html)"""
-    return FileResponse("static/index.html")
+    @app.get("/")
+    async def homepage():
+        return FileResponse("static/home.html")
 
-@app.get("/dashboard")
-async def dashboard_page():
-    """Serve the AI Dashboard — modular dashboard page"""
-    return FileResponse("static/pages/dashboard.html")
+    @app.get("/app")
+    async def legacy_app():
+        return FileResponse("static/index.html")
 
-@app.get("/learn")
-async def learn_page():
-    """Serve the Learn with AI page"""
-    return FileResponse("static/pages/learn.html")
+    @app.get("/dashboard")
+    async def dashboard_page():
+        return FileResponse("static/pages/dashboard.html")
 
-@app.get("/portfolio")
-async def portfolio_page():
-    """Serve the Portfolio Builder page"""
-    return FileResponse("static/pages/portfolio.html")
+    @app.get("/learn")
+    async def learn_page():
+        return FileResponse("static/pages/learn.html")
 
-@app.get("/build")
-async def build_page():
-    """Serve the Build Your Product page"""
-    return FileResponse("static/pages/build.html")
+    @app.get("/portfolio")
+    async def portfolio_page():
+        return FileResponse("static/pages/portfolio.html")
 
-@app.get("/payment.html")
-async def payment_page():
-    return FileResponse("static/payment.html")
+    @app.get("/build")
+    async def build_page():
+        return FileResponse("static/pages/build.html")
 
+    @app.get("/payment.html")
+    async def payment_page():
+        return FileResponse("static/payment.html")
 
-@app.get("/finance")
-async def finance_page():
-    """Serve the Finance AI page (placeholder)"""
-    return FileResponse("static/pages/finance.html")
+    @app.get("/finance")
+    async def finance_page():
+        return FileResponse("static/pages/finance.html")
 
-
-@app.get("/agents")
-async def agents_page():
-    """Serve the Custom Agents page"""
-    return FileResponse("static/pages/customagents.html")
+    @app.get("/agents")
+    async def agents_page():
+        return FileResponse("static/pages/customagents.html")
 
 
 if __name__ == "__main__":

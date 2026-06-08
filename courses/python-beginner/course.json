@@ -1,0 +1,242 @@
+{
+  "id": "python-beginner",
+  "category": "Python",
+  "icon": "fab fa-python",
+  "langs": {
+    "en": {
+      "title": "python-beginner",
+      "description": "",
+      "sections": [
+        {
+          "file": "01-title-topics-en.md",
+          "title": "Title topics"
+        },
+        {
+          "file": "02-language-overview-en.md",
+          "title": "Language overview"
+        },
+        {
+          "file": "03-installation-on-windows-en.md",
+          "title": "Installation on windows"
+        },
+        {
+          "file": "04-interactive-console-en.md",
+          "title": "Interactive console"
+        },
+        {
+          "file": "05-variables-en.md",
+          "title": "Variables"
+        },
+        {
+          "file": "10-basic-types-en.md",
+          "title": "Basic types"
+        },
+        {
+          "file": "11-types-and-type-conversions-en.md",
+          "title": "Types and type conversions"
+        },
+        {
+          "file": "12-functions-en.md",
+          "title": "Functions"
+        },
+        {
+          "file": "13-composite-types-en.md",
+          "title": "Composite types"
+        },
+        {
+          "file": "14-object-references-and-mutations-en.md",
+          "title": "Object references and mutations"
+        },
+        {
+          "file": "16-help-and-documentation-en.md",
+          "title": "Help and documentation"
+        },
+        {
+          "file": "20-development-environments-en.md",
+          "title": "Development environments"
+        },
+        {
+          "file": "22-our-first-python-program-en.md",
+          "title": "Our first python program"
+        },
+        {
+          "file": "23-builtins-standard-library-en.md",
+          "title": "Builtins standard library"
+        },
+        {
+          "file": "30-control-structures-en.md",
+          "title": "Control structures"
+        },
+        {
+          "file": "31-comparisons-en.md",
+          "title": "Comparisons"
+        },
+        {
+          "file": "32-if-else-en.md",
+          "title": "If else"
+        },
+        {
+          "file": "33-while-loops-en.md",
+          "title": "While loops"
+        },
+        {
+          "file": "35-for-loops-en.md",
+          "title": "For loops"
+        },
+        {
+          "file": "36-counting-loops-en.md",
+          "title": "Counting loops"
+        },
+        {
+          "file": "37-parts-of-programs-en.md",
+          "title": "Parts of programs"
+        },
+        {
+          "file": "38-control-structures-exercises-en.md",
+          "title": "Control structures exercises"
+        },
+        {
+          "file": "60-function-parameters-en.md",
+          "title": "Function parameters"
+        },
+        {
+          "file": "61-functions-definition-en.md",
+          "title": "Functions definition"
+        },
+        {
+          "file": "62-functions-exercises-en.md",
+          "title": "Functions exercises"
+        },
+        {
+          "file": "65-local-modules-en.md",
+          "title": "Local modules"
+        },
+        {
+          "file": "80-code-quality-linting-en.md",
+          "title": "Code quality linting"
+        },
+        {
+          "file": "81-debugging-en.md",
+          "title": "Debugging"
+        },
+        {
+          "file": "geeksforgeeks-python-intro-en.md",
+          "title": "Geeksforgeeks python intro"
+        },
+        {
+          "file": "python-basics-en.md",
+          "title": "Python basics"
+        },
+        {
+          "file": "tutorialspoint-python-basics-en.md",
+          "title": "Tutorialspoint python basics"
+        },
+        {
+          "file": "tutorialspoint-python-classes-en.md",
+          "title": "Tutorialspoint python classes"
+        },
+        {
+          "file": "tutorialspoint-python-decision-en.md",
+          "title": "Tutorialspoint python decision"
+        },
+        {
+          "file": "tutorialspoint-python-dict-en.md",
+          "title": "Tutorialspoint python dict"
+        },
+        {
+          "file": "tutorialspoint-python-en.md",
+          "title": "Tutorialspoint python"
+        },
+        {
+          "file": "tutorialspoint-python-exceptions-en.md",
+          "title": "Tutorialspoint python exceptions"
+        },
+        {
+          "file": "tutorialspoint-python-files-en.md",
+          "title": "Tutorialspoint python files"
+        },
+        {
+          "file": "tutorialspoint-python-functions-en.md",
+          "title": "Tutorialspoint python functions"
+        },
+        {
+          "file": "tutorialspoint-python-inheritance-en.md",
+          "title": "Tutorialspoint python inheritance"
+        },
+        {
+          "file": "tutorialspoint-python-lists-en.md",
+          "title": "Tutorialspoint python lists"
+        },
+        {
+          "file": "tutorialspoint-python-loops-en.md",
+          "title": "Tutorialspoint python loops"
+        },
+        {
+          "file": "tutorialspoint-python-modules-en.md",
+          "title": "Tutorialspoint python modules"
+        },
+        {
+          "file": "tutorialspoint-python-operators-en.md",
+          "title": "Tutorialspoint python operators"
+        },
+        {
+          "file": "tutorialspoint-python-strings-en.md",
+          "title": "Tutorialspoint python strings"
+        },
+        {
+          "file": "tutorialspoint-python-tuples-en.md",
+          "title": "Tutorialspoint python tuples"
+        },
+        {
+          "file": "tutorialspoint-python-variables-en.md",
+          "title": "Tutorialspoint python variables"
+        },
+        {
+          "file": "w3schools-python-datatypes-en.md",
+          "title": "W3schools python datatypes"
+        },
+        {
+          "file": "w3schools-python-for-en.md",
+          "title": "W3schools python for"
+        },
+        {
+          "file": "w3schools-python-functions-en.md",
+          "title": "W3schools python functions"
+        },
+        {
+          "file": "w3schools-python-getstarted-en.md",
+          "title": "W3schools python getstarted"
+        },
+        {
+          "file": "w3schools-python-ifelse-en.md",
+          "title": "W3schools python ifelse"
+        },
+        {
+          "file": "w3schools-python-intro-en.md",
+          "title": "W3schools python intro"
+        },
+        {
+          "file": "w3schools-python-lists-en.md",
+          "title": "W3schools python lists"
+        },
+        {
+          "file": "w3schools-python-strings-en.md",
+          "title": "W3schools python strings"
+        },
+        {
+          "file": "w3schools-python-syntax-en.md",
+          "title": "W3schools python syntax"
+        },
+        {
+          "file": "w3schools-python-variables-en.md",
+          "title": "W3schools python variables"
+        },
+        {
+          "file": "w3schools-python-while-en.md",
+          "title": "W3schools python while"
+        }
+      ]
+    }
+  },
+  "slide_count": 57
+}

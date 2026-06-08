@@ -1,0 +1,158 @@
+{
+  "id": "react",
+  "category": "React",
+  "icon": "fab fa-react",
+  "langs": {
+    "en": {
+      "title": "react",
+      "description": "",
+      "sections": [
+        {
+          "file": "01-title-topics-en.md",
+          "title": "Title topics"
+        },
+        {
+          "file": "03-overview-en.md",
+          "title": "Overview"
+        },
+        {
+          "file": "10-react-basics-en.md",
+          "title": "React basics"
+        },
+        {
+          "file": "11-jsx-basics-en.md",
+          "title": "Jsx basics"
+        },
+        {
+          "file": "12-state-en.md",
+          "title": "State"
+        },
+        {
+          "file": "20-javascript-basics-for-react-en.md",
+          "title": "Javascript basics for react"
+        },
+        {
+          "file": "25-initializing-a-react-project-en.md",
+          "title": "Initializing a react project"
+        },
+        {
+          "file": "30-immutable-state-en.md",
+          "title": "Immutable state"
+        },
+        {
+          "file": "35-inputs-forms-en.md",
+          "title": "Inputs forms"
+        },
+        {
+          "file": "40-react-developer-tools-en.md",
+          "title": "React developer tools"
+        },
+        {
+          "file": "50-jsx-in-detail-en.md",
+          "title": "Jsx in detail"
+        },
+        {
+          "file": "52-exercise-todolist-en.md",
+          "title": "Exercise todolist"
+        },
+        {
+          "file": "55-component-libraries-en.md",
+          "title": "Component libraries"
+        },
+        {
+          "file": "60-component-props-en.md",
+          "title": "Component props"
+        },
+        {
+          "file": "61-component-events-en.md",
+          "title": "Component events"
+        },
+        {
+          "file": "63-exercises-en.md",
+          "title": "Exercises"
+        },
+        {
+          "file": "80-type-checkers-en.md",
+          "title": "Type checkers"
+        },
+        {
+          "file": "90-querying-apis-effect-hook-en.md",
+          "title": "Querying apis effect hook"
+        },
+        {
+          "file": "react-basics-en.md",
+          "title": "React basics"
+        },
+        {
+          "file": "tutorialspoint-react-components-en.md",
+          "title": "Tutorialspoint react components"
+        },
+        {
+          "file": "tutorialspoint-react-en.md",
+          "title": "Tutorialspoint react"
+        },
+        {
+          "file": "tutorialspoint-react-env-en.md",
+          "title": "Tutorialspoint react env"
+        },
+        {
+          "file": "tutorialspoint-react-events-en.md",
+          "title": "Tutorialspoint react events"
+        },
+        {
+          "file": "tutorialspoint-react-forms-en.md",
+          "title": "Tutorialspoint react forms"
+        },
+        {
+          "file": "tutorialspoint-react-jsx-en.md",
+          "title": "Tutorialspoint react jsx"
+        },
+        {
+          "file": "tutorialspoint-react-lifecycle-en.md",
+          "title": "Tutorialspoint react lifecycle"
+        },
+        {
+          "file": "tutorialspoint-react-props-en.md",
+          "title": "Tutorialspoint react props"
+        },
+        {
+          "file": "tutorialspoint-react-router-en.md",
+          "title": "Tutorialspoint react router"
+        },
+        {
+          "file": "tutorialspoint-react-state-en.md",
+          "title": "Tutorialspoint react state"
+        },
+        {
+          "file": "w3schools-react-components-en.md",
+          "title": "W3schools react components"
+        },
+        {
+          "file": "w3schools-react-events-en.md",
+          "title": "W3schools react events"
+        },
+        {
+          "file": "w3schools-react-hooks-en.md",
+          "title": "W3schools react hooks"
+        },
+        {
+          "file": "w3schools-react-intro-en.md",
+          "title": "W3schools react intro"
+        },
+        {
+          "file": "w3schools-react-jsx-en.md",
+          "title": "W3schools react jsx"
+        },
+        {
+          "file": "w3schools-react-props-en.md",
+          "title": "W3schools react props"
+        },
+        {
+          "file": "w3schools-react-state-en.md",
+          "title": "W3schools react state"
+        }
+      ]
+    }
+  },
+  "slide_count": 36
+}

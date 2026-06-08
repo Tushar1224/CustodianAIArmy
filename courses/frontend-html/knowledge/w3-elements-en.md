@@ -1,0 +1,138 @@
+# HTML Elements
+
+Source: https://www.w3schools.com/html/html_elements.asp
+
+HTML
+Elements
+❮ Previous
+Next ❯
+An HTML element is defined by a start tag, some content, and an 
+end tag.
+HTML Elements
+The HTML
+element
+is everything from the start tag to the end tag:
+tagname
+Content goes here...
+/tagname
+Examples of some HTML elements:
+  First Heading
+My first paragraph.
+Start tag
+Element content
+End tag
+<h1>
+My First Heading
+</h1>
+My first paragraph.
+</p>
+<br>
+none
+none
+Note:
+Some HTML elements have no content (like the <br> 
+element). These elements are called empty elements. Empty elements do not have an end tag!
+Nested HTML Elements
+HTML elements can be nested (this means that elements can contain other elements).
+All HTML documents consist of nested HTML elements.
+The following example contains four HTML elements (
+<html>
+<body>
+<h1>
+Example
+<!DOCTYPE html>
+<html>
+<body>
+<h1>My First Heading</h1>
+<p>My first paragraph.</p>
+</body>
+</html>
+Try it Yourself »
+Example Explained
+<html>
+element is the root element 
+and it defines the whole HTML document.
+It has a start tag
+<html>
+and an end tag
+</html>
+Then, inside the
+<html>
+element there is 
+<body>
+element:
+<body>
+<h1>My First Heading</h1>
+<p>My first paragraph.</p>
+</body>
+<body>
+element defines the 
+document's body.
+It has a start tag
+<body>
+and an end tag
+</body>
+Then, inside the
+<body>
+element there 
+are two other elements:
+<h1>
+<h1>My First Heading</h1>
+<p>My first paragraph.</p>
+<h1>
+element defines a heading.
+It has a start tag
+<h1>
+and an end tag
+</h1>
+<h1>My First Heading</h1>
+element defines a paragraph.
+It has a start tag
+and an end tag
+</p>
+<p>My first paragraph.</p>
+Never Skip the End Tag
+Some HTML elements will display correctly, even if you forget the end tag:
+Example
+<html>
+<body>
+<p>This is a paragraph
+<p>This is a paragraph
+</body>
+</html>
+Try it Yourself »
+However, never rely on this! Unexpected results and errors may occur if you forget the end tag!
+Empty HTML Elements
+HTML elements with no content are called empty elements.
+<br>
+tag defines a line break, and 
+is an empty element without a closing tag:
+Example
+<p>This is a <br> paragraph with a line break.</p>
+Try it Yourself »
+HTML is Not Case Sensitive
+HTML tags are not case sensitive:
+means the same as
+The HTML standard does not require lowercase tags, but W3C
+recommends
+lowercase in HTML, and
+demands
+lowercase for stricter document types like XHTML.
+At W3Schools we always use lowercase tag names.
+HTML Tag Reference
+W3Schools' tag reference contains additional information about these tags and their attributes.
+Description
+<html>
+Defines the root of an HTML document
+<body>
+Defines the document's body
+<h1> to <h6>
+Defines HTML headings
+For a complete list of all available HTML tags, visit our
+HTML Tag Reference
+Video: HTML Elements
+❮ Previous
+Next ❯
+Sign in to track progress
+COLOR PICKER
+REMOVE ADS

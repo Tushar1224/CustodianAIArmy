@@ -1,0 +1,78 @@
+{
+  "id": "terminal-basics",
+  "category": "Tools",
+  "icon": "fas fa-terminal",
+  "langs": {
+    "en": {
+      "title": "terminal-basics",
+      "description": "",
+      "sections": [
+        {
+          "file": "01-title-topics-en.md",
+          "title": "Title topics"
+        },
+        {
+          "file": "10-navigation-en.md",
+          "title": "Navigation"
+        },
+        {
+          "file": "20-file-operations-en.md",
+          "title": "File operations"
+        },
+        {
+          "file": "30-processes-en.md",
+          "title": "Processes"
+        },
+        {
+          "file": "geeksforgeeks-linux-commands-en.md",
+          "title": "Geeksforgeeks linux commands"
+        },
+        {
+          "file": "geeksforgeeks-linux-intro-en.md",
+          "title": "Geeksforgeeks linux intro"
+        },
+        {
+          "file": "linux-commands-en.md",
+          "title": "Linux commands"
+        },
+        {
+          "file": "linux-terminal-en.md",
+          "title": "Linux terminal"
+        },
+        {
+          "file": "tutorialspoint-unix-directories-en.md",
+          "title": "Tutorialspoint unix directories"
+        },
+        {
+          "file": "tutorialspoint-unix-en.md",
+          "title": "Tutorialspoint unix"
+        },
+        {
+          "file": "tutorialspoint-unix-files-en.md",
+          "title": "Tutorialspoint unix files"
+        },
+        {
+          "file": "tutorialspoint-unix-grep-en.md",
+          "title": "Tutorialspoint unix grep"
+        },
+        {
+          "file": "tutorialspoint-unix-permissions-en.md",
+          "title": "Tutorialspoint unix permissions"
+        },
+        {
+          "file": "tutorialspoint-unix-pipes-en.md",
+          "title": "Tutorialspoint unix pipes"
+        },
+        {
+          "file": "tutorialspoint-unix-processes-en.md",
+          "title": "Tutorialspoint unix processes"
+        },
+        {
+          "file": "tutorialspoint-unix-vi-en.md",
+          "title": "Tutorialspoint unix vi"
+        }
+      ]
+    }
+  },
+  "slide_count": 16
+}

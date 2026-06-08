@@ -1,0 +1,186 @@
+{
+  "id": "frontend-css",
+  "category": "Frontend",
+  "icon": "fab fa-css3-alt",
+  "langs": {
+    "en": {
+      "title": "frontend-css",
+      "description": "",
+      "sections": [
+        {
+          "file": "10-basics-en.md",
+          "title": "Basics"
+        },
+        {
+          "file": "11-colors-en.md",
+          "title": "Colors"
+        },
+        {
+          "file": "12-font-en.md",
+          "title": "Font"
+        },
+        {
+          "file": "13-units-of-length-en.md",
+          "title": "Units of length"
+        },
+        {
+          "file": "15-css-resets-en.md",
+          "title": "Css resets"
+        },
+        {
+          "file": "20-inline-elements-and-block-elements-en.md",
+          "title": "Inline elements and block elements"
+        },
+        {
+          "file": "21-box-model-en.md",
+          "title": "Box model"
+        },
+        {
+          "file": "22-overflow-en.md",
+          "title": "Overflow"
+        },
+        {
+          "file": "30-flexbox-en.md",
+          "title": "Flexbox"
+        },
+        {
+          "file": "40-media-queries-en.md",
+          "title": "Media queries"
+        },
+        {
+          "file": "60-advanced-css-selectors-en.md",
+          "title": "Advanced css selectors"
+        },
+        {
+          "file": "80-positioning-en.md",
+          "title": "Positioning"
+        },
+        {
+          "file": "90-transformations-en.md",
+          "title": "Transformations"
+        },
+        {
+          "file": "95-transitions-en.md",
+          "title": "Transitions"
+        },
+        {
+          "file": "css-basics-en.md",
+          "title": "Css basics"
+        },
+        {
+          "file": "tutorialspoint-css-en.md",
+          "title": "Tutorialspoint css"
+        },
+        {
+          "file": "w3-css-backgrounds-en.md",
+          "title": "W3 css backgrounds"
+        },
+        {
+          "file": "w3-css-borders-en.md",
+          "title": "W3 css borders"
+        },
+        {
+          "file": "w3-css-combinators-en.md",
+          "title": "W3 css combinators"
+        },
+        {
+          "file": "w3-css-countners-en.md",
+          "title": "W3 css countners"
+        },
+        {
+          "file": "w3-css-dropdowns-en.md",
+          "title": "W3 css dropdowns"
+        },
+        {
+          "file": "w3-css-float-en.md",
+          "title": "W3 css float"
+        },
+        {
+          "file": "w3-css-fonts-en.md",
+          "title": "W3 css fonts"
+        },
+        {
+          "file": "w3-css-forms-en.md",
+          "title": "W3 css forms"
+        },
+        {
+          "file": "w3-css-gallery-en.md",
+          "title": "W3 css gallery"
+        },
+        {
+          "file": "w3-css-height-width-en.md",
+          "title": "W3 css height width"
+        },
+        {
+          "file": "w3-css-howto-en.md",
+          "title": "W3 css howto"
+        },
+        {
+          "file": "w3-css-margins-en.md",
+          "title": "W3 css margins"
+        },
+        {
+          "file": "w3-css-media-queries-en.md",
+          "title": "W3 css media queries"
+        },
+        {
+          "file": "w3-css-navbar-en.md",
+          "title": "W3 css navbar"
+        },
+        {
+          "file": "w3-css-opacity-en.md",
+          "title": "W3 css opacity"
+        },
+        {
+          "file": "w3-css-overflow-en.md",
+          "title": "W3 css overflow"
+        },
+        {
+          "file": "w3-css-padding-en.md",
+          "title": "W3 css padding"
+        },
+        {
+          "file": "w3-css-position-en.md",
+          "title": "W3 css position"
+        },
+        {
+          "file": "w3-css-pseudo-class-en.md",
+          "title": "W3 css pseudo class"
+        },
+        {
+          "file": "w3-css-pseudo-elem-en.md",
+          "title": "W3 css pseudo elem"
+        },
+        {
+          "file": "w3-css-text-en.md",
+          "title": "W3 css text"
+        },
+        {
+          "file": "w3schools-css-boxmodel-en.md",
+          "title": "W3schools css boxmodel"
+        },
+        {
+          "file": "w3schools-css-flexbox-en.md",
+          "title": "W3schools css flexbox"
+        },
+        {
+          "file": "w3schools-css-grid-en.md",
+          "title": "W3schools css grid"
+        },
+        {
+          "file": "w3schools-css-intro-en.md",
+          "title": "W3schools css intro"
+        },
+        {
+          "file": "w3schools-css-selectors-en.md",
+          "title": "W3schools css selectors"
+        },
+        {
+          "file": "w3schools-css-syntax-en.md",
+          "title": "W3schools css syntax"
+        }
+      ]
+    }
+  },
+  "slide_count": 43
+}

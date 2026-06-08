@@ -1,0 +1,150 @@
+{
+  "id": "python-intermediate",
+  "category": "Python",
+  "icon": "fab fa-python",
+  "langs": {
+    "en": {
+      "title": "python-intermediate",
+      "description": "",
+      "sections": [
+        {
+          "file": "01-title-topics-en.md",
+          "title": "Title topics"
+        },
+        {
+          "file": "02-datatypes-overview-en.md",
+          "title": "Datatypes overview"
+        },
+        {
+          "file": "03-none-type-en.md",
+          "title": "None type"
+        },
+        {
+          "file": "04-bool-en.md",
+          "title": "Bool"
+        },
+        {
+          "file": "05-numbers-en.md",
+          "title": "Numbers"
+        },
+        {
+          "file": "07-strings-en.md",
+          "title": "Strings"
+        },
+        {
+          "file": "08-string-formatting-en.md",
+          "title": "String formatting"
+        },
+        {
+          "file": "10-lists-en.md",
+          "title": "Lists"
+        },
+        {
+          "file": "11-tuples-en.md",
+          "title": "Tuples"
+        },
+        {
+          "file": "12-bytes-en.md",
+          "title": "Bytes"
+        },
+        {
+          "file": "13-sequences-en.md",
+          "title": "Sequences"
+        },
+        {
+          "file": "14-dictionaries-en.md",
+          "title": "Dictionaries"
+        },
+        {
+          "file": "15-comprehensions-en.md",
+          "title": "Comprehensions"
+        },
+        {
+          "file": "20-oop-en.md",
+          "title": "Oop"
+        },
+        {
+          "file": "31-if-en.md",
+          "title": "If"
+        },
+        {
+          "file": "32-for-loops-en.md",
+          "title": "For loops"
+        },
+        {
+          "file": "35-exceptions-en.md",
+          "title": "Exceptions"
+        },
+        {
+          "file": "36-raising-exceptions-en.md",
+          "title": "Raising exceptions"
+        },
+        {
+          "file": "40-modules-packages-en.md",
+          "title": "Modules packages"
+        },
+        {
+          "file": "41-custom-modules-en.md",
+          "title": "Custom modules"
+        },
+        {
+          "file": "42-pip-en.md",
+          "title": "Pip"
+        },
+        {
+          "file": "50-functions-en.md",
+          "title": "Functions"
+        },
+        {
+          "file": "81-object-references-and-mutations-en.md",
+          "title": "Object references and mutations"
+        },
+        {
+          "file": "90-python-versions-en.md",
+          "title": "Python versions"
+        },
+        {
+          "file": "geeksforgeeks-python-exceptions-en.md",
+          "title": "Geeksforgeeks python exceptions"
+        },
+        {
+          "file": "geeksforgeeks-python-file-en.md",
+          "title": "Geeksforgeeks python file"
+        },
+        {
+          "file": "geeksforgeeks-python-oop-en.md",
+          "title": "Geeksforgeeks python oop"
+        },
+        {
+          "file": "python-intermediate-en.md",
+          "title": "Python intermediate"
+        },
+        {
+          "file": "tutorialspoint-python-intermediate-en.md",
+          "title": "Tutorialspoint python intermediate"
+        },
+        {
+          "file": "w3schools-python-arrays-en.md",
+          "title": "W3schools python arrays"
+        },
+        {
+          "file": "w3schools-python-classes-en.md",
+          "title": "W3schools python classes"
+        },
+        {
+          "file": "w3schools-python-iterators-en.md",
+          "title": "W3schools python iterators"
+        },
+        {
+          "file": "w3schools-python-lambda-en.md",
+          "title": "W3schools python lambda"
+        },
+        {
+          "file": "w3schools-python-modules-en.md",
+          "title": "W3schools python modules"
+        }
+      ]
+    }
+  },
+  "slide_count": 34
+}

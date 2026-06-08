@@ -1,0 +1,74 @@
+{
+  "id": "javascript-es-2015",
+  "category": "JavaScript",
+  "icon": "fab fa-js-square",
+  "langs": {
+    "en": {
+      "title": "javascript-es-2015",
+      "description": "",
+      "sections": [
+        {
+          "file": "01-title-topics-en.md",
+          "title": "Title topics"
+        },
+        {
+          "file": "10-let-const-en.md",
+          "title": "Let const"
+        },
+        {
+          "file": "20-arrow-functions-en.md",
+          "title": "Arrow functions"
+        },
+        {
+          "file": "30-destructuring-en.md",
+          "title": "Destructuring"
+        },
+        {
+          "file": "40-modules-en.md",
+          "title": "Modules"
+        },
+        {
+          "file": "50-promises-en.md",
+          "title": "Promises"
+        },
+        {
+          "file": "es2015-features-en.md",
+          "title": "Es2015 features"
+        },
+        {
+          "file": "geeksforgeeks-es6-en.md",
+          "title": "Geeksforgeeks es6"
+        },
+        {
+          "file": "tutorialspoint-es6-en.md",
+          "title": "Tutorialspoint es6"
+        },
+        {
+          "file": "w3schools-js-arrow-en.md",
+          "title": "W3schools js arrow"
+        },
+        {
+          "file": "w3schools-js-const-en.md",
+          "title": "W3schools js const"
+        },
+        {
+          "file": "w3schools-js-destructuring-en.md",
+          "title": "W3schools js destructuring"
+        },
+        {
+          "file": "w3schools-js-letconst-en.md",
+          "title": "W3schools js letconst"
+        },
+        {
+          "file": "w3schools-js-modules-en.md",
+          "title": "W3schools js modules"
+        },
+        {
+          "file": "w3schools-js-promises-en.md",
+          "title": "W3schools js promises"
+        }
+      ]
+    }
+  },
+  "slide_count": 15
+}

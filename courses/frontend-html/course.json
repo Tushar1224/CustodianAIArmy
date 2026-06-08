@@ -1,0 +1,306 @@
+{
+  "id": "frontend-html",
+  "category": "Frontend",
+  "icon": "fab fa-html5",
+  "langs": {
+    "en": {
+      "title": "frontend-html",
+      "description": "",
+      "sections": [
+        {
+          "file": "02-html-css-and-javascript-en.md",
+          "title": "Html css and javascript"
+        },
+        {
+          "file": "03-html-basics-en.md",
+          "title": "Html basics"
+        },
+        {
+          "file": "04-html-structure-en.md",
+          "title": "Html structure"
+        },
+        {
+          "file": "05-special-characters-and-whitespace-en.md",
+          "title": "Special characters and whitespace"
+        },
+        {
+          "file": "07-stylesheets-en.md",
+          "title": "Stylesheets"
+        },
+        {
+          "file": "10-html-elements-en.md",
+          "title": "Html elements"
+        },
+        {
+          "file": "11-structuring-elements-en.md",
+          "title": "Structuring elements"
+        },
+        {
+          "file": "12-links-en.md",
+          "title": "Links"
+        },
+        {
+          "file": "13-text-formatting-en.md",
+          "title": "Text formatting"
+        },
+        {
+          "file": "14-div-span-en.md",
+          "title": "Div span"
+        },
+        {
+          "file": "15-lists-en.md",
+          "title": "Lists"
+        },
+        {
+          "file": "16-forms-and-buttons-en.md",
+          "title": "Forms and buttons"
+        },
+        {
+          "file": "17-media-en.md",
+          "title": "Media"
+        },
+        {
+          "file": "40-head-en.md",
+          "title": "Head"
+        },
+        {
+          "file": "50-accessibility-en.md",
+          "title": "Accessibility"
+        },
+        {
+          "file": "55-hosting-en.md",
+          "title": "Hosting"
+        },
+        {
+          "file": "60-bootstrap-en.md",
+          "title": "Bootstrap"
+        },
+        {
+          "file": "80-svg-en.md",
+          "title": "Svg"
+        },
+        {
+          "file": "html-basics-en.md",
+          "title": "Html basics"
+        },
+        {
+          "file": "tutorialspoint-html-en.md",
+          "title": "Tutorialspoint html"
+        },
+        {
+          "file": "w3-attributes-en.md",
+          "title": "W3 attributes"
+        },
+        {
+          "file": "w3-audio-en.md",
+          "title": "W3 audio"
+        },
+        {
+          "file": "w3-basics-en.md",
+          "title": "W3 basics"
+        },
+        {
+          "file": "w3-blocks-en.md",
+          "title": "W3 blocks"
+        },
+        {
+          "file": "w3-canvas-en.md",
+          "title": "W3 canvas"
+        },
+        {
+          "file": "w3-charset-en.md",
+          "title": "W3 charset"
+        },
+        {
+          "file": "w3-classes-en.md",
+          "title": "W3 classes"
+        },
+        {
+          "file": "w3-colors-en.md",
+          "title": "W3 colors"
+        },
+        {
+          "file": "w3-comments-en.md",
+          "title": "W3 comments"
+        },
+        {
+          "file": "w3-computercode-en.md",
+          "title": "W3 computercode"
+        },
+        {
+          "file": "w3-drag-drop-en.md",
+          "title": "W3 drag drop"
+        },
+        {
+          "file": "w3-editors-en.md",
+          "title": "W3 editors"
+        },
+        {
+          "file": "w3-elements-en.md",
+          "title": "W3 elements"
+        },
+        {
+          "file": "w3-emojis-en.md",
+          "title": "W3 emojis"
+        },
+        {
+          "file": "w3-entities-en.md",
+          "title": "W3 entities"
+        },
+        {
+          "file": "w3-favicon-en.md",
+          "title": "W3 favicon"
+        },
+        {
+          "file": "w3-filepaths-en.md",
+          "title": "W3 filepaths"
+        },
+        {
+          "file": "w3-form-attributes-en.md",
+          "title": "W3 form attributes"
+        },
+        {
+          "file": "w3-form-elements-en.md",
+          "title": "W3 form elements"
+        },
+        {
+          "file": "w3-form-input-types-en.md",
+          "title": "W3 form input types"
+        },
+        {
+          "file": "w3-formatting-en.md",
+          "title": "W3 formatting"
+        },
+        {
+          "file": "w3-forms-en.md",
+          "title": "W3 forms"
+        },
+        {
+          "file": "w3-geolocation-en.md",
+          "title": "W3 geolocation"
+        },
+        {
+          "file": "w3-head-en.md",
+          "title": "W3 head"
+        },
+        {
+          "file": "w3-headings-en.md",
+          "title": "W3 headings"
+        },
+        {
+          "file": "w3-id-en.md",
+          "title": "W3 id"
+        },
+        {
+          "file": "w3-iframe-en.md",
+          "title": "W3 iframe"
+        },
+        {
+          "file": "w3-images-en.md",
+          "title": "W3 images"
+        },
+        {
+          "file": "w3-intro-en.md",
+          "title": "W3 intro"
+        },
+        {
+          "file": "w3-javascript-en.md",
+          "title": "W3 javascript"
+        },
+        {
+          "file": "w3-layout-en.md",
+          "title": "W3 layout"
+        },
+        {
+          "file": "w3-links-en.md",
+          "title": "W3 links"
+        },
+        {
+          "file": "w3-lists-en.md",
+          "title": "W3 lists"
+        },
+        {
+          "file": "w3-paragraphs-en.md",
+          "title": "W3 paragraphs"
+        },
+        {
+          "file": "w3-responsive-en.md",
+          "title": "W3 responsive"
+        },
+        {
+          "file": "w3-semantics-en.md",
+          "title": "W3 semantics"
+        },
+        {
+          "file": "w3-sse-en.md",
+          "title": "W3 sse"
+        },
+        {
+          "file": "w3-styles-en.md",
+          "title": "W3 styles"
+        },
+        {
+          "file": "w3-svg-en.md",
+          "title": "W3 svg"
+        },
+        {
+          "file": "w3-symbols-en.md",
+          "title": "W3 symbols"
+        },
+        {
+          "file": "w3-tables-en.md",
+          "title": "W3 tables"
+        },
+        {
+          "file": "w3-url-encode-en.md",
+          "title": "W3 url encode"
+        },
+        {
+          "file": "w3-video-en.md",
+          "title": "W3 video"
+        },
+        {
+          "file": "w3-web-storage-en.md",
+          "title": "W3 web storage"
+        },
+        {
+          "file": "w3-web-workers-en.md",
+          "title": "W3 web workers"
+        },
+        {
+          "file": "w3-xhtml-en.md",
+          "title": "W3 xhtml"
+        },
+        {
+          "file": "w3schools-html-forms-en.md",
+          "title": "W3schools html forms"
+        },
+        {
+          "file": "w3schools-html-headings-en.md",
+          "title": "W3schools html headings"
+        },
+        {
+          "file": "w3schools-html-images-en.md",
+          "title": "W3schools html images"
+        },
+        {
+          "file": "w3schools-html-intro-en.md",
+          "title": "W3schools html intro"
+        },
+        {
+          "file": "w3schools-html-links-en.md",
+          "title": "W3schools html links"
+        },
+        {
+          "file": "w3schools-html-paragraphs-en.md",
+          "title": "W3schools html paragraphs"
+        },
+        {
+          "file": "w3schools-html-tables-en.md",
+          "title": "W3schools html tables"
+        }
+      ]
+    }
+  },
+  "slide_count": 73
+}

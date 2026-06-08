@@ -1,0 +1,62 @@
+{
+  "id": "python-data-science-2-pyplot",
+  "category": "Python",
+  "icon": "fas fa-chart-line",
+  "langs": {
+    "en": {
+      "title": "python-data-science-2-pyplot",
+      "description": "",
+      "sections": [
+        {
+          "file": "10-plotting-en.md",
+          "title": "Plotting"
+        },
+        {
+          "file": "20-plot-configuration-and-styling-en.md",
+          "title": "Plot configuration and styling"
+        },
+        {
+          "file": "30-basic-plot-types-en.md",
+          "title": "Basic plot types"
+        },
+        {
+          "file": "35-basic-plot-types-visualizing-iris-data-en.md",
+          "title": "Basic plot types visualizing iris data"
+        },
+        {
+          "file": "50-figure-axes-subplots-en.md",
+          "title": "Figure axes subplots"
+        },
+        {
+          "file": "60-advanced-plot-types-en.md",
+          "title": "Advanced plot types"
+        },
+        {
+          "file": "geeksforgeeks-matplotlib-en.md",
+          "title": "Geeksforgeeks matplotlib"
+        },
+        {
+          "file": "matplotlib-tutorial-en.md",
+          "title": "Matplotlib tutorial"
+        },
+        {
+          "file": "w3schools-matplotlib-bars-en.md",
+          "title": "W3schools matplotlib bars"
+        },
+        {
+          "file": "w3schools-matplotlib-hist-en.md",
+          "title": "W3schools matplotlib hist"
+        },
+        {
+          "file": "w3schools-matplotlib-intro-en.md",
+          "title": "W3schools matplotlib intro"
+        },
+        {
+          "file": "w3schools-matplotlib-pyplot-en.md",
+          "title": "W3schools matplotlib pyplot"
+        }
+      ]
+    }
+  },
+  "slide_count": 12
+}

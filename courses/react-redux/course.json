@@ -1,0 +1,130 @@
+{
+  "id": "react-redux",
+  "category": "React",
+  "icon": "fab fa-react",
+  "langs": {
+    "en": {
+      "title": "react-redux",
+      "description": "",
+      "sections": [
+        {
+          "file": "02-topics-en.md",
+          "title": "Topics"
+        },
+        {
+          "file": "21-redux-devtools-en.md",
+          "title": "Redux devtools"
+        },
+        {
+          "file": "22-redux-toolkit-en.md",
+          "title": "Redux toolkit"
+        },
+        {
+          "file": "23-state-management-in-redux-en.md",
+          "title": "State management in redux"
+        },
+        {
+          "file": "24-typing-redux-reducers-en.md",
+          "title": "Typing redux reducers"
+        },
+        {
+          "file": "25-store-en.md",
+          "title": "Store"
+        },
+        {
+          "file": "31-react-redux-en.md",
+          "title": "React redux"
+        },
+        {
+          "file": "32-react-redux-hooks-en.md",
+          "title": "React redux hooks"
+        },
+        {
+          "file": "33-react-redux-container-components-en.md",
+          "title": "React redux container components"
+        },
+        {
+          "file": "41-splitting-combining-reducers-en.md",
+          "title": "Splitting combining reducers"
+        },
+        {
+          "file": "42-actions-in-detail-en.md",
+          "title": "Actions in detail"
+        },
+        {
+          "file": "43-asynchronous-actions-en.md",
+          "title": "Asynchronous actions"
+        },
+        {
+          "file": "44-redux-thunk-en.md",
+          "title": "Redux thunk"
+        },
+        {
+          "file": "45-action-creators-en.md",
+          "title": "Action creators"
+        },
+        {
+          "file": "48-testing-thunks-en.md",
+          "title": "Testing thunks"
+        },
+        {
+          "file": "51-exercise-todolist-en.md",
+          "title": "Exercise todolist"
+        },
+        {
+          "file": "52-exercise-shop-en.md",
+          "title": "Exercise shop"
+        },
+        {
+          "file": "61-create-action-en.md",
+          "title": "Create action"
+        },
+        {
+          "file": "64-create-reducer-en.md",
+          "title": "Create reducer"
+        },
+        {
+          "file": "65-create-slice-en.md",
+          "title": "Create slice"
+        },
+        {
+          "file": "66-selectors-en.md",
+          "title": "Selectors"
+        },
+        {
+          "file": "67-memoized-selectors-en.md",
+          "title": "Memoized selectors"
+        },
+        {
+          "file": "81-redux-ecosystem-en.md",
+          "title": "Redux ecosystem"
+        },
+        {
+          "file": "84-redux-saga-en.md",
+          "title": "Redux saga"
+        },
+        {
+          "file": "90-resources-en.md",
+          "title": "Resources"
+        },
+        {
+          "file": "geeksforgeeks-react-redux-en.md",
+          "title": "Geeksforgeeks react redux"
+        },
+        {
+          "file": "geeksforgeeks-redux-intro-en.md",
+          "title": "Geeksforgeeks redux intro"
+        },
+        {
+          "file": "react-redux-en.md",
+          "title": "React redux"
+        },
+        {
+          "file": "redux-en.md",
+          "title": "Redux"
+        }
+      ]
+    }
+  },
+  "slide_count": 29
+}

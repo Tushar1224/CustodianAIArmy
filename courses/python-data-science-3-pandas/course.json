@@ -1,0 +1,94 @@
+{
+  "id": "python-data-science-3-pandas",
+  "category": "Python",
+  "icon": "fas fa-table",
+  "langs": {
+    "en": {
+      "title": "python-data-science-3-pandas",
+      "description": "",
+      "sections": [
+        {
+          "file": "10-pandas-en.md",
+          "title": "Pandas"
+        },
+        {
+          "file": "20-importing-and-exporting-data-en.md",
+          "title": "Importing and exporting data"
+        },
+        {
+          "file": "25-example-data-sources-en.md",
+          "title": "Example data sources"
+        },
+        {
+          "file": "30-data-statistics-en.md",
+          "title": "Data statistics"
+        },
+        {
+          "file": "40-querying-data-en.md",
+          "title": "Querying data"
+        },
+        {
+          "file": "50-changing-data-en.md",
+          "title": "Changing data"
+        },
+        {
+          "file": "55-missing-data-en.md",
+          "title": "Missing data"
+        },
+        {
+          "file": "60-basic-plots-en.md",
+          "title": "Basic plots"
+        },
+        {
+          "file": "65-basic-plots-in-pandas-and-pyplot-en.md",
+          "title": "Basic plots in pandas and pyplot"
+        },
+        {
+          "file": "70-crosstab-en.md",
+          "title": "Crosstab"
+        },
+        {
+          "file": "73-grouping-en.md",
+          "title": "Grouping"
+        },
+        {
+          "file": "76-multi-indices-en.md",
+          "title": "Multi indices"
+        },
+        {
+          "file": "geeksforgeeks-pandas-en.md",
+          "title": "Geeksforgeeks pandas"
+        },
+        {
+          "file": "pandas-en.md",
+          "title": "Pandas"
+        },
+        {
+          "file": "tutorialspoint-pandas-en.md",
+          "title": "Tutorialspoint pandas"
+        },
+        {
+          "file": "w3schools-pandas-clean-en.md",
+          "title": "W3schools pandas clean"
+        },
+        {
+          "file": "w3schools-pandas-csv-en.md",
+          "title": "W3schools pandas csv"
+        },
+        {
+          "file": "w3schools-pandas-df-en.md",
+          "title": "W3schools pandas df"
+        },
+        {
+          "file": "w3schools-pandas-intro-en.md",
+          "title": "W3schools pandas intro"
+        },
+        {
+          "file": "w3schools-pandas-series-en.md",
+          "title": "W3schools pandas series"
+        }
+      ]
+    }
+  },
+  "slide_count": 20
+}

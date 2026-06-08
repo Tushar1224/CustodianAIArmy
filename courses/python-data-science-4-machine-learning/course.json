@@ -1,0 +1,126 @@
+{
+  "id": "python-data-science-4-machine-learning",
+  "category": "Python",
+  "icon": "fas fa-brain",
+  "langs": {
+    "en": {
+      "title": "python-data-science-4-machine-learning",
+      "description": "",
+      "sections": [
+        {
+          "file": "10-machine-learning-en.md",
+          "title": "Machine learning"
+        },
+        {
+          "file": "12-libraries-en.md",
+          "title": "Libraries"
+        },
+        {
+          "file": "15-supervised-learning-en.md",
+          "title": "Supervised learning"
+        },
+        {
+          "file": "20-supervised-learning-in-scikit-learn-en.md",
+          "title": "Supervised learning in scikit learn"
+        },
+        {
+          "file": "21-supervised-learning-in-keras-en.md",
+          "title": "Supervised learning in keras"
+        },
+        {
+          "file": "22-example-digit-recognition-en.md",
+          "title": "Example digit recognition"
+        },
+        {
+          "file": "23-preparing-data-en.md",
+          "title": "Preparing data"
+        },
+        {
+          "file": "25-validation-en.md",
+          "title": "Validation"
+        },
+        {
+          "file": "29-iris-classification-in-scikit-learn-complete-en.md",
+          "title": "Iris classification in scikit learn complete"
+        },
+        {
+          "file": "30-datasets-en.md",
+          "title": "Datasets"
+        },
+        {
+          "file": "33-example-labeled-faces-with-scikit-learn-en.md",
+          "title": "Example labeled faces with scikit learn"
+        },
+        {
+          "file": "40-algorithms-for-supervised-learning-en.md",
+          "title": "Algorithms for supervised learning"
+        },
+        {
+          "file": "41-linear-regression-en.md",
+          "title": "Linear regression"
+        },
+        {
+          "file": "42-neural-networks-en.md",
+          "title": "Neural networks"
+        },
+        {
+          "file": "50-supervised-learning-algorithms-in-scikit-learn-en.md",
+          "title": "Supervised learning algorithms in scikit learn"
+        },
+        {
+          "file": "51-linear-regression-with-scikit-learn-en.md",
+          "title": "Linear regression with scikit learn"
+        },
+        {
+          "file": "52-polynomial-regression-with-scikit-learn-en.md",
+          "title": "Polynomial regression with scikit learn"
+        },
+        {
+          "file": "53-neural-network-regression-scikit-learn-en.md",
+          "title": "Neural network regression scikit learn"
+        },
+        {
+          "file": "70-overfitting-en.md",
+          "title": "Overfitting"
+        },
+        {
+          "file": "75-model-validation-and-selection-en.md",
+          "title": "Model validation and selection"
+        },
+        {
+          "file": "81-clustering-en.md",
+          "title": "Clustering"
+        },
+        {
+          "file": "geeksforgeeks-ml-en.md",
+          "title": "Geeksforgeeks ml"
+        },
+        {
+          "file": "machine-learning-en.md",
+          "title": "Machine learning"
+        },
+        {
+          "file": "tutorialspoint-ml-en.md",
+          "title": "Tutorialspoint ml"
+        },
+        {
+          "file": "w3schools-ml-decision-tree-en.md",
+          "title": "W3schools ml decision tree"
+        },
+        {
+          "file": "w3schools-ml-intro-en.md",
+          "title": "W3schools ml intro"
+        },
+        {
+          "file": "w3schools-ml-regression-en.md",
+          "title": "W3schools ml regression"
+        },
+        {
+          "file": "w3schools-ml-train-en.md",
+          "title": "W3schools ml train"
+        }
+      ]
+    }
+  },
+  "slide_count": 28
+}

@@ -1,0 +1,126 @@
+{
+  "id": "python-advanced",
+  "category": "Python",
+  "icon": "fab fa-python",
+  "langs": {
+    "en": {
+      "title": "python-advanced",
+      "description": "",
+      "sections": [
+        {
+          "file": "01-title-topics-en.md",
+          "title": "Title topics"
+        },
+        {
+          "file": "10-logging-en.md",
+          "title": "Logging"
+        },
+        {
+          "file": "11-unit-tests-en.md",
+          "title": "Unit tests"
+        },
+        {
+          "file": "12-docstrings-en.md",
+          "title": "Docstrings"
+        },
+        {
+          "file": "20-type-hints-en.md",
+          "title": "Type hints"
+        },
+        {
+          "file": "40-oop-advanced-en.md",
+          "title": "Oop advanced"
+        },
+        {
+          "file": "41-oop-properties-en.md",
+          "title": "Oop properties"
+        },
+        {
+          "file": "42-oop-static-class-members-en.md",
+          "title": "Oop static class members"
+        },
+        {
+          "file": "43-oop-magic-methods-en.md",
+          "title": "Oop magic methods"
+        },
+        {
+          "file": "44-oop-inheritance-en.md",
+          "title": "Oop inheritance"
+        },
+        {
+          "file": "45-oop-advanced-en.md",
+          "title": "Oop advanced"
+        },
+        {
+          "file": "50-iterators-en.md",
+          "title": "Iterators"
+        },
+        {
+          "file": "51-generator-functions-and-generator-expressions-en.md",
+          "title": "Generator functions and generator expressions"
+        },
+        {
+          "file": "52-iterators-internals-en.md",
+          "title": "Iterators internals"
+        },
+        {
+          "file": "55-for-else-en.md",
+          "title": "For else"
+        },
+        {
+          "file": "60-lambdas-en.md",
+          "title": "Lambdas"
+        },
+        {
+          "file": "61-higher-order-functions-en.md",
+          "title": "Higher order functions"
+        },
+        {
+          "file": "71-sets-en.md",
+          "title": "Sets"
+        },
+        {
+          "file": "73-enum-en.md",
+          "title": "Enum"
+        },
+        {
+          "file": "95-parallelization-en.md",
+          "title": "Parallelization"
+        },
+        {
+          "file": "geeksforgeeks-python-context-en.md",
+          "title": "Geeksforgeeks python context"
+        },
+        {
+          "file": "geeksforgeeks-python-decorators-en.md",
+          "title": "Geeksforgeeks python decorators"
+        },
+        {
+          "file": "geeksforgeeks-python-generators-en.md",
+          "title": "Geeksforgeeks python generators"
+        },
+        {
+          "file": "geeksforgeeks-python-logging-en.md",
+          "title": "Geeksforgeeks python logging"
+        },
+        {
+          "file": "geeksforgeeks-python-multithreading-en.md",
+          "title": "Geeksforgeeks python multithreading"
+        },
+        {
+          "file": "geeksforgeeks-python-unittest-en.md",
+          "title": "Geeksforgeeks python unittest"
+        },
+        {
+          "file": "python-advanced-en.md",
+          "title": "Python advanced"
+        },
+        {
+          "file": "tutorialspoint-python-advanced-en.md",
+          "title": "Tutorialspoint python advanced"
+        }
+      ]
+    }
+  },
+  "slide_count": 28
+}

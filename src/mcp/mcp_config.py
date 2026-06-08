@@ -55,6 +55,14 @@ MCP_SERVERS: Dict[str, Dict[str, Any]] = {
         "env": {},
         "tools": ["sequentialthinking"],
     },
+    "crawl_course_pathway": {
+        "name": "crawl_course_pathway",
+        "description": "Crawl tutorial websites (W3Schools, GeeksforGeeks, Javatpoint) to extract full learning pathways as clean Markdown",
+        "command": "python",
+        "args": ["scripts/crawl_course_pathway_mcp.py"],
+        "env": {},
+        "tools": ["crawl_course_pathway"],
+    },
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -88,6 +96,7 @@ AGENT_TOOLS: Dict[str, List[str]] = {
         "search_nodes",
         "read_graph",
         "sequentialthinking",
+        "crawl_course_pathway",
     ],
     "fact_checker": [
         "fetch",
@@ -134,6 +143,7 @@ AGENT_TOOLS: Dict[str, List[str]] = {
         "list_directory",
         "search_files",
         "create_directory",
+        "crawl_course_pathway",
     ],
     "architect": [
         "fetch",
@@ -167,6 +177,7 @@ AGENT_TOOLS: Dict[str, List[str]] = {
         "fetch",
         "duckduckgo_web_search",
         "read_file",
+        "crawl_course_pathway",
     ],
 }
 

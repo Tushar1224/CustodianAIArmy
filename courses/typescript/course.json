@@ -1,0 +1,62 @@
+{
+  "id": "typescript",
+  "category": "TypeScript",
+  "icon": "fas fa-code",
+  "langs": {
+    "en": {
+      "title": "typescript",
+      "description": "",
+      "sections": [
+        {
+          "file": "tutorialspoint-ts-classes-en.md",
+          "title": "Tutorialspoint ts classes"
+        },
+        {
+          "file": "tutorialspoint-ts-functions-en.md",
+          "title": "Tutorialspoint ts functions"
+        },
+        {
+          "file": "tutorialspoint-ts-generics-en.md",
+          "title": "Tutorialspoint ts generics"
+        },
+        {
+          "file": "tutorialspoint-ts-interfaces-en.md",
+          "title": "Tutorialspoint ts interfaces"
+        },
+        {
+          "file": "tutorialspoint-ts-modules-en.md",
+          "title": "Tutorialspoint ts modules"
+        },
+        {
+          "file": "tutorialspoint-ts-types-en.md",
+          "title": "Tutorialspoint ts types"
+        },
+        {
+          "file": "tutorialspoint-ts-variables-en.md",
+          "title": "Tutorialspoint ts variables"
+        },
+        {
+          "file": "tutorialspoint-typescript-en.md",
+          "title": "Tutorialspoint typescript"
+        },
+        {
+          "file": "typescript-basics-en.md",
+          "title": "Typescript basics"
+        },
+        {
+          "file": "typescript-en.md",
+          "title": "Typescript"
+        },
+        {
+          "file": "typescript-intermediate-en.md",
+          "title": "Typescript intermediate"
+        },
+        {
+          "file": "w3schools-ts-intro-en.md",
+          "title": "W3schools ts intro"
+        }
+      ]
+    }
+  },
+  "slide_count": 12
+}

@@ -8,6 +8,14 @@
       ],
       "type": "stdio",
       "env": []
+    },
+    "crawl-course-pathway": {
+      "command": "python",
+      "args": [
+        "scripts/crawl_course_pathway_mcp.py"
+      ],
+      "type": "stdio",
+      "env": []
     }
   }
 }

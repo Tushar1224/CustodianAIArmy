@@ -1,0 +1,70 @@
+{
+  "id": "javascript-async-and-network-requests",
+  "category": "JavaScript",
+  "icon": "fab fa-js-square",
+  "langs": {
+    "en": {
+      "title": "javascript-async-and-network-requests",
+      "description": "",
+      "sections": [
+        {
+          "file": "05-overview-en.md",
+          "title": "Overview"
+        },
+        {
+          "file": "10-promises-fetch-en.md",
+          "title": "Promises fetch"
+        },
+        {
+          "file": "20-async-await-en.md",
+          "title": "Async await"
+        },
+        {
+          "file": "30-promises-fetch-error-handling-en.md",
+          "title": "Promises fetch error handling"
+        },
+        {
+          "file": "40-promises-advanced-en.md",
+          "title": "Promises advanced"
+        },
+        {
+          "file": "50-axios-en.md",
+          "title": "Axios"
+        },
+        {
+          "file": "55-axios-fetch-examples-en.md",
+          "title": "Axios fetch examples"
+        },
+        {
+          "file": "57-axios-advanced-en.md",
+          "title": "Axios advanced"
+        },
+        {
+          "file": "async-javascript-en.md",
+          "title": "Async javascript"
+        },
+        {
+          "file": "tutorialspoint-ajax-en.md",
+          "title": "Tutorialspoint ajax"
+        },
+        {
+          "file": "w3schools-js-async-await-en.md",
+          "title": "W3schools js async await"
+        },
+        {
+          "file": "w3schools-js-async-en.md",
+          "title": "W3schools js async"
+        },
+        {
+          "file": "w3schools-js-callbacks-en.md",
+          "title": "W3schools js callbacks"
+        },
+        {
+          "file": "w3schools-js-fetch-en.md",
+          "title": "W3schools js fetch"
+        }
+      ]
+    }
+  },
+  "slide_count": 14
+}

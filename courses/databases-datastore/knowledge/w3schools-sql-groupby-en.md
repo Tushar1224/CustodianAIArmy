@@ -1,0 +1,504 @@
+# w3schools-sql-groupby
+
+Source: https://www.w3schools.com/sql/sql_groupby.asp
+
+Menu
+See More
+Sign In
+Get Certified
+Upgrade
+Academy
+Spaces
+Practice
+Get Certified
+Upgrade
+Academy
+Spaces
+Practice
+HTML
+JAVASCRIPT
+PYTHON
+JAVA
+HOW TO
+W3.CSS
+BOOTSTRAP
+REACT
+MYSQL
+JQUERY
+EXCEL
+DJANGO
+NUMPY
+PANDAS
+NODEJS
+TYPESCRIPT
+ANGULAR
+ANGULARJS
+POSTGRESQL
+MONGODB
+KOTLIN
+SWIFT
+SASS
+GEN AI
+SCIPY
+CYBERSECURITY
+DATA SCIENCE
+INTRO TO PROGRAMMING
+INTRO TO HTML & CSS
+BASH
+RUST
+TOOLS
+Tutorial
+SQL HOME
+SQL Intro
+SQL Syntax
+SQL Select
+SQL Select Distinct
+SQL Where
+SQL Order By
+SQL And
+SQL Or
+SQL Not
+SQL Insert Into
+SQL Null Values
+SQL Update
+SQL Delete
+SQL Select Top
+SQL Aggregate Functions
+SQL Min()
+SQL Max()
+SQL Count()
+SQL Sum()
+SQL Avg()
+SQL Like
+SQL Wildcards
+SQL In
+SQL Between
+SQL Aliases
+SQL Joins
+SQL Inner Join
+SQL Left Join
+SQL Right Join
+SQL Full Join
+SQL Self Join
+SQL Union
+SQL Union All
+SQL Group By
+SQL Having
+SQL Exists
+SQL Any
+SQL All
+SQL Select Into
+SQL Insert Into Select
+SQL Case
+SQL Null Functions
+SQL Stored Procedures
+SQL Comments
+SQL Operators
+Database
+SQL Create DB
+SQL Drop DB
+SQL Backup DB
+SQL Create Table
+SQL Drop Table
+SQL Alter Table
+SQL Constraints
+SQL Not Null
+SQL Unique
+SQL Primary Key
+SQL Foreign Key
+SQL Check
+SQL Default
+SQL Create Index
+SQL Auto Increment
+SQL Dates
+SQL Views
+SQL Injection
+SQL Parameters
+SQL Prepared Statements
+SQL Hosting
+Cert
+SQL Certificate
+References
+SQL Data Types
+SQL Keywords
+ADD CONSTRAINT
+ALTER
+ALTER COLUMN
+ALTER TABLE
+ALTER VIEW
+BACKUP DATABASE
+BETWEEN
+CASE
+CHECK
+COLUMN
+CONSTRAINT
+CREATE
+CREATE DATABASE
+CREATE INDEX
+CREATE OR REPLACE VIEW
+CREATE TABLE
+CREATE PROCEDURE
+CREATE UNIQUE INDEX
+CREATE VIEW
+DATABASE
+DEFAULT
+DELETE
+DESC
+DISTINCT
+DROP
+DROP COLUMN
+DROP CONSTRAINT
+DROP DATABASE
+DROP DEFAULT
+DROP INDEX
+DROP TABLE
+DROP VIEW
+EXEC
+EXISTS
+FOREIGN KEY
+FROM
+FULL OUTER JOIN
+GROUP BY
+HAVING
+INDEX
+INNER JOIN
+INSERT INTO
+INSERT INTO SELECT
+IS NULL
+IS NOT NULL
+JOIN
+LEFT JOIN
+LIKE
+LIMIT
+NOT NULL
+ORDER BY
+OUTER JOIN
+PRIMARY KEY
+PROCEDURE
+RIGHT JOIN
+ROWNUM
+SELECT
+SELECT DISTINCT
+SELECT INTO
+SELECT TOP
+TABLE
+TRUNCATE TABLE
+UNION
+UNION ALL
+UNIQUE
+UPDATE
+VALUES
+VIEW
+WHERE
+MySQL Functions
+String Functions:
+ASCII
+CHAR_LENGTH
+CHARACTER_LENGTH
+CONCAT
+CONCAT_WS
+FIELD
+FIND_IN_SET
+FORMAT
+INSERT
+INSTR
+LCASE
+LEFT
+LENGTH
+LOCATE
+LOWER
+LPAD
+LTRIM
+POSITION
+REPEAT
+REPLACE
+REVERSE
+RIGHT
+RPAD
+RTRIM
+SPACE
+STRCMP
+SUBSTR
+SUBSTRING
+SUBSTRING_INDEX
+TRIM
+UCASE
+UPPER
+Numeric Functions:
+ACOS
+ASIN
+ATAN
+ATAN2
+CEIL
+CEILING
+COUNT
+DEGREES
+FLOOR
+GREATEST
+LEAST
+LOG10
+LOG2
+POWER
+RADIANS
+RAND
+ROUND
+SIGN
+SQRT
+TRUNCATE
+Date Functions:
+ADDDATE
+ADDTIME
+CURDATE
+CURRENT_DATE
+CURRENT_TIME
+CURRENT_TIMESTAMP
+CURTIME
+DATE
+DATEDIFF
+DATE_ADD
+DATE_FORMAT
+DATE_SUB
+DAYNAME
+DAYOFMONTH
+DAYOFWEEK
+DAYOFYEAR
+EXTRACT
+FROM_DAYS
+HOUR
+LAST_DAY
+LOCALTIME
+LOCALTIMESTAMP
+MAKEDATE
+MAKETIME
+MICROSECOND
+MINUTE
+MONTH
+MONTHNAME
+PERIOD_ADD
+PERIOD_DIFF
+QUARTER
+SECOND
+SEC_TO_TIME
+STR_TO_DATE
+SUBDATE
+SUBTIME
+SYSDATE
+TIME
+TIME_FORMAT
+TIME_TO_SEC
+TIMEDIFF
+TIMESTAMP
+TO_DAYS
+WEEK
+WEEKDAY
+WEEKOFYEAR
+YEAR
+YEARWEEK
+Advanced Functions:
+BINARY
+CASE
+CAST
+COALESCE
+CONNECTION_ID
+CONV
+CONVERT
+CURRENT_USER
+DATABASE
+IFNULL
+ISNULL
+LAST_INSERT_ID
+NULLIF
+SESSION_USER
+SYSTEM_USER
+USER
+VERSION
+SQL Server Functions
+String Functions:
+ASCII
+CHAR
+CHARINDEX
+CONCAT
+Concat with +
+CONCAT_WS
+DATALENGTH
+DIFFERENCE
+FORMAT
+LEFT
+LOWER
+LTRIM
+NCHAR
+PATINDEX
+QUOTENAME
+REPLACE
+REPLICATE
+REVERSE
+RIGHT
+RTRIM
+SOUNDEX
+SPACE
+STUFF
+SUBSTRING
+TRANSLATE
+TRIM
+UNICODE
+UPPER
+Numeric Functions:
+ACOS
+ASIN
+ATAN
+ATN2
+CEILING
+COUNT
+DEGREES
+FLOOR
+LOG10
+POWER
+RADIANS
+RAND
+ROUND
+SIGN
+SQRT
+SQUARE
+Date Functions:
+CURRENT_TIMESTAMP
+DATEADD
+DATEDIFF
+DATEFROMPARTS
+DATENAME
+DATEPART
+GETDATE
+GETUTCDATE
+ISDATE
+MONTH
+SYSDATETIME
+YEAR
+Advanced Functions
+CAST
+COALESCE
+CONVERT
+CURRENT_USER
+ISNULL
+ISNUMERIC
+NULLIF
+SESSION_USER
+SESSIONPROPERTY
+SYSTEM_USER
+USER_NAME
+MS Access Functions
+String Functions:
+Concat with &
+CurDir
+Format
+InStr
+InstrRev
+LCase
+Left
+LTrim
+Replace
+Right
+RTrim
+Space
+Split
+StrComp
+StrConv
+StrReverse
+Trim
+UCase
+Numeric Functions:
+Count
+Format
+Randomize
+Round
+Date Functions:
+Date
+DateAdd
+DateDiff
+DatePart
+DateSerial
+DateValue
+Format
+Hour
+Minute
+Month
+MonthName
+Second
+Time
+TimeSerial
+TimeValue
+Weekday
+WeekdayName
+Year
+Other Functions:
+CurrentUser
+Environ
+IsDate
+IsNull
+IsNumeric
+SQL Quick Ref
+Examples
+SQL Examples
+SQL Editor
+SQL Quiz
+SQL Exercises
+SQL Server
+SQL Syllabus
+SQL Study Plan
+SQL Bootcamp
+SQL Training
+GROUP BY
+Statement
+❮ Previous
+Next ❯
+The SQL GROUP BY Statement
+GROUP BY
+statement is used to group rows that have the same values into summary rows, like "Find the number of customers in each country".
+GROUP BY
+statement is almost always used in conjunction with aggregate functions, like
+COUNT()
+MAX()
+MIN()
+SUM()
+AVG()
+to perform calculations on each group.
+GROUP BY Syntax
+SELECT
+column1, aggregate_function(column2), column3, ...
+FROM
+table_name
+WHERE
+condition
+GROUP BY
+column1
+column3
+ORDER BY
+column_name
+Demo Database
+Below is a selection from the "Customers" table in the Northwind sample 
+database:
+CustomerID
+CustomerName
+ContactName
+Address
+City
+PostalCode
+Country
+Alfreds Futterkiste
+Maria Anders
+Obere Str. 57
+Berlin
+12209
+Germany
+Ana Trujillo Emparedados y helados
+Ana Trujillo
+Avda. de la Constitución 2222
+México D.F.
+05021
+Mexico
+Antonio Moreno Taquería
+Antonio Moreno
+Mataderos 2312
+México D.F.
+05023
+Mexico
+Around the Horn
+Thomas Hardy

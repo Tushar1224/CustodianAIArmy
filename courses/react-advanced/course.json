@@ -1,0 +1,106 @@
+{
+  "id": "react-advanced",
+  "category": "React",
+  "icon": "fab fa-react",
+  "langs": {
+    "en": {
+      "title": "react-advanced",
+      "description": "",
+      "sections": [
+        {
+          "file": "01-title-topics-en.md",
+          "title": "Title topics"
+        },
+        {
+          "file": "03-react-router-en.md",
+          "title": "React router"
+        },
+        {
+          "file": "05-context-en.md",
+          "title": "Context"
+        },
+        {
+          "file": "06-effect-hook-en.md",
+          "title": "Effect hook"
+        },
+        {
+          "file": "10-hooks-en.md",
+          "title": "Hooks"
+        },
+        {
+          "file": "11-external-hooks-en.md",
+          "title": "External hooks"
+        },
+        {
+          "file": "12-custom-hooks-en.md",
+          "title": "Custom hooks"
+        },
+        {
+          "file": "15-state-management-with-actions-and-reducers-en.md",
+          "title": "State management with actions and reducers"
+        },
+        {
+          "file": "16-reducer-hook-en.md",
+          "title": "Reducer hook"
+        },
+        {
+          "file": "30-styling-tools-en.md",
+          "title": "Styling tools"
+        },
+        {
+          "file": "40-form-libraries-en.md",
+          "title": "Form libraries"
+        },
+        {
+          "file": "50-user-authentication-with-an-identity-provider-en.md",
+          "title": "User authentication with an identity provider"
+        },
+        {
+          "file": "60-pwa-en.md",
+          "title": "Pwa"
+        },
+        {
+          "file": "61-react-native-en.md",
+          "title": "React native"
+        },
+        {
+          "file": "70-refs-for-storing-object-references-en.md",
+          "title": "Refs for storing object references"
+        },
+        {
+          "file": "71-ref-property-for-accessing-dom-elements-en.md",
+          "title": "Ref property for accessing dom elements"
+        },
+        {
+          "file": "74-higher-order-components-en.md",
+          "title": "Higher order components"
+        },
+        {
+          "file": "80-file-structure-en.md",
+          "title": "File structure"
+        },
+        {
+          "file": "90-manual-setup-config-en.md",
+          "title": "Manual setup config"
+        },
+        {
+          "file": "geeksforgeeks-react-context-en.md",
+          "title": "Geeksforgeeks react context"
+        },
+        {
+          "file": "geeksforgeeks-react-hooks-en.md",
+          "title": "Geeksforgeeks react hooks"
+        },
+        {
+          "file": "geeksforgeeks-react-perf-en.md",
+          "title": "Geeksforgeeks react perf"
+        },
+        {
+          "file": "react-advanced-en.md",
+          "title": "React advanced"
+        }
+      ]
+    }
+  },
+  "slide_count": 23
+}

@@ -1,0 +1,106 @@
+{
+  "id": "node-and-npm",
+  "category": "Node.js",
+  "icon": "fab fa-node-js",
+  "langs": {
+    "en": {
+      "title": "node-and-npm",
+      "description": "",
+      "sections": [
+        {
+          "file": "10-node-and-npm-overview-en.md",
+          "title": "Node and npm overview"
+        },
+        {
+          "file": "20-npm-en.md",
+          "title": "Npm"
+        },
+        {
+          "file": "30-running-node-programs-en.md",
+          "title": "Running node programs"
+        },
+        {
+          "file": "35-modules-en.md",
+          "title": "Modules"
+        },
+        {
+          "file": "36-local-modules-en.md",
+          "title": "Local modules"
+        },
+        {
+          "file": "37-globals-and-built-in-mdoules-en.md",
+          "title": "Globals and built in mdoules"
+        },
+        {
+          "file": "40-process-en.md",
+          "title": "Process"
+        },
+        {
+          "file": "50-reading-and-writing-files-en.md",
+          "title": "Reading and writing files"
+        },
+        {
+          "file": "60-http-client-en.md",
+          "title": "Http client"
+        },
+        {
+          "file": "70-http-server-en.md",
+          "title": "Http server"
+        },
+        {
+          "file": "90-resources-en.md",
+          "title": "Resources"
+        },
+        {
+          "file": "nodejs-en.md",
+          "title": "Nodejs"
+        },
+        {
+          "file": "tutorialspoint-node-callback-en.md",
+          "title": "Tutorialspoint node callback"
+        },
+        {
+          "file": "tutorialspoint-node-events-en.md",
+          "title": "Tutorialspoint node events"
+        },
+        {
+          "file": "tutorialspoint-node-npm-en.md",
+          "title": "Tutorialspoint node npm"
+        },
+        {
+          "file": "tutorialspoint-node-streams-en.md",
+          "title": "Tutorialspoint node streams"
+        },
+        {
+          "file": "tutorialspoint-nodejs-en.md",
+          "title": "Tutorialspoint nodejs"
+        },
+        {
+          "file": "w3schools-nodejs-express-en.md",
+          "title": "W3schools nodejs express"
+        },
+        {
+          "file": "w3schools-nodejs-files-en.md",
+          "title": "W3schools nodejs files"
+        },
+        {
+          "file": "w3schools-nodejs-http-en.md",
+          "title": "W3schools nodejs http"
+        },
+        {
+          "file": "w3schools-nodejs-intro-en.md",
+          "title": "W3schools nodejs intro"
+        },
+        {
+          "file": "w3schools-nodejs-modules-en.md",
+          "title": "W3schools nodejs modules"
+        },
+        {
+          "file": "w3schools-nodejs-npm-en.md",
+          "title": "W3schools nodejs npm"
+        }
+      ]
+    }
+  },
+  "slide_count": 23
+}

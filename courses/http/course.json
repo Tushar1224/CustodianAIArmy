@@ -1,0 +1,58 @@
+{
+  "id": "http",
+  "category": "Web",
+  "icon": "fas fa-globe",
+  "langs": {
+    "en": {
+      "title": "http",
+      "description": "",
+      "sections": [
+        {
+          "file": "10-http-en.md",
+          "title": "Http"
+        },
+        {
+          "file": "20-http-apis-en.md",
+          "title": "Http apis"
+        },
+        {
+          "file": "geeksforgeeks-http-en.md",
+          "title": "Geeksforgeeks http"
+        },
+        {
+          "file": "http-protocol-en.md",
+          "title": "Http protocol"
+        },
+        {
+          "file": "tutorialspoint-http-caching-en.md",
+          "title": "Tutorialspoint http caching"
+        },
+        {
+          "file": "tutorialspoint-http-en.md",
+          "title": "Tutorialspoint http"
+        },
+        {
+          "file": "tutorialspoint-http-headers-en.md",
+          "title": "Tutorialspoint http headers"
+        },
+        {
+          "file": "tutorialspoint-http-messages-en.md",
+          "title": "Tutorialspoint http messages"
+        },
+        {
+          "file": "tutorialspoint-http-methods-en.md",
+          "title": "Tutorialspoint http methods"
+        },
+        {
+          "file": "tutorialspoint-http-security-en.md",
+          "title": "Tutorialspoint http security"
+        },
+        {
+          "file": "tutorialspoint-http-status-en.md",
+          "title": "Tutorialspoint http status"
+        }
+      ]
+    }
+  },
+  "slide_count": 11
+}
