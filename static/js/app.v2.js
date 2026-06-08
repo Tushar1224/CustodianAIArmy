@@ -262,15 +262,15 @@ class CustodianAIApp {
         if (icon && label) {
             if (this.currentProvider === 'gemini') {
                 icon.innerHTML = '<i class="fab fa-google"></i>';
-                label.textContent = 'Gemini';
+                label.textContent = 'Google';
             } else {
                 icon.innerHTML = '<i class="fas fa-brain"></i>';
-                label.textContent = 'Claude';
+                label.textContent = 'Anthropic';
             }
         }
         const badge = document.getElementById('api-keys-provider-badge');
         if (badge) {
-            badge.textContent = this.currentProvider === 'gemini' ? 'Gemini' : 'Claude';
+            badge.textContent = this.currentProvider === 'gemini' ? 'Google' : 'Anthropic';
             badge.className = 'badge ' + (this.currentProvider === 'gemini' ? 'bg-info' : 'bg-warning text-dark');
         }
     }
@@ -471,7 +471,7 @@ class CustodianAIApp {
         this._updateApiKeysAgentDisplay(agent);
 
         // Update model display in chat-options-bar
-        const provider = _getAgentProvider(agent);
+        const provider = this._getAgentProvider(agent);
         const savedModel = localStorage.getItem('custodian_model_override_' + provider);
         this.currentModelOverride = savedModel || null;
         const models = _providerModels[provider] || [];
@@ -503,77 +503,137 @@ class CustodianAIApp {
         this.currentMessages.push({ sender: 'You', content: message });
         this.saveChatToDb();
 
-        this.showLoading(true);
+        const agentName = this.currentAgent.name || 'Assistant';
+        const messagesContainer = document.getElementById('chat-messages');
+        const statusPhrases = ['Thinking...', 'Analyzing...', 'Synthesizing...', 'Generating...'];
+        let statusIdx = 0;
+        const placeholderDiv = document.createElement('div');
+        placeholderDiv.className = 'message agent';
+        placeholderDiv.innerHTML = `<div class="message-header">${agentName}</div><div class="message-content"><span class="streaming-status" style="color:var(--text-muted);font-style:italic;">${statusPhrases[0]}</span></div>`;
+        messagesContainer.appendChild(placeholderDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-        // Determine endpoint: try authenticated first, fall back to guest if 401
-        // This handles the case where localStorage is empty but session cookie is valid
+        const statusEl = placeholderDiv.querySelector('.streaming-status');
+        const statusInterval = setInterval(() => {
+            statusIdx = (statusIdx + 1) % statusPhrases.length;
+            if (statusEl) statusEl.textContent = statusPhrases[statusIdx];
+        }, 1200);
+
+        const contentEl = document.createElement('span');
+        contentEl.className = 'streaming-content';
+        contentEl.style.display = 'none';
+        const cursorEl = document.createElement('span');
+        cursorEl.className = 'streaming-cursor';
+        cursorEl.style.display = 'none';
+        cursorEl.textContent = '\u258A';
+        placeholderDiv.querySelector('.message-content').appendChild(contentEl);
+        placeholderDiv.querySelector('.message-content').appendChild(cursorEl);
+        let accumulatedContent = '';
+        let hasStarted = false;
+
         const isGuest = !localStorage.getItem('custodian_user');
-        const primaryEndpoint = '/api/v1/chat';
-        const guestEndpoint = '/api/v1/chat/guest';
-
         const requestBody = JSON.stringify({
             message: message,
             agent_name: this.currentAgent.name,
-            agent_id: this.currentAgent.agent_id
+            agent_id: this.currentAgent.agent_id,
+            history: this.currentMessages.slice(-20)
         });
 
-        let response, data, usedGuestEndpoint = false;
-
         try {
-            // Always try authenticated endpoint first
-            response = await fetch(primaryEndpoint, {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: requestBody
-            });
-
-            // If 401 (not authenticated), fall back to guest endpoint
-            if (response.status === 401) {
-                usedGuestEndpoint = true;
-                response = await fetch(guestEndpoint, {
+            let response;
+            try {
+                response = await fetch('/api/v1/chat/stream', {
                     method: 'POST',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: requestBody
                 });
-            }
 
-            data = await response.json();
-
-            if (response.ok) {
-                const agentResp = data.agent_response;
-                // Check if rate limited (backend returns 200 with rate_limited flag)
-                if (agentResp && agentResp.metadata && agentResp.metadata.rate_limited) {
-                    this.addMessageToChat('agent', agentResp.agent_name || 'System', agentResp.content);
-                    this.currentMessages.push({ sender: agentResp.agent_name || 'System', content: agentResp.content });
-                    // Show rate limit popup
-                    this._showRateLimitModal(data.plan_info);
-                } else {
-                    this.addMessageToChat('agent', agentResp.agent_name || this.currentAgent.name, agentResp.content);
-                    this.currentMessages.push({ sender: agentResp.agent_name || this.currentAgent.name, content: agentResp.content });
-                    this.saveChatToDb();
+                if (response.status === 401) {
+                    response = await fetch('/api/v1/chat/stream/guest', {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: requestBody
+                    });
                 }
-                // Silently refresh plan info in background so My Plan modal shows updated count
-                fetch('/api/v1/user/plan', { credentials: 'include' })
-                    .then(r => r.json())
-                    .then(planData => {
-                        // Update the plan body if the modal is currently open
-                        const planBody = document.getElementById('my-plan-body');
-                        if (planBody && planBody.querySelector('.progress-bar')) {
-                            // Modal is open — reload it
-                            if (typeof loadMyPlan === 'function') loadMyPlan();
-                        }
-                    })
-                    .catch(() => {});
-            } else {
-                throw new Error(data.detail || 'Failed to send message');
+            } catch (netErr) {
+                console.warn('Stream endpoint connection failed, falling back to non-streaming:', netErr);
+                response = null;
             }
+
+            if (!response || !response.ok) {
+                throw new Error('Stream endpoint unavailable');
+            }
+
+            if (!response.body) {
+                throw new Error('Response body is null');
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const parts = buffer.split('\n\n');
+                buffer = parts.pop() || '';
+
+                for (const part of parts) {
+                    if (!part || !part.startsWith('data: ')) continue;
+                    try {
+                        const eventData = JSON.parse(part.slice(6));
+                        if (eventData.type === 'message') {
+                            if (!hasStarted) {
+                                hasStarted = true;
+                                clearInterval(statusInterval);
+                                if (statusEl) statusEl.style.display = 'none';
+                                contentEl.style.display = '';
+                                cursorEl.style.display = '';
+                            }
+                            accumulatedContent += eventData.content;
+                            contentEl.textContent = accumulatedContent;
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        } else if (eventData.type === 'error') {
+                            throw new Error(eventData.content);
+                        }
+                    } catch (e) {
+                        if (e.message && e.message !== 'Unexpected end of JSON input') {
+                            console.warn('SSE parse error:', e);
+                        }
+                    }
+                }
+            }
+
+            clearInterval(statusInterval);
+            if (cursorEl) cursorEl.remove();
+            contentEl.innerHTML = marked.parse(accumulatedContent);
+            this.currentMessages.push({ sender: agentName, content: accumulatedContent });
+            this.saveChatToDb();
+
+            fetch('/api/v1/user/plan', { credentials: 'include' })
+                .then(r => r.json())
+                .then(planData => {
+                    const planBody = document.getElementById('my-plan-body');
+                    if (planBody && planBody.querySelector('.progress-bar')) {
+                        if (typeof loadMyPlan === 'function') loadMyPlan();
+                    }
+                }).catch(() => {});
+
         } catch (error) {
-            console.error('Error sending message:', error);
-            this.addMessageToChat('agent', 'System', 'Sorry, I encountered an error processing your message. Please try again.');
+            console.error('Streaming error:', error.message, error);
+            clearInterval(statusInterval);
+            const errMsg = error.message || 'Unknown error';
+            if (statusEl) statusEl.style.display = 'none';
+            contentEl.style.display = '';
+            if (contentEl) contentEl.textContent = accumulatedContent || `Error: ${errMsg}`;
+            if (cursorEl) cursorEl.remove();
+            this.currentMessages.push({ sender: agentName, content: accumulatedContent || `Error: ${errMsg}` });
         } finally {
-            this.showLoading(false);
+            chatInput.focus();
         }
     }
     
@@ -608,7 +668,7 @@ class CustodianAIApp {
         }
 
         if (!userEmail) {
-            console.log('User not authenticated - not saving chat to DB');
+            this._saveChatToLocal(incognitoToggle);
             return;
         }
 
@@ -631,6 +691,27 @@ class CustodianAIApp {
         } catch (e) {
             console.error("Failed to save chat to DB", e);
         }
+    }
+
+    _saveChatToLocal(incognitoToggle) {
+        const title = this.currentMessages.length > 1
+            ? this.currentMessages[1].content.substring(0, 30) + '...'
+            : 'New Chat with ' + (this.currentAgent ? this.currentAgent.name : 'Agent');
+        const chat = {
+            id: this.currentChatId,
+            title: title,
+            messages: this.currentMessages,
+            last_updated: new Date().toISOString()
+        };
+        let chats = [];
+        try {
+            const stored = localStorage.getItem('custodian_chats');
+            if (stored) chats = JSON.parse(stored);
+        } catch(e) {}
+        const idx = chats.findIndex(c => c.id === chat.id);
+        if (idx >= 0) chats[idx] = chat;
+        else chats.push(chat);
+        localStorage.setItem('custodian_chats', JSON.stringify(chats));
     }
 
     addMessageToChat(type, sender, content) {
@@ -1237,15 +1318,6 @@ class CustodianAIApp {
         }
     }
 
-    showLoading(show) {
-        const overlay = document.getElementById('loading-overlay');
-        if (show) {
-            overlay.classList.add('active');
-        } else {
-            overlay.classList.remove('active');
-        }
-    }
-
     showError(message) {
         alert('Error: ' + message);
     }
@@ -1280,7 +1352,19 @@ class CustodianAIApp {
             if (firstAgentMessage) {
                 const agent = this.agents.find(a => a.name === firstAgentMessage.sender);
                 if (agent) {
-                    this.selectChatAgent(agent);
+                    this.currentAgent = agent;
+                    document.querySelectorAll('.agent-list-item').forEach(item => {
+                        if(item.dataset.agentId === agent.agent_id) item.classList.add('active');
+                        else item.classList.remove('active');
+                    });
+                    const chatInput = document.getElementById('chat-input');
+                    const sendBtn = document.getElementById('send-btn');
+                    if (chatInput) { chatInput.disabled = false; chatInput.placeholder = `Type your message to ${agent.name}...`; }
+                    if (sendBtn) sendBtn.disabled = false;
+                    const infoAgentName = document.getElementById('info-agent-name');
+                    if (infoAgentName) infoAgentName.textContent = agent.name;
+                    const infoAgentSpec = document.getElementById('info-agent-spec');
+                    if (infoAgentSpec) infoAgentSpec.textContent = agent.specialization || 'General';
                 }
             }
             
@@ -1306,6 +1390,16 @@ class CustodianAIApp {
         if (!confirm('Are you sure you want to delete this chat session?')) {
             return;
         }
+
+        // Remove from localStorage regardless of auth state
+        try {
+            const stored = localStorage.getItem('custodian_chats');
+            if (stored) {
+                const chats = JSON.parse(stored);
+                const filtered = chats.filter(c => c.id !== chatId);
+                localStorage.setItem('custodian_chats', JSON.stringify(filtered));
+            }
+        } catch(e) {}
         
         try {
             const response = await fetch(`/api/v1/auth/user/chats/${chatId}`, {
@@ -1324,7 +1418,21 @@ class CustodianAIApp {
             alert('Failed to delete chat: ' + err.message);
         }
     }
+
+    // Provider detection
+    _getAgentProvider(target) {
+        var name = (target && target.name) || '';
+        if (name.startsWith('Gemini-')) return 'gemini';
+        if (name.startsWith('Claude-')) return 'anthropic';
+        return 'anthropic';
+    }
 }
+window._getAgentProvider = function(target) {
+    var name = (target && target.name) || '';
+    if (name.startsWith('Gemini-')) return 'gemini';
+    if (name.startsWith('Claude-')) return 'anthropic';
+    return 'anthropic';
+};
 
 // Global functions for HTML onclick handlers
 window.showSection = function(sectionName) {
@@ -1400,25 +1508,43 @@ window.logout = async function() {
 window.loadChatHistory = async function() {
     try {
         console.log('[loadChatHistory] Loading chat history...');
-        const response = await fetch('/api/v1/auth/user/chats', {
-            credentials: 'include'
-        });
-        if (!response.ok) {
-            if (response.status === 401) {
-                localStorage.removeItem('custodian_user');
-                const authModal = new bootstrap.Modal(document.getElementById('authModal'));
-                authModal.show();
+        let data = { chats: [] };
+
+        // Try loading from backend first
+        const userStr = localStorage.getItem('custodian_user');
+        if (userStr) {
+            try {
+                const response = await fetch('/api/v1/auth/user/chats', {
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    data = await response.json();
+                    console.log('[loadChatHistory] Received data:', data);
+                }
+            } catch (e) {
+                console.warn('[loadChatHistory] Backend unavailable, falling back to local:', e);
             }
-            throw new Error('Failed to load chat history');
         }
-        
-        const data = await response.json();
-        console.log('[loadChatHistory] Received data:', data);
-        
+
+        // Merge local chats
+        try {
+            const stored = localStorage.getItem('custodian_chats');
+            if (stored) {
+                const localChats = JSON.parse(stored);
+                const remoteIds = new Set((data.chats || []).map(c => c.id));
+                for (const localChat of localChats) {
+                    if (!remoteIds.has(localChat.id)) {
+                        data.chats.push(localChat);
+                        remoteIds.add(localChat.id);
+                    }
+                }
+            }
+        } catch(e) {}
+
         const list = document.getElementById('chat-history-list');
         const currentItem = document.getElementById('current-chat-item');
         list.innerHTML = '';
-        
+
         if (data.chats && data.chats.length > 0) {
             let currentChatHtml = '<p class="text-muted">No messages in current session yet.</p>';
             let hasPastChats = false;
@@ -1488,8 +1614,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         fetch('/api/v1/provider/active', { credentials: 'include' })
             .then(r => r.json())
             .then(data => {
-                const label = data.active_provider === 'anthropic' ? 'Claude' :
-                              data.active_provider === 'gemini' ? 'Gemini' :
+                const label = data.active_provider === 'anthropic' ? 'Anthropic' :
+                              data.active_provider === 'gemini' ? 'Google' :
                               data.active_provider || 'Unknown';
                 providerDisplay.textContent = label;
                 if (data.active_provider === 'gemini') providerDisplay.style.color = 'var(--info-color)';
@@ -1808,7 +1934,7 @@ window.loadMyPlan = async function() {
         const isGuest = plan === 'guest';
         const isFree = plan === 'free';
         const isPro = plan === 'pro';
-        const pct = Math.min(100, Math.round((data.requests_today / data.daily_limit) * 100));
+        const pct = Math.min(100, data.daily_limit > 0 ? Math.round((data.requests_today / data.daily_limit) * 100) : 0);
         const barColor = pct >= 100 ? 'bg-danger' : pct >= 80 ? 'bg-warning' : 'bg-info';
 
         const planBadgeClass = isGuest ? 'bg-secondary' : isFree ? 'bg-info text-dark' : 'bg-warning text-dark';
@@ -1834,11 +1960,8 @@ window.loadMyPlan = async function() {
             <div class="mb-4">
                 <h6 class="text-info mb-2"><i class="fas fa-plug me-2"></i>Provider Access</h6>
                 <div class="d-flex gap-2 flex-wrap">
-                    ${['gemini','anthropic'].map(p => {
-                        var c = provConfig[p];
-                        const labels = {gemini:'Google Gemini', anthropic:'Claude'};
-                        return `<span class="badge ${allowed ? 'bg-success' : 'bg-secondary'}">${allowed ? 'Yes' : 'No'} ${labels[p]}</span>`;
-                    }).join('')}
+                    <span class="badge bg-success">Google</span>
+                    <span class="badge bg-success">Anthropic</span>
                 </div>
             </div>
             ${isGuest ? `
@@ -1847,7 +1970,7 @@ window.loadMyPlan = async function() {
                 <ul class="text-muted small mb-3">
                     <li>20 requests/day on Free plan</li>
                     <li>50 requests/day on Pro plan</li>
-                    <li>Access to Gemini, Claude &amp; Claude Sonnet</li>
+                    <li>Access to Google, Anthropic &amp; Claude Sonnet</li>
                     <li>Chat history &amp; course progress saved</li>
                 </ul>
                 <a href="/api/v1/auth/google" class="btn btn-success w-100">
@@ -1879,23 +2002,9 @@ window.loadMyPlan = async function() {
     }
 };
 
-// =============================================================================
-// PROVIDER DETECTION HELPERS
-// =============================================================================
-
-/**
- * Derive the provider key ('gemini' | 'anthropic') from the active app state.
-    var provider, name = (target && target.name) || '';
-    if (name.startsWith('Gemini-')) return 'gemini';
-    if (name.startsWith('Claude-')) return 'anthropic';
-    // Default to gemini
-    return 'gemini';
-}
-
 const _providerMeta = {
-    gemini:    { label: 'Google Gemini',    badgeClass: 'bg-info text-dark',    icon: 'fab fa-google',    cardId: 'gemini-provider-card' },
-    anthropic: { label: 'Claude',           badgeClass: 'bg-warning text-dark', icon: 'fas fa-brain',     cardId: 'anthropic-provider-card' },
-
+    gemini:    { label: 'Google (Gemini)',    badgeClass: 'bg-info text-dark',    icon: 'fab fa-google',    cardId: 'gemini-provider-card' },
+    anthropic: { label: 'Anthropic (Claude)', badgeClass: 'bg-warning text-dark', icon: 'fas fa-brain',     cardId: 'anthropic-provider-card' },
 };
 
 /**
@@ -1915,7 +2024,7 @@ CustodianAIApp.prototype._updateApiKeysAgentDisplay = function(agent) {
         return;
     }
 
-    const provider = _getAgentProvider(agent);
+    const provider = this._getAgentProvider(agent);
     const meta = _providerMeta[provider] || { label: 'Unknown', badgeClass: 'bg-secondary', icon: 'fas fa-robot' };
 
     bar.classList.remove('d-none');
@@ -1932,8 +2041,8 @@ CustodianAIApp.prototype._updateApiKeysAgentDisplay = function(agent) {
     // Update the main dashboard provider display
     const providerDisplay = document.getElementById('current-provider');
     if (providerDisplay) {
-        const providerLabel = provider === 'anthropic' ? 'Cloud (Claude)' : 
-                            provider === 'gemini' ? 'Gemini' : 
+        const providerLabel = provider === 'anthropic' ? 'Anthropic' : 
+                            provider === 'gemini' ? 'Google' : 
                             provider;
         providerDisplay.textContent = providerLabel;
         // Update color based on provider
@@ -2010,7 +2119,7 @@ CustodianAIApp.prototype.openModelSelector = function() {
         return;
     }
 
-    const provider = _getAgentProvider(this.currentAgent);
+    const provider = this._getAgentProvider(this.currentAgent);
     const models = _providerModels[provider] || [];
     const currentModel = this.currentModelOverride || null;
 
@@ -2072,7 +2181,7 @@ CustodianAIApp.prototype.selectModel = function(modelId, modelLabel) {
     const popup = document.getElementById('model-selector-popup');
     if (popup) popup.remove();
     // Store in localStorage for persistence
-    localStorage.setItem('custodian_model_override_' + _getAgentProvider(this.currentAgent), modelId);
+    localStorage.setItem('custodian_model_override_' + this._getAgentProvider(this.currentAgent), modelId);
 };
 
 /**
@@ -2087,7 +2196,7 @@ CustodianAIApp.prototype.switchToProvider = async function(provider) {
         if (errorEl) errorEl.innerHTML = '<span class="text-danger">' + errMsg + '</span>';
         return;
     }
-    const providerLabels = { gemini: 'Gemini', anthropic: 'Claude' };
+    const providerLabels = { gemini: 'Google', anthropic: 'Anthropic' };
 
     try {
         // Call backend to switch provider server-side

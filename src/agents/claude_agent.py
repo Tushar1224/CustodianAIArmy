@@ -316,7 +316,7 @@ class ClaudeAgent(BaseAgent):
         except Exception as e:
             self.logger.error(f"Error streaming message: {str(e)}")
             self.update_status(AgentStatus.ERROR)
-            yield f"Error: {str(e)}"
+            raise
 
     def _get_system_prompt(self) -> str:
         """Get system prompt based on agent specialization."""

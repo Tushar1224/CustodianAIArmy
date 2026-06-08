@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "username": "Tushar",
+
+  "mcp": {
+    "code-review-graph": {
+      "type": "local",
+      "command": ["uvx", "code-review-graph", "serve"],
+      "enabled": true
+    },
+    "crawl-course-pathway": {
+      "type": "local",
+      "command": ["python", "scripts/crawl_course_pathway_mcp.py"],
+      "enabled": true
+    }
+  }
+}

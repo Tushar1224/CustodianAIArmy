@@ -1,6 +1,6 @@
 # Custodian AI Army — Product Requirements Document
 
-> **Version:** 1.0.0 · **Last Updated:** 2026-05-30  
+> **Version:** 1.1.0 · **Last Updated:** 2026-06-09  
 > **Project:** Custodian AI Army — A futuristic multi-agent AI orchestration system
 
 ---
@@ -28,7 +28,9 @@
 
 **Custodian AI Army** is a modular, multi-agent orchestration platform that allows users to:
 
-- Chat with specialized AI agents (powered by **Google Gemini** or **Anthropic Claude**)
+- Chat with specialized AI agents (powered by **Google** or **Anthropic**)
+- SSE streaming responses with inline processing status ("Thinking..." → "Analyzing..." → "Synthesizing..." → "Generating...")
+- Chat history for all users (guest saves to localStorage, authenticated saves to server)
 - Build full-stack products via a **5-phase MVP pipeline** (Ideation → Planning → Review → Polish → Build)
 - Publish generated code to **GitHub** with one click
 - Learn programming through interactive courses with AI tutoring
@@ -114,11 +116,12 @@ User provides product idea
 | Component            | Technology                          |
 |----------------------|-------------------------------------|
 | **Backend Framework**| Python 3.8+ · FastAPI · Uvicorn     |
-| **AI Providers**     | Google Gemini (`gemini-2.5-flash/pro`) |
-|                      | Anthropic Claude (`claude-sonnet-4-5`) |
+| **AI Providers**     | Google (`gemini-2.5-flash/pro`)     |
+|                      | Anthropic (`claude-sonnet-4-5`)     |
 | **Database**         | SQLite (via `sqlite3` module)        |
 | **Auth**             | Google OAuth 2.0 · GitHub OAuth · JWT |
-| **Frontend**         | Vanilla JS + Bootstrap 5 · CSS3      |
+| **Frontend**         | React 19 · Vite · React Router 7 · Bootstrap 5 · marked (markdown) · highlight.js |
+| **Legacy Frontend**  | Static HTML + `app.v2.js` (cache-busted SPA) |
 | **MCP Tools**        | `uvx` / `npx` based servers          |
 | **Revenue**          | Razorpay (payment page)              |
 | **Deployment**       | Vercel (Python runtime)              |
@@ -152,18 +155,21 @@ Each agent has:
 - **Specialization** — Determines available MCP tools
 - **Model Assignment** — Per-agent per-provider model mapping (see `src/core/config.py`)
 - **Sub-agent orchestration** — Main agents can delegate to their sub-agents
-- **Streaming support** — SSE-based streaming responses with automatic provider fallback
+- **Streaming support** — SSE-based streaming responses with automatic provider fallback and inline processing status
 
 ### 4.3 Provider Switching
 
-Users can switch between Gemini and Claude:
+Users can switch between Google and Anthropic:
+- Default provider: **Anthropic** — production recommended
+- UI displays **Google** and **Anthropic** as provider names
 - Via UI (settings panel) → calls `POST /api/v1/provider/switch`
 - Via `.env` (`PRIMARY_LLM_PROVIDER=gemini` or `anthropic`)
 - Automatic fallback if primary provider returns an error
+- UI shows **Google** and **Anthropic** as provider labels
 
 ### 4.4 Model Assignments
 
-| Agent            | Gemini Model        | Claude Model           |
+| Agent            | Google Model        | Anthropic Model           |
 |------------------|---------------------|------------------------|
 | CustodianAI      | gemini-2.5-pro      | claude-sonnet-4-5      |
 | ResearchAI       | gemini-2.5-pro      | claude-sonnet-4-5      |
@@ -238,10 +244,10 @@ Users can switch between Gemini and Claude:
 | GET    | `/api/v1/agents/available`        | No     | Idle agents                         |
 | GET    | `/api/v1/agents/main`             | No     | Main agents only                    |
 | GET    | `/api/v1/specializations`         | No     | Available specializations           |
-| POST   | `/api/v1/chat`                    | JWT    | Chat with agent                     |
-| POST   | `/api/v1/chat/stream`             | JWT    | Stream chat (SSE)                   |
-| POST   | `/api/v1/chat/guest`              | No     | Guest chat (3/day)                  |
-| POST   | `/api/v1/chat/stream/guest`       | No     | Guest stream                        |
+| POST   | `/api/v1/chat/stream`             | JWT    | **[Preferred]** Stream chat (SSE)   |
+| POST   | `/api/v1/chat/stream/guest`       | No     | **[Preferred]** Guest stream        |
+| POST   | `/api/v1/chat`                    | JWT    | Non-streaming chat (fallback)       |
+| POST   | `/api/v1/chat/guest`              | No     | Non-streaming guest chat (fallback) |
 | POST   | `/api/v1/tasks/execute`           | JWT    | Execute task                        |
 | POST   | `/api/v1/messages/send`           | JWT    | Direct message to agent             |
 | POST   | `/api/v1/messages/broadcast`      | JWT    | Broadcast to all agents             |
@@ -253,6 +259,8 @@ Users can switch between Gemini and Claude:
 |--------|-------------------------|------|--------------------------|
 | GET    | `/api/v1/chats?email=`  | JWT  | Get user chats           |
 | POST   | `/api/v1/chats`         | JWT  | Save chat session        |
+
+**Guest chat history:** Saved to `localStorage` under `custodian_chats` key when not authenticated. Merged with server-side history for authenticated users.
 
 ### 6.3 Courses & Learning
 
@@ -317,11 +325,11 @@ Users can switch between Gemini and Claude:
 
 ### 7.2 Plan Tiers
 
-| Plan   | Daily Limit | Providers      | Auth Required |
-|--------|-------------|----------------|---------------|
-| Guest  | 3           | Gemini, Claude | No            |
-| Free   | 20          | Gemini, Claude | Google OAuth  |
-| Pro    | 50          | Gemini, Claude | Google OAuth + Payment |
+| Plan   | Daily Limit | Providers      | Auth Required | Chat History         |
+|--------|-------------|----------------|---------------|----------------------|
+| Guest  | 3           | Google, Anthropic | No            | localStorage         |
+| Free   | 20          | Google, Anthropic | Google OAuth  | Server + localStorage|
+| Pro    | 50          | Google, Anthropic | Google OAuth + Payment | Server + localStorage |
 
 ### 7.3 Database Tables
 
@@ -342,19 +350,26 @@ sessions            -- Persistent auth sessions
 
 ## 8. UI Pages & Routes
 
-| Route            | File                          | Description                     |
+| Route            | React Component                | Description                     |
 |------------------|-------------------------------|----------------------------------|
-| `/`              | `static/home.html`            | Futuristic landing page         |
-| `/app`           | `static/index.html`           | Legacy single-page app          |
-| `/dashboard`     | `static/pages/dashboard.html` | AI Dashboard                    |
-| `/learn`         | `static/pages/learn.html`     | Learn with AI (courses)         |
-| `/portfolio`     | `static/pages/portfolio.html` | Portfolio Builder               |
-| `/build`         | `static/pages/build.html`     | Build Your Product (MVP)        |
-| `/finance`       | `static/pages/finance.html`   | Finance AI (placeholder)        |
-| `/agents`        | `static/pages/customagents.html` | Custom Agent management      |
-| `/payment.html`  | `static/payment.html`         | Payment/upgrade page            |
+| `/`              | `pages/HomePage.jsx`          | Futuristic landing page         |
+| `/dashboard`     | `pages/DashboardPage.jsx`     | AI Dashboard (fully self-contained React) |
+| `/learn`         | `pages/LearnPage.jsx`         | Learn with AI (courses)         |
+| `/portfolio`     | `pages/PortfolioPage.jsx`     | Portfolio Builder               |
+| `/build`         | `pages/BuildPage.jsx`         | Build Your Product (MVP)        |
+| `/agents`        | `pages/CustomAgentsPage.jsx`  | Custom Agent management         |
+| `/payment`       | `pages/PaymentPage.jsx`       | Payment/upgrade page            |
 | `/api/docs`      | —                             | Swagger UI (auto-generated)     |
 | `/api/redoc`     | —                             | ReDoc UI (auto-generated)       |
+
+### Shared Components
+
+| Component              | File                              | Description                              |
+|------------------------|-----------------------------------|------------------------------------------|
+| **MainLayout**         | `components/layout/MainLayout.jsx`| Wraps all pages with Header + Sidebar    |
+| **Header**             | `components/layout/Header.jsx`    | Fixed top nav with profile dropdown      |
+| **Sidebar**            | `components/layout/Sidebar.jsx`   | Offcanvas navigation menu                |
+| **ProfileModals**      | `components/modals/ProfileModals.jsx` | Tabbed modal: Edit Profile, API Keys, Chat History, My Plan — shared across all pages |
 
 ---
 
@@ -401,7 +416,7 @@ MCP (Model Context Protocol) servers provide agents with external tool access.
 - Python 3.8+
 - Node.js 18+ (for MCP tools that use `npx`)
 - `uvx` installed (`pip install uvx` or via `uv tool install`)
-- Google Gemini API Key **or** Anthropic Claude API Key
+- Google or Anthropic API key (Gemini or Claude)
 
 ### 10.2 Installation
 
@@ -425,7 +440,7 @@ pip install -r requirements.txt
 
 ```env
 # Pick your primary provider:
-PRIMARY_LLM_PROVIDER=gemini       # or "anthropic"
+PRIMARY_LLM_PROVIDER=anthropic    # or "gemini" (anthropic recommended for production)
 
 # Add at least one API key:
 GEMINI_API_KEY=your_gemini_key    # https://aistudio.google.com/apikey
@@ -567,7 +582,35 @@ docker run -p 8000:8000 --env-file .env custodian-ai
    → Plan upgraded to "free", 20 requests/day
 ```
 
-### 12.2 Manual Test Flow (MVP Build)
+### 12.4 Streaming Chat Flow
+
+```
+1. Open http://localhost:8000/dashboard
+2. Select an agent from the list
+3. Type a message and press Enter/Send
+4. SSE streaming starts immediately:
+   - Inline status indicator shows "Thinking..." → "Analyzing..." → "Synthesizing..." → "Generating..."
+   - Tokens appear character-by-character as the AI generates
+   - Status indicator disappears once first token arrives
+5. Full response rendered with markdown (code highlighting, copy/run buttons)
+6. Chat auto-saved (server if authenticated, localStorage if guest)
+7. Chat History modal → Open, Delete, or resume any past session
+```
+
+### 12.5 Chat History (All Users)
+
+```
+Guest:
+  1. Chat messages saved automatically to browser localStorage
+  2. Open Chat History → all sessions visible
+  3. Open any past session → messages restored
+  4. Delete → removed from localStorage
+
+Authenticated:
+  1. Chat saved to server + localStorage (merged on load)
+  2. Open Chat History → server chats + local chats combined
+  3. Google sign-in → localStorage chats persist and merge with server
+```
 
 ```
 1. Open http://localhost:8000/build
@@ -606,7 +649,7 @@ python -m pytest tests/
 |---------------------------|----------|-----------------|--------------------------------------|
 | `GEMINI_API_KEY`          | Yes*     | —               | Google Gemini API key                |
 | `ANTHROPIC_API_KEY`       | Yes*     | —               | Anthropic Claude API key             |
-| `PRIMARY_LLM_PROVIDER`    | No       | `gemini`        | Primary AI provider                  |
+| `PRIMARY_LLM_PROVIDER`    | No       | `anthropic`     | Primary AI provider (`anthropic` for Claude, `gemini` for Gemini) |
 | `GOOGLE_CLIENT_ID`        | For OAuth| —               | Google OAuth client ID               |
 | `GOOGLE_CLIENT_SECRET`    | For OAuth| —               | Google OAuth client secret           |
 | `GITHUB_CLIENT_ID`        | For OAuth| —               | GitHub OAuth client ID               |
@@ -666,12 +709,13 @@ rm chat_history.db
 | MCP tools not found            | Install `uvx`: `pip install uvx` or `uv tool install mcp-server-fetch` |
 | Vercel deployment fails        | Ensure all `Optional` env vars are set in dashboard|
 | Streaming not working          | Check browser supports SSE, check proxy buffering  |
+| Chat history not showing       | Guest: clear `localStorage` and reload. Authed: check network tab for `/api/v1/auth/user/chats` |
 
 ### 14.4 Project Structure
 
 ```
 CustodianAIArmy/
-├── main.py                      # Entry point, FastAPI app + page routes
+├── main.py                      # Entry point, FastAPI app + page routes (explicit + SPA catch-all)
 ├── requirements.txt             # Python dependencies
 ├── vercel.json                  # Vercel deployment config
 ├── PRD.md                       # This document
@@ -700,17 +744,20 @@ CustodianAIArmy/
 │
 ├── static/
 │   ├── home.html                # Landing page
-│   ├── index.html               # Legacy SPA
+│   ├── index.html               # Legacy SPA (app)
 │   ├── payment.html             # Payment/upgrade page
 │   ├── pages/
-│   │   ├── dashboard.html       # AI Dashboard
+│   │   ├── dashboard.html       # AI Dashboard (loads app.v2.js)
 │   │   ├── learn.html           # Learn with AI
 │   │   ├── portfolio.html       # Portfolio Builder
 │   │   ├── build.html           # Build Your Product
 │   │   ├── finance.html         # Finance AI (placeholder)
 │   │   └── customagents.html    # Custom Agent management
 │   ├── css/                     # Stylesheets
-│   ├── js/                      # Frontend JS modules
+│   ├── js/
+│   │   ├── app.v2.js            # Dashboard/chat SPA (cache-busted)
+│   │   ├── build.js, learn.js, customagents.js  # Per-page modules
+│   │   └── shared.js            # Shared utilities
 │   └── data/                    # Course data (JSON + slides)
 │
 ├── api/

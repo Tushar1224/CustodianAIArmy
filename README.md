@@ -1,6 +1,6 @@
 # Custodian AI Army
 
-A futuristic multi-agent AI orchestration system — chat with specialized AI agents (Gemini, Claude), build full-stack products via a 5-phase MVP pipeline, learn programming with AI tutoring across 23 courses + 17 career pathways, and manage custom agents.
+A futuristic multi-agent AI orchestration system — chat with specialized AI agents (Google, Anthropic) via SSE streaming, build full-stack products via a 5-phase MVP pipeline, learn programming with AI tutoring across 23 courses + 17 career pathways, and manage custom agents. Chat history is available for all users (guest and authenticated).
 
 ---
 
@@ -11,7 +11,7 @@ A futuristic multi-agent AI orchestration system — chat with specialized AI ag
 | Backend | Python 3.11+, FastAPI, Uvicorn |
 | Frontend | React 19, Vite, React Router 7, Bootstrap 5 |
 | Auth | Google OAuth, GitHub OAuth, JWT |
-| AI | Google Gemini, Anthropic Claude |
+| AI | Google, Anthropic (Gemini-2.5-flash, Claude-Sonnet-4-5) |
 | Database | SQLite |
 | MCP | fetch, duckduckgo, filesystem, memory, sequential_thinking, **crawl_course_pathway** |
 | Agent Skills | Ollama tool-use models (qwen2.5-coder, qwen3-coder) |
@@ -79,6 +79,14 @@ CustodianAIArmy/
 │       ├── mcp_client.py       # MCP client bridge
 │       └── mcp_config.py       # MCP server definitions + agent tool mapping
 ├── static/                     # Legacy HTML/CSS/JS frontend
+│   ├── js/
+│   │   ├── app.v2.js           # Dashboard/chat SPA (cache-busted)
+│   │   ├── build.js, learn.js, ...  # Per-page modules
+│   │   └── shared.js           # Shared utilities
+│   ├── pages/                  # Static HTML pages
+│   │   ├── dashboard.html      # AI Dashboard (loads app.v2.js)
+│   │   └── ...
+│   └── css/
 ├── dependencies/               # Legacy git submodules (deprecated)
 └── install.sh                  # Automated setup script
 ```
@@ -162,7 +170,7 @@ This avoids full page reloads (which lose React state) while still using native 
 
 ### SPA Routing (Production)
 
-FastAPI serves React's `index.html` for all unmatched routes via a catch-all route (`/{full_path:path}`) in `main.py`. Must be registered last so API and `/assets` routes take priority.
+FastAPI serves explicit page routes (`/dashboard`, `/app`, `/learn`, etc.) for the legacy static frontend. When `frontend/dist` exists, a catch-all route (`/{full_path:path}`) serves the React SPA for unmatched paths. The explicit routes are registered before the SPA catch-all so legacy pages always work. See `main.py` for the exact ordering.
 
 ---
 
@@ -171,7 +179,7 @@ FastAPI serves React's `index.html` for all unmatched routes via a catch-all rou
 ### Prerequisites
 - Python 3.8+
 - Node.js 18+
-- Google Gemini API key (or Anthropic Claude key)
+- Google or Anthropic API key (Gemini or Claude)
 
 ### 1. Backend Setup
 ```bash
@@ -239,10 +247,10 @@ All endpoints under `/api/v1/`. Swagger docs at `/api/docs`.
 ### Chat
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/chat` | Chat with agent (authenticated) |
-| POST | `/chat/stream` | SSE stream (authenticated) |
-| POST | `/chat/guest` | Guest chat (3/day limit) |
-| POST | `/chat/stream/guest` | Guest SSE stream |
+| POST | `/chat/stream` | SSE stream chat (authenticated, preferred) |
+| POST | `/chat/stream/guest` | SSE stream chat (guest) |
+| POST | `/chat` | Non-streaming chat (authenticated, fallback) |
+| POST | `/chat/guest` | Non-streaming chat (guest, fallback) |
 
 ### Auth
 | Method | Path | Description |
@@ -350,7 +358,7 @@ CommanderAI (Coordinator)
     └── Course-aware tutoring using `crawl_course_pathway` MCP tool
 ```
 
-All agents use either **Google Gemini** (`gemini-2.5-flash`) or **Anthropic Claude** (`claude-sonnet-4-5`), switchable via the UI.
+All agents use either **Google** (`gemini-2.5-flash`) or **Anthropic** (`claude-sonnet-4-5`), switchable via the UI.
 
 ### MCP Tools Available to Agents
 
@@ -369,13 +377,21 @@ Each agent specialization has a curated set of tools. See `src/mcp/mcp_config.py
 
 ---
 
-## Authentication & Plans
+## Authentication & Chat History
+
+### Plans
 
 | Plan | Daily Limit | Features |
 |------|-------------|----------|
-| Guest | 3 requests | Try without signup |
-| Free | 20 requests | Google sign-in, all agents |
-| Pro | 50 requests ($9/mo) | Priority, all providers, history |
+| Guest | 3 requests | Try without signup, chat history saved to browser localStorage |
+| Free | 20 requests | Google sign-in, all agents, server-side chat history |
+| Pro | 50 requests ($9/mo) | Priority, all providers, server-side + localStorage chat history |
+
+### Chat History
+
+- **Guest users**: Chat sessions saved to `localStorage` under `custodian_chats`. Visible in Chat History modal, persist between browser sessions.
+- **Authenticated users**: Chats synced to server (`/api/v1/auth/user/chats`). On load, localStorage chats are merged with server data for a unified view.
+- **Delete**: Removes from localStorage first, then attempts server deletion.
 
 Auth providers: Google OAuth, GitHub OAuth
 
@@ -448,7 +464,7 @@ DATABASE_PATH=/tmp/chat_history.db
 ```
 GEMINI_API_KEY=your_key
 ANTHROPIC_API_KEY=your_key
-PRIMARY_LLM_PROVIDER=anthropic|gemini
+PRIMARY_LLM_PROVIDER=anthropic          # "anthropic" (default) or "gemini"
 GOOGLE_CLIENT_ID=your_oauth_client_id
 GOOGLE_CLIENT_SECRET=your_oauth_secret
 GITHUB_CLIENT_ID=your_github_oauth_id

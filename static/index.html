@@ -244,11 +244,11 @@
                                 <div class="dropdown provider-switcher">
                                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" id="providerDropdown" title="Switch provider">
                                         <span id="providerDropdownIcon"><i class="fab fa-google"></i></span>
-                                        <span id="providerDropdownLabel">Gemini</span>
+                                        <span id="providerDropdownLabel">Google</span>
                                     </button>
                                     <ul class="dropdown-menu">
-                                        <li><a class="dropdown-item" href="#" data-provider="gemini" onclick="window.app && window.app.switchToProvider('gemini')"><i class="fab fa-google me-1"></i>Gemini</a></li>
-                                        <li><a class="dropdown-item" href="#" data-provider="anthropic" onclick="window.app && window.app.switchToProvider('anthropic')"><i class="fas fa-brain me-1"></i>Claude</a></li>
+                                        <li><a class="dropdown-item" href="#" data-provider="gemini" onclick="window.app && window.app.switchToProvider('gemini')"><i class="fab fa-google me-1"></i>Google</a></li>
+                                        <li><a class="dropdown-item" href="#" data-provider="anthropic" onclick="window.app && window.app.switchToProvider('anthropic')"><i class="fas fa-brain me-1"></i>Anthropic</a></li>
                                     </ul>
                                 </div>
                                 <textarea id="chat-input" placeholder="Type your message..." disabled rows="1"></textarea>
@@ -634,7 +634,7 @@ print(f'Hello, {name}!')
                         <ul class="text-muted small mb-3">
                             <li><strong>Free plan:</strong> 20 requests/day</li>
                             <li><strong>Pro plan:</strong> 50 requests/day</li>
-                            <li>Access to all providers: Gemini, Claude &amp; Claude</li>
+                            <li>Access to all providers: Google, Anthropic &amp; Claude Sonnet</li>
                         </ul>
                         <button class="btn btn-warning text-dark w-100 fw-bold mb-2" onclick="bootstrap.Modal.getInstance(document.getElementById('rateLimitModal'))?.hide(); setTimeout(() => window.app && window.app.openPaymentPage(), 300);">
                             <i class="fas fa-crown me-2"></i>Upgrade to Pro — $9.99/mo
@@ -678,7 +678,7 @@ print(f'Hello, {name}!')
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
-    <script src="/static/js/app.js?v=13"></script>
+    <script src="/static/js/app.v2.js"></script>
     
     <!-- API Keys Modal -->
     <div class="modal fade" id="apiKeysModal" tabindex="-1" aria-labelledby="apiKeysModalLabel" aria-hidden="true">
@@ -704,11 +704,11 @@ print(f'Hello, {name}!')
                         </div>
                         <div class="mt-2 d-flex align-items-center gap-2 flex-wrap">
                             <span class="text-muted small"><i class="fas fa-info-circle me-1"></i>Switch provider by selecting a different agent:</span>
-                            <button class="btn btn-sm btn-outline-info" onclick="window.app && window.app.switchToProvider('gemini')" title="Switch to Google Gemini agents">
-                                <i class="fab fa-google me-1"></i>Gemini
+                            <button class="btn btn-sm btn-outline-info" onclick="window.app && window.app.switchToProvider('gemini')" title="Switch to Google (Gemini) agents">
+                                <i class="fab fa-google me-1"></i>Google
                             </button>
-                            <button class="btn btn-sm btn-outline-warning" onclick="window.app && window.app.switchToProvider('anthropic')" title="Switch to Anthropic Claude agents">
-                                <i class="fas fa-brain me-1"></i>Claude
+                            <button class="btn btn-sm btn-outline-warning" onclick="window.app && window.app.switchToProvider('anthropic')" title="Switch to Anthropic (Claude) agents">
+                                <i class="fas fa-brain me-1"></i>Anthropic
                             </button>
 
                     </div>
@@ -723,7 +723,7 @@ print(f'Hello, {name}!')
                         <div class="card-body">
                             <div class="d-flex align-items-center mb-2">
                                 <span class="badge bg-info text-dark me-2">Google</span>
-                                <h6 class="mb-0 text-info">Gemini API Key</h6>
+                                <h6 class="mb-0 text-info">Google (Gemini) API Key</h6>
                                 <span id="gemini-key-status" class="ms-auto badge bg-secondary">Using server default</span>
                             </div>
                             <p class="text-muted small mb-2">
@@ -746,7 +746,7 @@ print(f'Hello, {name}!')
                         <div class="card-body">
                             <div class="d-flex align-items-center mb-2">
                                 <span class="badge bg-warning text-dark me-2">Anthropic</span>
-                                <h6 class="mb-0 text-info">Claude API Key</h6>
+                                <h6 class="mb-0 text-info">Anthropic (Claude) API Key</h6>
                                 <span id="anthropic-key-status" class="ms-auto badge bg-secondary">Using server default</span>
                             </div>
                             <p class="text-muted small mb-2">

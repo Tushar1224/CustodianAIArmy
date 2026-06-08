@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     CLAUDE_MODEL: str = "claude-sonnet-4-5"
 
     # Primary LLM Provider
-    PRIMARY_LLM_PROVIDER: Optional[str] = "gemini"  # Options: gemini, anthropic
+    PRIMARY_LLM_PROVIDER: Optional[str] = "anthropic"  # Options: gemini, anthropic
 
     # MCP (Model Context Protocol) Configuration
     MCP_ENABLED: bool = True

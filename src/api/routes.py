@@ -664,7 +664,7 @@ async def _stream_with_fallback(
     except:
         pass
     
-    yield f"Error: All streaming providers failed ({', '.join(providers_to_try)}). Please try again later."
+    yield "I'm sorry, I couldn't process your request. Both the Google and Anthropic AI services are currently unavailable. Please try again later."
 
 
 

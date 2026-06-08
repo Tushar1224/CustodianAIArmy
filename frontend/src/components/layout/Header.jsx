@@ -1,12 +1,17 @@
 import { useAuth } from '../../hooks/useAuth';
 
-export default function Header({ showSubHeader, subHeaderContent, style: customStyle }) {
+export default function Header({ showSubHeader, subHeaderContent, style: customStyle, onOpenProfile }) {
   const { user, logout } = useAuth();
   const firstName = user ? (user.name || 'User').split(' ')[0] : 'Guest';
 
   const handleLogout = async (e) => {
     e.preventDefault();
     await logout();
+  };
+
+  const handleProfileClick = (e) => {
+    e.preventDefault();
+    if (onOpenProfile) onOpenProfile();
   };
 
   return (
@@ -44,10 +49,7 @@ export default function Header({ showSubHeader, subHeaderContent, style: customS
                   <li><span className="dropdown-item-text" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{user.email}</span></li>
                   <li><span className="dropdown-item-text" style={{ fontSize: '0.75rem' }}>Plan: <strong style={{ color: 'var(--primary-color)' }}>FREE</strong></span></li>
                   <li><hr className="dropdown-divider" /></li>
-                  <li><a className="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editProfileModal"><i className="fas fa-user-edit me-2"></i>Edit Details</a></li>
-                  <li><a className="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#chatHistoryModal"><i className="fas fa-history me-2"></i>Chat History</a></li>
-                  <li><a className="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#apiKeysModal"><i className="fas fa-key me-2"></i>API Keys</a></li>
-                  <li><a className="dropdown-item text-warning" href="#" data-bs-toggle="modal" data-bs-target="#myPlanModal"><i className="fas fa-crown me-2"></i>My Plan</a></li>
+                  <li><a className="dropdown-item" href="#" onClick={handleProfileClick}><i className="fas fa-user-edit me-2"></i>Profile & Settings</a></li>
                   <li><hr className="dropdown-divider" /></li>
                   <li><button className="dropdown-item text-danger" onClick={handleLogout}><i className="fas fa-sign-out-alt me-2"></i>Logout</button></li>
                 </>
