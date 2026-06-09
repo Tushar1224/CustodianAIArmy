@@ -1,16 +1,56 @@
-# React + Vite
+# Custodian AI Army — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 19 SPA for the Custodian AI Army multi-agent platform.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Layer | Tech |
+|-------|------|
+| Framework | React 19 |
+| Build | Vite 8 |
+| Routing | React Router 7 |
+| UI | Bootstrap 5, CSS custom properties |
+| Animation | HTML5 Canvas 2D (NeuronBrain) |
+| Icons | Font Awesome 6 |
 
-## React Compiler
+## Key Components
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| Component | File | Description |
+|-----------|------|-------------|
+| **NeuronBrain** | `src/components/NeuronBrain.jsx` | Full-canvas interactive neural network — biological dendrites, somas, axon hillocks, 14 dummy neurons, space nebula background, drag-and-drop physics, hover detail panel |
+| **HomePage** | `src/pages/HomePage.jsx` | Landing page with full-viewport hero, feature cards, pricing, "Coming Soon" roadmap |
+| **DashboardPage** | `src/pages/DashboardPage.jsx` | Chat with specialized AI agents (SSE streaming) |
+| **LearnPage** | `src/pages/LearnPage.jsx` | 23 programming courses with AI tutoring |
+| **CustomAgentsPage** | `src/pages/CustomAgentsPage.jsx` | Create/manage custom AI agents |
+| **BuildPage** | `src/pages/BuildPage.jsx` | 5-phase MVP Builder pipeline |
 
-## Expanding the ESLint configuration
+## NeuronBrain Details
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- **5 feature neurons** in a ring around a glowing center hub
+- **14 dummy neurons** scattered around the ring with smaller gray somas
+- **All connections** are dendrite-style (tapered, wobbly, with spines and bouton clusters)
+- **Center hub** has dendrites extending to every feature neuron
+- **Space background**: drifting nebula clouds, 80 twinkling stars, animated sine waves
+- **Right panel** slides in on hover with feature details and an "Explore" button
+- **Build warning**: The Terser minifier has a variable-shadowing bug — avoid naming a local `const features` in the same scope as a prop/closure `features`. The local was renamed to `featNodes` to prevent TDZ crashes in production.
+
+## Build & Run
+
+```bash
+npm run dev          # Vite dev server (port 5173, proxies /api to :8000)
+npm run build        # Production build → dist/
+npm run preview      # Preview built app
+npm run lint         # ESLint
+```
+
+## Routes
+
+| Path | Page | Status |
+|------|------|--------|
+| `/` | HomePage | Working |
+| `/dashboard` | DashboardPage | Working |
+| `/learn` | LearnPage | Working |
+| `/portfolio` | PortfolioPage | Coming Soon |
+| `/build` | BuildPage | Working |
+| `/agents` | CustomAgentsPage | Working |
+| `/payment` | PaymentPage | Working |

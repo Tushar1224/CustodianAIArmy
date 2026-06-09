@@ -155,6 +155,35 @@ Two layout patterns are used depending on the page:
 | **Full layout** via `MainLayout` | DashboardPage, LearnPage, PortfolioPage, BuildPage, CustomAgentsPage | `<Header />` (fixed top), `<Sidebar />` (offcanvas), `<Footer />` | Client-side via `useNavigate()` + `window.bootstrap.Offcanvas` |
 | **Standalone** (custom) | HomePage, PaymentPage | Inline navbar/offcanvas, `<NeuronBrain />` visualization | Same client-side pattern in HomePage; `PaymentPage` has no nav |
 
+### Interactive Neuron Visualization (`NeuronBrain.jsx`)
+
+The homepage hero features a full-canvas interactive neural network built with the HTML5 Canvas 2D API:
+
+| Aspect | Detail |
+|--------|--------|
+| **Technology** | Canvas 2D, RequestAnimationFrame (60 FPS) |
+| **Feature neurons** | 5 neurons in a ring around the center hub; blue = `working`, yellow = `coming` |
+| **Dummy neurons** | 14 scattered around the feature ring, smaller gray somas with nucleus/nucleolus |
+| **Center hub** | Blue energy glow + soma with dendrites extending to all features |
+| **Dendrites** | 6–9 per feature neuron (4–7 per dummy), quadratic bezier curves with taper, secondary branches, Nissl bodies, ion-channel dots, spines |
+| **Inter-neuron connections** | Dendrite-style tapered wobbly paths with spines and synaptic boutons; per-neuron nearest-neighbor topology (features→2 nearest, dummies→3 nearest features + 1 nearest dummy, center→all features) |
+| **Space background** | 4 drifting radial-gradient nebula clouds, 80 twinkling star particles, 3 animated sine waves |
+| **Interaction** | Hover → right detail panel + 3-pulse burst; click → navigate to feature page; drag-and-drop with spring-back physics |
+| **Axon hillock** | Each feature soma has a visible axon hillock (cone-shaped protrusion) |
+| **Myelin sheath** | Axon-style connections have a thicker semi-transparent sheath over the wobbly path |
+| **Synaptic boutons** | Connection endpoints have 3-dot bouton clusters |
+
+**Labels** rendered below each feature neuron with hover highlight/shadow. Legend (Working / Coming Soon) positioned absolutely at the hero bottom.
+
+### Layout System
+
+Two layout patterns are used depending on the page:
+
+| Pattern | Pages | Components | Navigation |
+|---------|-------|------------|------------|
+| **Full layout** via `MainLayout` | DashboardPage, LearnPage, PortfolioPage, BuildPage, CustomAgentsPage | `<Header />` (fixed top), `<Sidebar />` (offcanvas), `<Footer />` | Client-side via `useNavigate()` + `window.bootstrap.Offcanvas` |
+| **Standalone** (custom) | HomePage, PaymentPage | Inline navbar/offcanvas, `<NeuronBrain />` visualization | Same client-side pattern in HomePage; `PaymentPage` has no nav |
+
 ### Client-Side Navigation Pattern
 
 All sidebar/menu links use `<a>` tags with `onClick` handlers instead of traditional `<a href>` or `<Link>`:

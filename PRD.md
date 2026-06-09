@@ -369,8 +369,73 @@ sessions            -- Persistent auth sessions
 | **MainLayout**         | `components/layout/MainLayout.jsx`| Wraps all pages with Header + Sidebar    |
 | **Header**             | `components/layout/Header.jsx`    | Fixed top nav with profile dropdown      |
 | **Sidebar**            | `components/layout/Sidebar.jsx`   | Offcanvas navigation menu                |
-| **NeuronBrain**        | `components/NeuronBrain.jsx`      | Interactive neuron visualization (HomePage) |
+| **NeuronBrain**        | `components/NeuronBrain.jsx`      | Interactive full-canvas neural network visualization on the homepage with biological neuron rendering (dendrites, soma, axon hillock, myelin sheaths, synaptic boutons), 14 dummy neurons, 3D rotation, drag-and-drop physics, hover detail panel, and space nebula background |
 | **ProfileModals**      | `components/modals/ProfileModals.jsx` | Tabbed modal: Edit Profile, API Keys, Chat History, My Plan — shared across all pages |
+
+### 8.1 HomePage Hero
+
+The landing page hero is a **full-viewport section** (`height: 100vh`) containing:
+
+- **Absolute-overlaid header**: "Powered by Claude, backed up by Gemini" badge + "Custodian AI Army" title; `pointer-events: none` so neuron glow shows behind text
+- **NeuronBrain canvas**: Fills the entire hero; `topOffset={80}` shifts neurons below the header text
+- **Fixed nav bar**: 60px tall, `rgba(10,10,15,0.92)` with backdrop blur, overlays the top of the hero
+- **Legend**: "Working" (blue dot) and "Coming Soon" (yellow dot) centered at the bottom
+
+### 8.2 NeuronBrain Component (`components/NeuronBrain.jsx`)
+
+**Rendering pipeline** (per frame):
+1. Draw 4 nebula clouds (purple/blue radial gradients with slow sinusoidal drift)
+2. Draw 3 animated sine waves across the canvas
+3. Apply 3D rotation matrix to all neuron positions (gentle oscillating `sin/cos`)
+4. Update 80 twinkling star particles with per-particle speed/alpha/twinkle offset
+5. Update neuron positions with spring-physics drift + boundary collision (margin 40px)
+6. Draw traveling signal pulses (spawned from center to random feature)
+7. Draw center hub expanding energy wave
+8. Draw per-neuron dendrite-style connecting tentacles (tapered, wobbly, spines, bouton; deduplicated via sorted key Set)
+9. Draw each neuron: glow → dendrites → soma → spike ring → label
+
+**Neuron data model:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique identifier (`dummy-N` for dummies, `center` for hub) |
+| `feature` | object/null | Feature data reference (null for dummies/center) |
+| `z` | number | Depth (0.3–1.0), affects scale and drift amplitude |
+| `baseX, baseY` | number | Initial position (ring around center) |
+| `x, y` | number | Current animated position |
+| `vx, vy` | number | Velocity for drift physics |
+| `seed` | number | Deterministic random seed for rendering |
+| `isCenter, isDummy` | boolean | Type flags |
+| `spike, targetSpike` | number | Hover spike animation (0→1) |
+| `dendriteAngle` | number | Slow-rotating base angle for dendrites |
+| `connections` | string[] | IDs of connected neurons (per-neuron nearest-neighbor) |
+| `dummySz` | number | Size override for dummy neurons (8–15) |
+
+**Connection topology** (initialized once on mount/resize via `useCallback`):
+- Feature neurons: connect to 2 nearest non-center neighbors
+- Dummy neurons: connect to 3 nearest features + 1 nearest dummy
+- Center hub: connects to all feature neurons
+- Connections deduplicated via sorted-key Set when drawing tentacles
+
+**Rendering functions:**
+
+| Function | Purpose |
+|----------|---------|
+| `drawDendrites` | 6–9 curved dendrites per feature (4–7 per dummy) with taper, secondary branches, spines, Nissl bodies |
+| `drawSoma` | Irregular 14-point soma contour with radial gradient, nucleus, nucleolus, highlight, ion-channel dots, axon hillock |
+| `drawAxon` | Wobbly myelinated axon path with glow and synaptic bouton cluster |
+| `drawConnectingDendrite` | Tapered dendrite-style connection between neurons (replaces tentacles) with spines and bouton |
+| `drawNebula` | 4 drifting radial gradient clouds |
+| `drawWaves` | 3 animated sine waves |
+| `spawnPulse` | Creates a traveling signal pulse from center to feature |
+
+**Interaction:**
+- Hover over feature neuron → right detail panel slides in (icon, name, status badge, description, Explore button), 3-pulse burst fires from center
+- Click feature neuron → `onFeatureClick(feature)` → `navigate(feature.href)`
+- Drag-and-drop feature neurons → spring-back physics on release; dummies are not interactive
+- Empty state detail panel shows brain icon + "Hover over a neuron to see details"
+
+**Performance:** Buffered via 3 ref arrays (`nsRef`, `psRef`, `pulsesRef`); `useMemo` on `allFeatures` array to prevent re-init; DevicePixelRatio-aware canvas sizing.
 
 ---
 
