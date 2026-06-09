@@ -280,7 +280,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="chat-container chat-container-desktop">
-        <div className="agents-top-section d-flex">
+        <div className="agents-top-section d-none d-md-flex">
           <div className="chat-sidebar" style={{ width: '50%', overflowY: 'auto' }}>
             <h3 style={{ fontSize: '0.85rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Available Agents</h3>
             <div className="agent-list" id="dashboard-agent-list">
@@ -370,6 +370,25 @@ export default function DashboardPage() {
           </div>
 
           <div className="chat-options-bar d-flex align-items-center gap-2 px-3 py-2" style={{ borderTop: '1px solid var(--border-color)', background: 'rgba(77,171,247,0.03)' }}>
+            <div className="d-md-none">
+              <div className="dropdown">
+                <button className="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Switch agent" style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem' }}>
+                  <i className="fas fa-robot me-1"></i> {selectedAgent?.name || 'Agent'}
+                </button>
+                <ul className="dropdown-menu" style={{ maxHeight: '300px', overflowY: 'auto', fontSize: '0.8rem' }}>
+                  {agents.map(agent => (
+                    <li key={agent.agent_id}>
+                      <a className={`dropdown-item ${selectedAgent?.agent_id === agent.agent_id ? 'active' : ''}`} href="#"
+                        onClick={(e) => { e.preventDefault(); selectAgent(agent); }}>
+                        <i className="fas fa-robot text-info me-2"></i>
+                        <span>{agent.name}</span>
+                        <small className="ms-1 text-muted">· {agent.specialization || 'general'}</small>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
             <div className="form-check form-switch ms-auto">
               <input className="form-check-input" type="checkbox" id="incognitoToggle"
                 checked={incognito}
