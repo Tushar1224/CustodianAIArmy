@@ -10,6 +10,7 @@ A futuristic multi-agent AI orchestration system — chat with specialized AI ag
 |-------|-----------|
 | Backend | Python 3.11+, FastAPI, Uvicorn |
 | Frontend | React 19, Vite, React Router 7, Bootstrap 5 |
+| UI Animation | HTML5 Canvas (neuron visualization), CSS animations |
 | Auth | Google OAuth, GitHub OAuth, JWT |
 | AI | Google, Anthropic (Gemini-2.5-flash, Claude-Sonnet-4-5) |
 | Database | SQLite |
@@ -56,6 +57,8 @@ CustodianAIArmy/
 │       │                       # CustomAgentsPage, PaymentPage
 │       ├── components/
 │       │   ├── layout/         # Header, Sidebar, Footer, MainLayout
+│       │   ├── NeuronBrain.jsx # Interactive neuron visualization
+│       │   ├── NeuronBrain.css # Canvas animation styles
 │       │   └── shared/         # LoadingOverlay
 │       └── hooks/              # useAuth, useTheme
 ├── src/
@@ -150,7 +153,7 @@ Two layout patterns are used depending on the page:
 | Pattern | Pages | Components | Navigation |
 |---------|-------|------------|------------|
 | **Full layout** via `MainLayout` | DashboardPage, LearnPage, PortfolioPage, BuildPage, CustomAgentsPage | `<Header />` (fixed top), `<Sidebar />` (offcanvas), `<Footer />` | Client-side via `useNavigate()` + `window.bootstrap.Offcanvas` |
-| **Standalone** (custom) | HomePage, PaymentPage | Inline navbar/offcanvas | Same client-side pattern in HomePage; `PaymentPage` has no nav |
+| **Standalone** (custom) | HomePage, PaymentPage | Inline navbar/offcanvas, `<NeuronBrain />` visualization | Same client-side pattern in HomePage; `PaymentPage` has no nav |
 
 ### Client-Side Navigation Pattern
 

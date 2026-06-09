@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
 import AdSenseAd from '../components/layout/AdSenseAd';
 import Footer from '../components/layout/Footer';
+import NeuronBrain from '../components/NeuronBrain';
 
 function closeOffcanvas() {
   const el = document.getElementById('homeOffcanvas');
@@ -12,11 +13,67 @@ function closeOffcanvas() {
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const [selectedFeature, setSelectedFeature] = useState(null);
+
+  // Define all features with their status
+  const allFeatures = [
+    {
+      id: 'learn-ai',
+      name: 'Learn with AI',
+      icon: 'fas fa-graduation-cap',
+      href: '/learn',
+      status: 'working',
+      description: 'Interactive programming courses with an AI tutor by your side. Python, JavaScript, React, and more — with a live code playground.',
+      color: '#4dabf7',
+    },
+    {
+      id: 'dashboard',
+      name: 'AI Dashboard',
+      icon: 'fas fa-brain',
+      href: '/dashboard',
+      status: 'working',
+      description: 'Chat with a specialized army of AI agents — researchers, coders, analysts, writers, and more. Switch providers on the fly.',
+      color: '#4dabf7',
+    },
+    {
+      id: 'custom-agents',
+      name: 'Custom Agents',
+      icon: 'fas fa-users-cog',
+      href: '/agents',
+      status: 'working',
+      description: 'Create, train, and publish your own AI agents. Available for all users, including the free tier, to build a personalized AI army.',
+      color: '#4dabf7',
+    },
+    {
+      id: 'build-product',
+      name: 'Build Your Product',
+      icon: 'fas fa-cubes',
+      href: '/build',
+      status: 'working',
+      description: 'From idea to deployed product with an AI army. Architecture, code generation, project planning, and one-click deployment.',
+      color: '#4dabf7',
+    },
+    {
+      id: 'portfolio',
+      name: 'Build Portfolio',
+      icon: 'fab fa-github',
+      href: '/portfolio',
+      status: 'coming',
+      description: 'AI-generated developer portfolios. Connect GitHub, describe yourself, and get a stunning portfolio deployed in minutes.',
+      color: '#f59e0b',
+    },
+  ];
 
   const handleNav = (path) => (e) => {
     e.preventDefault();
     closeOffcanvas();
     navigate(path);
+  };
+
+  const handleFeatureClick = (feature) => {
+    if (feature.status === 'working') {
+      navigate(feature.href);
+    }
   };
 
   useEffect(() => {
@@ -113,6 +170,63 @@ export default function HomePage() {
         <p style={{ fontSize: 'clamp(1rem, 2vw, 1.25rem)', color: '#9090b0', maxWidth: '600px', margin: '0 auto 2.5rem' }}>
           A multi-agent AI platform that learns, builds, and creates alongside you. Free to try — no signup required.
         </p>
+
+        {/* Neuron Brain Visualization */}
+        <div style={{ width: '100%', maxWidth: '900px', margin: '0 auto 2.5rem' }}>
+          <NeuronBrain features={allFeatures} onFeatureClick={handleFeatureClick} />
+        </div>
+
+        {/* Feature Description Panel */}
+        {selectedFeature && (
+          <div
+            style={{
+              background: 'rgba(77,171,247,0.08)',
+              border: `2px solid ${selectedFeature.color}`,
+              borderRadius: '12px',
+              padding: '1.5rem 2rem',
+              maxWidth: '600px',
+              marginBottom: '2rem',
+              animation: 'slideUp 0.3s ease-out',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <i className={selectedFeature.icon} style={{ fontSize: '1.5rem', color: selectedFeature.color }}></i>
+              <h3 style={{ color: '#e8e8f0', fontSize: '1.1rem', margin: 0, fontFamily: "'Orbitron', monospace" }}>
+                {selectedFeature.name}
+              </h3>
+              {selectedFeature.status === 'coming' && (
+                <span style={{ fontSize: '0.7rem', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', border: '1px solid #f59e0b', padding: '0.2rem 0.6rem', borderRadius: '10px' }}>
+                  Coming Soon
+                </span>
+              )}
+            </div>
+            <p style={{ color: '#9090b0', margin: 0, fontSize: '0.95rem' }}>
+              {selectedFeature.description}
+            </p>
+            {selectedFeature.status === 'working' && (
+              <a
+                href={selectedFeature.href}
+                onClick={handleNav(selectedFeature.href)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: selectedFeature.color,
+                  color: '#000',
+                  padding: '0.6rem 1.2rem',
+                  borderRadius: '4px',
+                  marginTop: '1rem',
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                }}
+              >
+                <i className="fas fa-arrow-right"></i> Explore
+              </a>
+            )}
+          </div>
+        )}
+
         <div className="hero-ctas" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
           <a href="/dashboard" className="btn-hero-primary" style={{ background: '#4dabf7', color: '#000', border: 'none', padding: '0.875rem 2rem', borderRadius: '4px', fontSize: '1rem', fontWeight: 700, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
             <i className="fas fa-rocket"></i> Try Free Now
@@ -134,39 +248,102 @@ export default function HomePage() {
             </div>
           ))}
         </div>
+
+        <style>{`
+          @keyframes slideUp {
+            from {
+              opacity: 0;
+              transform: translateY(20px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+        `}</style>
       </section>
 
       {/* Features */}
       <section className="features" id="features" style={{ padding: '6rem 2rem' }}>
         <div className="section-title" style={{ textAlign: 'center', marginBottom: '3rem' }}>
           <h2 style={{ fontFamily: "'Orbitron', monospace", fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', fontWeight: 900, color: '#e8e8f0', marginBottom: '0.75rem' }}>
-            Everything You Need to <span style={{ color: '#4dabf7' }}>Build with AI</span>
+            Explore Our <span style={{ color: '#4dabf7' }}>Neural Network</span>
           </h2>
           <div className="section-divider" style={{ width: '60px', height: '3px', background: 'linear-gradient(90deg, #4dabf7, #7c3aed)', margin: '0.75rem auto 0', borderRadius: '2px' }}></div>
-          <p style={{ color: '#9090b0', fontSize: '1rem', maxWidth: '500px', margin: '0 auto' }}>Four powerful tools, one platform. Each designed to supercharge a different part of your workflow.</p>
+          <p style={{ color: '#9090b0', fontSize: '1rem', maxWidth: '500px', margin: '0 auto' }}>Every feature is a neuron in your AI army. Click on each node above to learn more, or explore any of the fully implemented features below.</p>
         </div>
-        <div className="features-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem', maxWidth: '1200px', margin: '0 auto' }}>
-          {[
-            { href: '/dashboard', icon: 'fas fa-comments', title: 'Gemini Code Assist', desc: 'Your AI pair programmer. Get help with code, debugging, and complex problem-solving in a conversational interface.' },
-            { href: '/agents', icon: 'fas fa-users-cog', title: 'Custom Agents Studio', desc: 'Create, train, and publish your own AI agents. Available for all users, including the free tier, to build a personalized AI army.' },
-            { href: '/dashboard', icon: 'fas fa-brain', title: 'AI Dashboard', desc: 'Chat with a specialized army of AI agents — researchers, coders, analysts, writers, and more. Switch providers on the fly.' },
-            { href: '/learn', icon: 'fas fa-graduation-cap', title: 'Learn with AI', desc: 'Interactive programming courses with an AI tutor by your side. Python, JavaScript, React, and more — with a live code playground.' },
-            { href: '/build', icon: 'fas fa-cubes', title: 'Build Your Product', desc: 'From idea to deployed product with an AI army. Architecture, code generation, project planning, and one-click deployment.' },
-            { href: '/portfolio', icon: 'fab fa-github', title: 'Portfolio Builder', desc: 'AI-generated developer portfolios. Connect GitHub, describe yourself, and get a stunning portfolio deployed in minutes.', badge: 'Coming Soon' },
-          ].map((f, i) => (
-            <a key={i} href={f.href} className="feature-card" style={{ background: '#12121f', border: '1px solid rgba(77,171,247,0.15)', borderRadius: '12px', padding: '2rem', textDecoration: 'none', color: '#e8e8f0', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div className="feature-icon" style={{ width: '56px', height: '56px', background: 'rgba(77,171,247,0.1)', border: '1px solid rgba(77,171,247,0.15)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', color: '#4dabf7' }}>
+        <div className="features-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', maxWidth: '1200px', margin: '0 auto' }}>
+          {allFeatures.map((f, i) => (
+            <div
+              key={i}
+              onClick={() => setSelectedFeature(f)}
+              className="feature-card"
+              style={{
+                background: f.status === 'working' ? '#12121f' : 'rgba(12, 12, 31, 0.5)',
+                border: `1px solid ${f.status === 'working' ? 'rgba(77,171,247,0.3)' : 'rgba(245,158,11,0.2)'}`,
+                borderRadius: '12px',
+                padding: '2rem',
+                textDecoration: 'none',
+                color: '#e8e8f0',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = f.color;
+                e.currentTarget.style.background = f.status === 'working' ? 'rgba(77,171,247,0.05)' : 'rgba(245,158,11,0.05)';
+                e.currentTarget.style.transform = 'translateY(-4px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = f.status === 'working' ? 'rgba(77,171,247,0.3)' : 'rgba(245,158,11,0.2)';
+                e.currentTarget.style.background = f.status === 'working' ? '#12121f' : 'rgba(12, 12, 31, 0.5)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              {f.status === 'coming' && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'linear-gradient(135deg, rgba(245,158,11,0.1), transparent)',
+                    pointerEvents: 'none',
+                  }}
+                />
+              )}
+              <div className="feature-icon" style={{ width: '56px', height: '56px', background: `${f.color}20`, border: `1px solid ${f.color}30`, borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', color: f.color }}>
                 <i className={f.icon}></i>
               </div>
-              <h3 style={{ fontFamily: "'Orbitron', monospace", fontSize: '1rem', color: '#4dabf7', margin: 0 }}>{f.title}</h3>
-              <p style={{ color: '#9090b0', fontSize: '0.9rem', flex: 1, margin: 0 }}>{f.desc}</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                {f.badge && <span className="feature-badge" style={{ fontSize: '0.7rem', background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid #f59e0b', padding: '0.15rem 0.5rem', borderRadius: '10px' }}>{f.badge}</span>}
-                <span className="feature-link" style={{ color: '#4dabf7', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <i className="fas fa-arrow-right"></i> {f.href === '/dashboard' ? 'Start Chatting' : f.href === '/agents' ? 'Create Agents' : f.href === '/learn' ? 'Start Learning' : f.href === '/build' ? 'Build Product' : 'Build Portfolio'}
+              <h3 style={{ fontFamily: "'Orbitron', monospace", fontSize: '1rem', color: f.color, margin: 0 }}>
+                {f.name}
+              </h3>
+              <p style={{ color: '#9090b0', fontSize: '0.9rem', flex: 1, margin: 0 }}>
+                {f.description}
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'space-between' }}>
+                <div>
+                  {f.status === 'coming' && (
+                    <span className="feature-badge" style={{ fontSize: '0.7rem', background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid #f59e0b', padding: '0.15rem 0.5rem', borderRadius: '10px' }}>
+                      Coming Soon
+                    </span>
+                  )}
+                  {f.status === 'working' && (
+                    <span className="feature-badge" style={{ fontSize: '0.7rem', background: 'rgba(77,171,247,0.15)', color: '#4dabf7', border: '1px solid #4dabf7', padding: '0.15rem 0.5rem', borderRadius: '10px' }}>
+                      Available
+                    </span>
+                  )}
+                </div>
+                <span className="feature-link" style={{ color: f.color, fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <i className="fas fa-arrow-right"></i>
                 </span>
               </div>
-            </a>
+            </div>
           ))}
         </div>
       </section>

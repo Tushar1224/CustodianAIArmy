@@ -352,7 +352,7 @@ sessions            -- Persistent auth sessions
 
 | Route            | React Component                | Description                     |
 |------------------|-------------------------------|----------------------------------|
-| `/`              | `pages/HomePage.jsx`          | Futuristic landing page         |
+| `/`              | `pages/HomePage.jsx`          | Futuristic landing with neuron visualization |
 | `/dashboard`     | `pages/DashboardPage.jsx`     | AI Dashboard (fully self-contained React) |
 | `/learn`         | `pages/LearnPage.jsx`         | Learn with AI (courses)         |
 | `/portfolio`     | `pages/PortfolioPage.jsx`     | Portfolio Builder               |
@@ -369,6 +369,7 @@ sessions            -- Persistent auth sessions
 | **MainLayout**         | `components/layout/MainLayout.jsx`| Wraps all pages with Header + Sidebar    |
 | **Header**             | `components/layout/Header.jsx`    | Fixed top nav with profile dropdown      |
 | **Sidebar**            | `components/layout/Sidebar.jsx`   | Offcanvas navigation menu                |
+| **NeuronBrain**        | `components/NeuronBrain.jsx`      | Interactive neuron visualization (HomePage) |
 | **ProfileModals**      | `components/modals/ProfileModals.jsx` | Tabbed modal: Edit Profile, API Keys, Chat History, My Plan — shared across all pages |
 
 ---

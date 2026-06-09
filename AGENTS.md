@@ -182,6 +182,64 @@ models:
 
 ---
 
+## Frontend Components & Architecture
+
+### UI Components
+
+The Custodian AI Army frontend uses a modular React component architecture with two distinct UI patterns:
+
+#### **Main Application Components**
+| Component | File | Purpose |
+|-----------|------|---------|
+| **MainLayout** | `frontend/src/components/layout/MainLayout.jsx` | Shared layout wrapper for all pages |
+| **Header** | `frontend/src/components/layout/Header.jsx` | Fixed top navigation with profile |
+| **Sidebar** | `frontend/src/components/layout/Sidebar.jsx` | Offcanvas menu navigation |
+| **Footer** | `frontend/src/components/layout/Footer.jsx` | Footer with links and info |
+
+#### **Specialized Components**
+| Component | File | Purpose |
+|-----------|------|---------|
+| **NeuronBrain** | `frontend/src/components/NeuronBrain.jsx` | Interactive neuron visualization (HomePage hero section) |
+| **ProfileModals** | `frontend/src/components/modals/ProfileModals.jsx` | Multi-tab modal for user settings |
+| **LoadingOverlay** | `frontend/src/components/shared/LoadingOverlay.jsx` | Loading state indicator |
+
+#### **NeuronBrain Component Details**
+
+The `NeuronBrain.jsx` component renders an interactive, canvas-based neural network visualization on the homepage:
+
+- **Technology**: HTML5 Canvas 2D API
+- **Animation**: RequestAnimationFrame (60 FPS)
+- **Physics**: Gentle drift movement with boundary collision
+- **Visual Status**:
+  - 🔵 **Blue neurons** = Fully implemented features
+  - 🟡 **Yellow neurons** = Coming soon features
+- **Interactivity**: Click neurons to navigate to feature pages
+- **Responsive**: Adapts to mobile and desktop screens
+- **Network**: Dynamic connections between neurons and central hub
+
+**Props:**
+```javascript
+<NeuronBrain 
+  features={Array}      // Feature data array
+  onFeatureClick={Func} // Click handler
+/>
+```
+
+**Feature Data Structure:**
+```javascript
+{
+  id: string,           // Unique identifier
+  name: string,         // Display name
+  icon: string,         // Font Awesome icon class
+  href: string,         // Navigation path
+  status: 'working' | 'coming',  // Implementation status
+  description: string,  // Feature description
+  color: string,        // Hex color (#4dabf7 or #f59e0b)
+}
+```
+
+---
+
 ## Best Practices
 
 1. **Use tool-use capable models** for Agent/Plan mode in Continue
