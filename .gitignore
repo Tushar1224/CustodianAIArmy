@@ -59,6 +59,7 @@ node_modules/
 coverage/
 build/
 dist/
+!frontend/dist/
 *.min.js
 *.min.css
 
