@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
 import AdSenseAd from '../components/layout/AdSenseAd';
@@ -13,10 +13,8 @@ function closeOffcanvas() {
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const [selectedFeature, setSelectedFeature] = useState(null);
 
-  // Define all features with their status
-  const allFeatures = [
+  const allFeatures = useMemo(() => [
     {
       id: 'learn-ai',
       name: 'Learn with AI',
@@ -62,7 +60,7 @@ export default function HomePage() {
       description: 'AI-generated developer portfolios. Connect GitHub, describe yourself, and get a stunning portfolio deployed in minutes.',
       color: '#f59e0b',
     },
-  ];
+  ], []);
 
   const handleNav = (path) => (e) => {
     e.preventDefault();
@@ -75,6 +73,10 @@ export default function HomePage() {
       navigate(feature.href);
     }
   };
+
+  const handleFeatureHover = () => {};
+
+  const handleFeatureLeave = () => {};
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'dark');
@@ -158,95 +160,28 @@ export default function HomePage() {
       {/* AdSense */}
       <AdSenseAd />
 
-      {/* Hero */}
-      <section className="hero" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '8rem 2rem 4rem' }}>
-        <div className="hero-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(77,171,247,0.1)', border: '1px solid rgba(77,171,247,0.5)', color: '#4dabf7', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600, marginBottom: '2rem' }}>
-          <i className="fas fa-bolt"></i> Powered by Gemini · Claude · Claude
-        </div>
-        <h1 style={{ fontFamily: "'Orbitron', monospace", fontSize: 'clamp(2.5rem, 6vw, 5rem)', fontWeight: 900, lineHeight: 1.1, marginBottom: '1.5rem' }}>
-          Deploy Your<br />
-          <span style={{ color: '#4dabf7', textShadow: '0 0 30px rgba(77,171,247,0.3), 0 0 60px rgba(77,171,247,0.2)' }}>AI Army</span>
-        </h1>
-        <p style={{ fontSize: 'clamp(1rem, 2vw, 1.25rem)', color: '#9090b0', maxWidth: '600px', margin: '0 auto 2.5rem' }}>
-          A multi-agent AI platform that learns, builds, and creates alongside you. Free to try — no signup required.
-        </p>
-
-        {/* Neuron Brain Visualization */}
-        <div style={{ width: '100%', maxWidth: '900px', margin: '0 auto 2.5rem' }}>
-          <NeuronBrain features={allFeatures} onFeatureClick={handleFeatureClick} />
-        </div>
-
-        {/* Feature Description Panel */}
-        {selectedFeature && (
-          <div
-            style={{
-              background: 'rgba(77,171,247,0.08)',
-              border: `2px solid ${selectedFeature.color}`,
-              borderRadius: '12px',
-              padding: '1.5rem 2rem',
-              maxWidth: '600px',
-              marginBottom: '2rem',
-              animation: 'slideUp 0.3s ease-out',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-              <i className={selectedFeature.icon} style={{ fontSize: '1.5rem', color: selectedFeature.color }}></i>
-              <h3 style={{ color: '#e8e8f0', fontSize: '1.1rem', margin: 0, fontFamily: "'Orbitron', monospace" }}>
-                {selectedFeature.name}
-              </h3>
-              {selectedFeature.status === 'coming' && (
-                <span style={{ fontSize: '0.7rem', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', border: '1px solid #f59e0b', padding: '0.2rem 0.6rem', borderRadius: '10px' }}>
-                  Coming Soon
-                </span>
-              )}
-            </div>
-            <p style={{ color: '#9090b0', margin: 0, fontSize: '0.95rem' }}>
-              {selectedFeature.description}
-            </p>
-            {selectedFeature.status === 'working' && (
-              <a
-                href={selectedFeature.href}
-                onClick={handleNav(selectedFeature.href)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  background: selectedFeature.color,
-                  color: '#000',
-                  padding: '0.6rem 1.2rem',
-                  borderRadius: '4px',
-                  marginTop: '1rem',
-                  textDecoration: 'none',
-                  fontWeight: 600,
-                  fontSize: '0.9rem',
-                }}
-              >
-                <i className="fas fa-arrow-right"></i> Explore
-              </a>
-            )}
+      {/* Hero — full screen */}
+      <section className="hero" style={{ height: '100vh', display: 'flex', flexDirection: 'column', padding: '0', overflow: 'hidden', position: 'relative', background: '#06060e' }}>
+        {/* Badge + title — absolute overlay so neuron glow shows behind text */}
+        <div style={{ position: 'absolute', top: '5rem', left: '50%', transform: 'translateX(-50%)', zIndex: 10, textAlign: 'center', pointerEvents: 'none' }}>
+          <div className="hero-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(77,171,247,0.1)', border: '1px solid rgba(77,171,247,0.5)', color: '#4dabf7', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.75rem' }}>
+            <i className="fas fa-bolt"></i> Powered by Claude, backed up by Gemini
           </div>
-        )}
-
-        <div className="hero-ctas" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-          <a href="/dashboard" className="btn-hero-primary" style={{ background: '#4dabf7', color: '#000', border: 'none', padding: '0.875rem 2rem', borderRadius: '4px', fontSize: '1rem', fontWeight: 700, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-            <i className="fas fa-rocket"></i> Try Free Now
-          </a>
-          <a href="/api/v1/auth/google" className="btn-hero-secondary" style={{ background: 'transparent', color: '#4dabf7', border: '1px solid #4dabf7', padding: '0.875rem 2rem', borderRadius: '4px', fontSize: '1rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-            <i className="fab fa-google"></i> Sign In with Google
-          </a>
+          <h1 style={{ fontFamily: "'Orbitron', monospace", fontSize: 'clamp(1.2rem, 2vw, 1.8rem)', fontWeight: 900, lineHeight: 1.15, margin: 0, letterSpacing: '2px' }}>
+            <span style={{ color: '#4dabf7', textShadow: '0 0 30px rgba(77,171,247,0.3), 0 0 60px rgba(77,171,247,0.2)' }}>Custodian AI</span><br />
+            <span style={{ color: '#e8e8f0' }}>Army</span>
+          </h1>
         </div>
-        <div className="hero-stats" style={{ display: 'flex', gap: '3rem', marginTop: '4rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-          {[
-            { num: '20+', label: 'AI Agents' },
-            { num: '4', label: 'AI Providers' },
-            { num: 'Free', label: 'To Start' },
-            { num: '∞', label: 'Possibilities' },
-          ].map((s, i) => (
-            <div key={i} className="hero-stat" style={{ textAlign: 'center' }}>
-              <span className="hero-stat-num" style={{ fontFamily: "'Orbitron', monospace", fontSize: '2rem', fontWeight: 900, color: '#4dabf7', display: 'block' }}>{s.num}</span>
-              <span className="hero-stat-label" style={{ fontSize: '0.8rem', color: '#9090b0', textTransform: 'uppercase', letterSpacing: '1px' }}>{s.label}</span>
-            </div>
-          ))}
+
+        {/* Neuron Brain — fills entire hero */}
+        <div style={{ width: '100%', height: '100%', display: 'flex' }}>
+          <NeuronBrain
+            features={allFeatures}
+            onFeatureClick={handleFeatureClick}
+            onFeatureHover={handleFeatureHover}
+            onFeatureLeave={handleFeatureLeave}
+            topOffset={80}
+          />
         </div>
 
         <style>{`
@@ -270,13 +205,13 @@ export default function HomePage() {
             Explore Our <span style={{ color: '#4dabf7' }}>Neural Network</span>
           </h2>
           <div className="section-divider" style={{ width: '60px', height: '3px', background: 'linear-gradient(90deg, #4dabf7, #7c3aed)', margin: '0.75rem auto 0', borderRadius: '2px' }}></div>
-          <p style={{ color: '#9090b0', fontSize: '1rem', maxWidth: '500px', margin: '0 auto' }}>Every feature is a neuron in your AI army. Click on each node above to learn more, or explore any of the fully implemented features below.</p>
+          <p style={{ color: '#9090b0', fontSize: '1rem', maxWidth: '500px', margin: '0 auto' }}>Every feature is a neuron in your AI army. Hover over each node to learn more, then click to explore.</p>
         </div>
         <div className="features-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', maxWidth: '1200px', margin: '0 auto' }}>
           {allFeatures.map((f, i) => (
             <div
               key={i}
-              onClick={() => setSelectedFeature(f)}
+              onClick={() => f.status === 'working' && navigate(f.href)}
               className="feature-card"
               style={{
                 background: f.status === 'working' ? '#12121f' : 'rgba(12, 12, 31, 0.5)',
@@ -360,7 +295,7 @@ export default function HomePage() {
         <div className="steps-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '2rem', maxWidth: '900px', margin: '0 auto' }}>
           {[
             { num: '1', title: 'Try Free', desc: 'Visit the dashboard as a guest — no account needed. Get 3 free requests instantly.' },
-            { num: '2', title: 'Sign In', desc: 'Sign in with Google to unlock 20 requests/day, chat history, and all AI providers.' },
+            { num: '2', title: 'Sign In', desc: 'Sign in with Google to unlock 20 requests/day, permanent chat history, and all AI providers.' },
             { num: '3', title: 'Build', desc: 'Choose your AI agent, pick your feature, and let your AI army do the heavy lifting.' },
           ].map((s, i) => (
             <div key={i} className="step-card" style={{ textAlign: 'center', padding: '2rem 1rem' }}>
@@ -392,7 +327,7 @@ export default function HomePage() {
             </div>
             <div className="pricing-desc" style={{ color: '#9090b0', fontSize: '0.875rem', marginBottom: '2rem' }}>Perfect for trying out the platform</div>
             <ul className="pricing-features" style={{ listStyle: 'none', textAlign: 'left', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: 0 }}>
-              {['3 requests/day as guest', '20 requests/day (signed in)', 'All AI agents', 'Gemini + Claude (signed in)', 'Learn with AI courses', 'Custom Agents Studio'].map((f, i) => (
+              {['3 requests/day as guest', '20 requests/day (signed in)', 'All AI agents', 'Temporary chat history (guest)', 'Permanent chat history (signed in)', 'Gemini + Claude (signed in)', 'Learn with AI courses', 'Custom Agents Studio'].map((f, i) => (
                 <li key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.9rem', color: '#9090b0' }}>
                   <i className="fas fa-check" style={{ color: '#10b981', width: '16px' }}></i> {f}
                 </li>
@@ -436,7 +371,6 @@ export default function HomePage() {
         </div>
         <div className="coming-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', maxWidth: '1000px', margin: '0 auto' }}>
           {[
-            { icon: 'fas fa-robot', title: 'Custom Agents', desc: 'Build and train your own specialized AI agents with custom prompts, tools, and personas' },
             { icon: 'fas fa-memory', title: 'Long-Term Memory', desc: 'Agents that remember your preferences, projects, and past conversations across sessions' },
             { icon: 'fab fa-github', title: 'Portfolio Builder', desc: 'AI-generated portfolios and full product development — from idea to deployed app' },
             { icon: 'fas fa-plug', title: 'API Access', desc: 'Integrate Custodian AI agents directly into your own apps via REST API' },
