@@ -376,12 +376,22 @@ sessions            -- Persistent auth sessions
 
 The landing page hero is a **full-viewport section** (`height: 100vh`) containing:
 
-- **Absolute-overlaid header**: "Powered by Claude, backed up by Gemini" badge + "Custodian AI Army" title; `pointer-events: none` so neuron glow shows behind text
+- **Absolute-overlaid header**: "Powered by Claude, backed up by Gemini" badge + "Custodian AI Army" title; `pointer-events: none` so neuron glow shows behind text; badge at `top: 5rem` to clear the 60px fixed nav bar
 - **NeuronBrain canvas**: Fills the entire hero; `topOffset={80}` shifts neurons below the header text
 - **Fixed nav bar**: 60px tall, `rgba(10,10,15,0.92)` with backdrop blur, overlays the top of the hero
-- **Legend**: "Working" (blue dot) and "Coming Soon" (yellow dot) centered at the bottom
+- **Legend**: "Working" (blue dot) and "Coming Soon" (yellow dot) at `bottom: 0.75rem` centered
+- **Container**: No `border-radius` or `border` (removed to prevent `overflow:hidden` from clipping the legend at bottom corners); `box-shadow` preserved for depth
 
-### 8.2 NeuronBrain Component (`components/NeuronBrain.jsx`)
+### 8.2 Dashboard Mobile Layout
+
+On **mobile and tablet** (<768px viewport), the dashboard switches to a compact chat-only layout:
+
+- The agent list sidebar (`agents-top-section`) and agent info panel are **hidden** (`d-none d-md-flex`)
+- A compact **"Agent" dropdown** appears in the `chat-options-bar` (left of the incognito toggle) — tap to switch between any available AI agent
+- Provider switcher, message list, and input bar remain unchanged
+- **Desktop** (md+) retains the full three-panel layout (agent list sidebar + info panel + chat)
+
+### 8.3 NeuronBrain Component (`components/NeuronBrain.jsx`)
 
 **Rendering pipeline** (per frame):
 1. Draw 4 nebula clouds (purple/blue radial gradients with slow sinusoidal drift)
@@ -436,6 +446,17 @@ The landing page hero is a **full-viewport section** (`height: 100vh`) containin
 - Empty state detail panel shows brain icon + "Hover over a neuron to see details"
 
 **Performance:** Buffered via 3 ref arrays (`nsRef`, `psRef`, `pulsesRef`); `useMemo` on `allFeatures` array to prevent re-init; DevicePixelRatio-aware canvas sizing.
+
+### 8.4 Known Issues & Fixes
+
+| Issue | Fix |
+|-------|-----|
+| Terser TDZ crash (`ReferenceError: Cannot access 'f' before initialization` in production build) | Renamed local `const features` in `init` callback to `const featNodes` — minifier was collapsing both closure and local `features` to same short name `f` |
+| Badge hidden behind fixed nav bar | Moved badge from `top: 1.2rem` → `top: 5rem` |
+| Legend clipped at container bottom corners | Removed `border-radius: 12px` and `border` from container; kept `box-shadow` |
+| Neuron labels clipped by glow | Moved labels from `size + 18` → `size + 26` below soma |
+| `frontend/dist/` not deploying to Vercel | Removed `dist` from `frontend/.gitignore` and added `!frontend/dist/` negation to root `.gitignore` for both `dist/` patterns |
+| `ModuleNotFoundError: No module named 'anthropic'` on Vercel | Uncommented `anthropic>=0.40.0` in `requirements.txt` |
 
 ---
 

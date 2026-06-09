@@ -173,7 +173,7 @@ The homepage hero features a full-canvas interactive neural network built with t
 | **Myelin sheath** | Axon-style connections have a thicker semi-transparent sheath over the wobbly path |
 | **Synaptic boutons** | Connection endpoints have 3-dot bouton clusters |
 
-**Labels** rendered below each feature neuron with hover highlight/shadow. Legend (Working / Coming Soon) positioned absolutely at the hero bottom.
+**Labels** rendered below each feature neuron at `size + 26` with hover highlight/shadow. Legend (Working / Coming Soon) at `bottom: 0.75rem`. Badge at `top: 5rem` to clear nav bar. Container has no `border-radius` or `border` to prevent clipping at corners.
 
 ### Layout System
 
@@ -200,9 +200,15 @@ This avoids full page reloads (which lose React state) while still using native 
 - `src/components/layout/Sidebar.jsx` — Sidebar offcanvas for sub-pages
 - `src/pages/HomePage.jsx` — Inline offcanvas on landing page (same pattern)
 
+### Dashboard Mobile Layout
+
+On **mobile and tablet** (<768px), the dashboard hides the agent list sidebar and info panel. A compact **Agent dropdown** appears in the `chat-options-bar` (left of incognito toggle) for switching agents. Desktop (md+) retains the full three-panel layout.
+
 ### SPA Routing (Production)
 
 FastAPI serves explicit page routes (`/dashboard`, `/app`, `/learn`, etc.) for the legacy static frontend. When `frontend/dist` exists, a catch-all route (`/{full_path:path}`) serves the React SPA for unmatched paths. The explicit routes are registered before the SPA catch-all so legacy pages always work. See `main.py` for the exact ordering.
+
+**Note:** `frontend/dist/` is tracked in git (`!frontend/dist/` negated in root `.gitignore`, `dist` removed from `frontend/.gitignore`) so Vercel deploys the exact local build.
 
 ---
 
@@ -478,6 +484,8 @@ The project auto-deploys to Vercel via GitHub. During build:
 3. `main.py` serves both API and the SPA
 
 Zero config needed — just push to GitHub.
+
+> **Note:** `anthropic>=0.40.0` in `requirements.txt` must be uncommented (not `#`-prefixed) for Claude streaming to work on Vercel. The `frontend/dist/` directory must also be tracked in git (not gitignored) so the build output is deployed.
 
 ### Environment Variables for Production
 Set these in Vercel dashboard:
