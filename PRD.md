@@ -1,6 +1,6 @@
 # Custodian AI Army — Product Requirements Document
 
-> **Version:** 1.2.0 · **Last Updated:** 2026-06-10  
+> **Version:** 1.3.0 · **Last Updated:** 2026-06-10  
 > **Project:** Custodian AI Army — A futuristic multi-agent AI orchestration system
 
 ---
@@ -123,7 +123,7 @@ User provides product idea
 | **Frontend**         | React 19 · Vite · React Router 7 · Bootstrap 5 · marked (markdown) · highlight.js |
 | **Legacy Frontend**  | Static HTML + `app.v2.js` (cache-busted SPA) |
 | **MCP Tools**        | `uvx` / `npx` based servers          |
-| **Revenue**          | Razorpay (payment page)              |
+| **Revenue**          | Demo payment page → Stripe (planned)  |
 | **Deployment**       | Vercel (Python runtime)              |
 | **Testing**          | Jest (JS) · pytest (planned)         |
 
@@ -277,13 +277,13 @@ Users can switch between Google and Anthropic:
 
 ### 6.4 User & Plans
 
-| Method  | Path                          | Auth | Description              |
-|---------|-------------------------------|------|--------------------------|
-| GET     | `/api/v1/user/plan`           | No   | Get plan info            |
-| POST    | `/api/v1/user/upgrade-plan`   | JWT  | Upgrade plan             |
-| GET     | `/api/v1/user/api-keys`       | JWT  | Get masked API keys      |
-| POST    | `/api/v1/user/api-keys`       | JWT  | Save API keys            |
-| DELETE  | `/api/v1/user/api-keys/{p}`   | JWT  | Delete provider key      |
+| Method  | Path                          | Auth | Description                              |
+|---------|-------------------------------|------|------------------------------------------|
+| GET     | `/api/v1/user/plan`           | No   | Get plan info (incl. `plan_expiry`)      |
+| POST    | `/api/v1/user/upgrade-plan`   | JWT  | Upgrade plan (sets 1-year `plan_expiry`) |
+| GET     | `/api/v1/user/api-keys`       | JWT  | Get masked API keys                      |
+| POST    | `/api/v1/user/api-keys`       | JWT  | Save API keys                            |
+| DELETE  | `/api/v1/user/api-keys/{p}`   | JWT  | Delete provider key                      |
 
 ### 6.5 Provider Management
 
@@ -325,11 +325,73 @@ Users can switch between Google and Anthropic:
 
 ### 7.2 Plan Tiers
 
-| Plan   | Daily Limit | Providers      | Auth Required | Chat History         |
-|--------|-------------|----------------|---------------|----------------------|
-| Guest  | 3           | Google, Anthropic | No            | localStorage         |
-| Free   | 20          | Google, Anthropic | Google OAuth  | Server + localStorage|
-| Pro    | 50          | Google, Anthropic | Google OAuth + Payment | Server + localStorage |
+| Plan   | Daily Limit | Providers      | Auth Required | Chat History         | Pro Validity |
+|--------|-------------|----------------|---------------|----------------------|--------------|
+| Guest  | 3           | Google, Anthropic | No            | localStorage         | —            |
+| Free   | 20          | Google, Anthropic | Google OAuth  | Server + localStorage| —            |
+| Pro    | 50          | Google, Anthropic | Google OAuth + Payment | Server + localStorage | 1 year from purchase |
+
+**Plan Expiry:** Pro plans expire after 1 year. On the next `get_user_plan()` call after expiry, the user is automatically downgraded to Free. A `plan_expiry` column in `user_plans` stores the ISO date string.
+
+### 7.3 Payment & Upgrade Flow
+
+1. User clicks "Upgrade to Pro" → navigates to `/payment`
+2. Card form (demo sandbox) → validation → 1.8s simulated processing
+3. `POST /api/v1/user/upgrade-plan` sets `plan='pro'` + `plan_expiry = now + 365 days`
+4. A `payments` record is saved (id, user_email, amount, plan, valid_until)
+5. User is redirected to `/` — Header now shows **PRO** badge, Profile shows "Valid until" date
+6. Stripe integration planned (will replace demo sandbox)
+
+### 7.4 Database Tables — Plans & Payments
+
+```sql
+-- user_plans (rate limiting + plan info)
+user_email TEXT PRIMARY KEY,
+plan TEXT NOT NULL DEFAULT 'guest',          -- 'guest' | 'free' | 'pro'
+requests_today INTEGER NOT NULL DEFAULT 0,   -- (kept for backward compat)
+last_reset_date TEXT NOT NULL,              -- (kept for backward compat)
+plan_expiry TEXT                            -- ISO date (e.g. '2027-06-10T12:00:00') — NULL for guest/free
+
+-- daily_requests (separate table for request tracking)
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+user_email TEXT NOT NULL,
+date TEXT NOT NULL,                         -- 'YYYY-MM-DD'
+request_count INTEGER NOT NULL DEFAULT 0,
+last_updated TEXT NOT NULL,
+UNIQUE(user_email, date),
+FOREIGN KEY (user_email) REFERENCES user_plans(user_email)
+
+-- payments (payment history)
+id TEXT PRIMARY KEY,                        -- UUID
+user_email TEXT NOT NULL,
+amount REAL NOT NULL,
+currency TEXT NOT NULL DEFAULT 'usd',
+plan TEXT NOT NULL,                         -- 'pro'
+status TEXT NOT NULL,                       -- 'completed'
+payment_method TEXT NOT NULL DEFAULT 'demo', -- 'demo' | 'stripe' (future)
+created_at TEXT NOT NULL,
+valid_until TEXT NOT NULL                   -- ISO date (1 year from purchase)
+```
+
+### 7.5 Request Tracking
+
+Request counts are stored in the `daily_requests` table (separate from `user_plans`) with a foreign key to `user_plans(user_email)`. Each row tracks `request_count` per `(user_email, date)`. The counter is reset automatically when the `date` changes.
+
+| Function | Description |
+|----------|-------------|
+| `get_daily_request_count(user_email, date)` | Returns request count for a user on a given date |
+| `increment_daily_request_count(user_email, date)` | Atomically increments counter (INSERT OR UPDATE) |
+
+### 7.6 Plan Display
+
+Plan badges are displayed dynamically across all UI components:
+
+| Component | Location | Display |
+|-----------|----------|---------|
+| **Header** | Dropdown → plan label | `GUEST` (muted) / `FREE` (blue) / `PRO` (gold) — via `useAuth().plan` |
+| **Sidebar** | Offcanvas header | Badge with icon + label, color-coded |
+| **ProfileModals** | "My Plan" tab | Badge, progress bar, remaining count, expiry date for Pro |
+| **Auth status** | `GET /api/v1/auth/status` | Returns `user.plan` and `user.plan_expiry` |
 
 ### 7.3 Database Tables
 
@@ -339,7 +401,9 @@ chat_sessions       -- Chat history
 user_progress       -- Course learning progress
 user_profile        -- User preferences
 user_api_keys       -- Per-user custom API keys
-user_plans          -- Plan + rate limiting
+user_plans          -- Plan + plan_expiry
+daily_requests      -- Daily request count tracking (FK→user_plans)
+payments            -- Payment history (demo + future Stripe)
 user_github_connections     -- GitHub OAuth tokens
 user_github_repo_permissions -- Repo access control
 custom_agent_configs        -- User-defined agents
@@ -635,7 +699,7 @@ The project is configured for Vercel (Python runtime via `vercel.json`):
   "version": 2,
   "builds": [{ "src": "main.py", "use": "@vercel/python" }],
   "routes": [{ "src": "/(.*)", "dest": "main.py" }],
-  "env": { "DATABASE_PATH": "/tmp/chat_history.db" }
+  "env": { "DATABASE_PATH": "/tmp/custodian.db" }
 }
 ```
 
@@ -804,7 +868,7 @@ python -m pytest tests/
 | `LOG_LEVEL`               | No       | `INFO`          | Logging level                        |
 | `APP_HOST`                | No       | `localhost`     | Server bind host                     |
 | `APP_PORT` / `FASTAPI_PORT`| No      | `8000`          | Server port                          |
-| `DATABASE_PATH`           | No       | `chat_history.db` | SQLite database file path          |
+| `DATABASE_PATH`           | No       | `custodian.db`    | SQLite database file path          |
 
 > *At least one of GEMINI_API_KEY or ANTHROPIC_API_KEY is required.
 
@@ -832,14 +896,14 @@ AGENT_TOOLS["new_spec"] = ["fetch", "web_search", ...]
 
 ```bash
 # Database location (default):
-#   Local: ./chat_history.db
-#   Vercel: /tmp/chat_history.db
+#   Local: ./custodian.db
+#   Vercel: /tmp/custodian.db
 
 # Backup:
-cp chat_history.db chat_history.backup.db
+cp custodian.db custodian.backup.db
 
 # Reset (start fresh):
-rm chat_history.db
+rm custodian.db
 # → auto-recreated on next import
 ```
 
@@ -849,7 +913,7 @@ rm chat_history.db
 |--------------------------------|----------------------------------------------------|
 | Provider API errors (403/404)  | Check API key in `.env`, verify provider is active |
 | Agents not responding          | Check `PRIMARY_LLM_PROVIDER` matches available key |
-| Database locked errors         | Delete `chat_history.db` and restart               |
+| Database locked errors         | Delete `custodian.db` and restart                   |
 | MCP tools not found            | Install `uvx`: `pip install uvx` or `uv tool install mcp-server-fetch` |
 | Vercel deployment fails        | Ensure all `Optional` env vars are set in dashboard|
 | Streaming not working          | Check browser supports SSE, check proxy buffering  |

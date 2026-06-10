@@ -63,6 +63,12 @@ dist/
 *.min.js
 *.min.css
 
+# Database files (auto-created)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
 # Compression
 *.zip
 *.gz

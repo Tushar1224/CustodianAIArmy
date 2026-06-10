@@ -1,8 +1,10 @@
 import { useAuth } from '../../hooks/useAuth';
 
 export default function Header({ showSubHeader, subHeaderContent, style: customStyle, onOpenProfile }) {
-  const { user, logout } = useAuth();
+  const { user, logout, plan } = useAuth();
   const firstName = user ? (user.name || 'User').split(' ')[0] : 'Guest';
+  const planLabel = { guest: 'GUEST', free: 'FREE', pro: 'PRO' }[plan] || 'FREE';
+  const planColor = plan === 'pro' ? 'var(--warning-color)' : 'var(--primary-color)';
 
   const handleLogout = async (e) => {
     e.preventDefault();
@@ -47,7 +49,7 @@ export default function Header({ showSubHeader, subHeaderContent, style: customS
               {user ? (
                 <>
                   <li><span className="dropdown-item-text" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{user.email}</span></li>
-                  <li><span className="dropdown-item-text" style={{ fontSize: '0.75rem' }}>Plan: <strong style={{ color: 'var(--primary-color)' }}>FREE</strong></span></li>
+                  <li><span className="dropdown-item-text" style={{ fontSize: '0.75rem' }}>Plan: <strong style={{ color: planColor }}>{planLabel}</strong></span></li>
                   <li><hr className="dropdown-divider" /></li>
                   <li><a className="dropdown-item" href="#" onClick={handleProfileClick}><i className="fas fa-user-edit me-2"></i>Profile & Settings</a></li>
                   <li><hr className="dropdown-divider" /></li>

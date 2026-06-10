@@ -216,7 +216,7 @@
             <div class="success-icon"><i class="fas fa-check-circle"></i></div>
             <h2>Payment Successful!</h2>
             <p class="mb-1">You've been upgraded to <strong class="text-warning">Pro</strong>.</p>
-            <p class="text-muted small">This window will close automatically in <span id="countdown">3</span> seconds...</p>
+            <p class="text-muted small">Redirecting to home page...</p>
         </div>
     </div>
 
@@ -273,17 +273,10 @@
                 document.getElementById('payment-form-section').style.display = 'none';
                 document.getElementById('success-section').style.display = 'block';
 
-                // Countdown and close
-                let count = 3;
-                const timer = setInterval(() => {
-                    count--;
-                    const el = document.getElementById('countdown');
-                    if (el) el.textContent = count;
-                    if (count <= 0) {
-                        clearInterval(timer);
-                        window.close();
-                    }
-                }, 1000);
+                // Redirect to home
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
 
             } catch (err) {
                 btn.disabled = false;

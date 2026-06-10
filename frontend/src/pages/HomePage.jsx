@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
+import Header from '../components/layout/Header';
 import ProfileModals from '../components/modals/ProfileModals';
 import AdSenseAd from '../components/layout/AdSenseAd';
 import Footer from '../components/layout/Footer';
 import NeuronBrain from '../components/NeuronBrain';
+import { useAuth } from '../hooks/useAuth';
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [showProfile, setShowProfile] = useState(false);
 
   const handleCloseProfile = useCallback(() => setShowProfile(false), []);
@@ -96,49 +99,10 @@ export default function HomePage() {
       {/* Shared Sidebar */}
       <Sidebar id="sidebarOffcanvas" showHome={false} />
 
-      {/* Nav Bar */}
-      <nav className="main-nav" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1.5rem', height: '60px', background: 'rgba(10,10,15,0.92)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(77,171,247,0.15)' }}>
-        <div className="nav-left" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button type="button" className="hamburger-btn" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-label="Open menu"
-            style={{ background: 'none', border: 'none', color: '#4dabf7', fontSize: '1.4rem', cursor: 'pointer', padding: '0.25rem', lineHeight: 1 }}>
-            <i className="fas fa-bars"></i>
-          </button>
-          <a href="/" className="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', textDecoration: 'none', color: '#4dabf7', fontFamily: "'Orbitron', monospace", fontWeight: 900, fontSize: '1rem', letterSpacing: '1px' }}>
-            <i className="fas fa-robot" style={{ fontSize: '1.5rem', filter: 'drop-shadow(0 0 6px #4dabf7)' }}></i>
-            Custodian AI
-          </a>
-        </div>
-
-        {/* Profile Dropdown */}
-        <div className="dropdown" id="home-profile-dropdown">
-          <button className="btn-icon-only dropdown-toggle" type="button"
-            id="homeProfileDropdown" data-bs-toggle="dropdown" aria-expanded="false"
-            style={{ background: 'none', border: '1px solid #4dabf7', borderRadius: '4px', padding: '0.4rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#4dabf7', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer' }}>
-            <i className="fas fa-user-circle me-1"></i>
-            <span>Guest</span>
-          </button>
-          <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="homeProfileDropdown"
-            style={{ background: '#0f0f1a', border: '1px solid #4dabf7' }}>
-            <li><span className="dropdown-item-text" style={{ fontSize: '0.75rem', color: '#9090b0' }}>Guest</span></li>
-            <li><hr className="dropdown-divider" style={{ borderColor: 'rgba(77,171,247,0.15)' }} /></li>
-            <li>
-              <button className="dropdown-item" onClick={() => setShowProfile(true)}
-                style={{ color: '#e8e8f0', cursor: 'pointer', background: 'none', border: 'none', width: '100%', textAlign: 'left' }}>
-                <i className="fas fa-user-edit me-2"></i>Profile & Settings
-              </button>
-            </li>
-            <li><hr className="dropdown-divider" style={{ borderColor: 'rgba(77,171,247,0.15)' }} /></li>
-            <li>
-              <a className="dropdown-item" href="/api/v1/auth/google" style={{ color: '#10b981' }}>
-                <i className="fab fa-google me-2"></i>Sign In with Google
-              </a>
-            </li>
-          </ul>
-        </div>
-      </nav>
+      <Header onOpenProfile={handleOpenProfile} />
 
       {/* Profile Modals */}
-      <ProfileModals show={showProfile} onClose={handleCloseProfile} />
+      <ProfileModals show={showProfile} onClose={handleCloseProfile} user={user} onLogout={logout} />
 
       {/* AdSense */}
       <AdSenseAd />

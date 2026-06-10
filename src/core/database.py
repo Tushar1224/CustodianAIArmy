@@ -6,9 +6,9 @@ from typing import List, Dict, Any, Optional, Iterator
 import os
 
 if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
-    default_db_path = "/tmp/chat_history.db"
+    default_db_path = "/tmp/custodian.db"
 else:
-    default_db_path = os.path.abspath("chat_history.db")
+    default_db_path = os.path.abspath("custodian.db")
 
 DB_PATH = os.getenv("DATABASE_PATH", default_db_path)
 
@@ -81,7 +81,40 @@ def init_db():
                 user_email TEXT PRIMARY KEY,
                 plan TEXT NOT NULL DEFAULT 'guest',
                 requests_today INTEGER NOT NULL DEFAULT 0,
-                last_reset_date TEXT NOT NULL
+                last_reset_date TEXT NOT NULL,
+                plan_expiry TEXT
+            )
+        ''')
+        try:
+            cursor.execute("ALTER TABLE user_plans ADD COLUMN plan_expiry TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+        # Payment history table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS payments (
+                id TEXT PRIMARY KEY,
+                user_email TEXT NOT NULL,
+                amount REAL NOT NULL,
+                currency TEXT NOT NULL DEFAULT 'usd',
+                plan TEXT NOT NULL,
+                status TEXT NOT NULL,
+                payment_method TEXT NOT NULL DEFAULT 'demo',
+                created_at TEXT NOT NULL,
+                valid_until TEXT NOT NULL
+            )
+        ''')
+
+        # Daily request tracking table (separate from plan info)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS daily_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_email TEXT NOT NULL,
+                date TEXT NOT NULL,
+                request_count INTEGER NOT NULL DEFAULT 0,
+                last_updated TEXT NOT NULL,
+                UNIQUE(user_email, date),
+                FOREIGN KEY (user_email) REFERENCES user_plans(user_email)
             )
         ''')
 
@@ -380,11 +413,12 @@ PLAN_LIMITS = {
 def get_user_plan(user_email: str) -> Dict[str, Any]:
     """Get plan info for a user. Creates a guest record if none exists."""
     today = datetime.utcnow().strftime("%Y-%m-%d")
+    now_iso = datetime.utcnow().isoformat()
     conn = sqlite3.connect(DB_PATH, timeout=20)
     cursor = conn.cursor()
 
     cursor.execute(
-        "SELECT plan, requests_today, last_reset_date FROM user_plans WHERE user_email = ?",
+        "SELECT plan, plan_expiry FROM user_plans WHERE user_email = ?",
         (user_email,)
     )
     row = cursor.fetchone()
@@ -396,20 +430,23 @@ def get_user_plan(user_email: str) -> Dict[str, Any]:
             (user_email, today)
         )
         conn.commit()
-        plan, requests_today, last_reset_date = "guest", 0, today
+        plan, plan_expiry = "guest", None
     else:
-        plan, requests_today, last_reset_date = row[0], row[1], row[2]
-        # Reset counter if it's a new day
-        if last_reset_date != today:
+        plan, plan_expiry = row[0], row[1]
+        # Auto-downgrade to free if pro plan has expired
+        if plan == "pro" and plan_expiry and plan_expiry < now_iso:
+            print(f"Plan expired for {user_email} (expired {plan_expiry}), downgrading to free")
             cursor.execute(
-                "UPDATE user_plans SET requests_today = 0, last_reset_date = ? WHERE user_email = ?",
-                (today, user_email)
+                "UPDATE user_plans SET plan = 'free', plan_expiry = NULL WHERE user_email = ?",
+                (user_email,)
             )
             conn.commit()
-            requests_today = 0
+            plan = "free"
+            plan_expiry = None
 
     conn.close()
 
+    requests_today = get_daily_request_count(user_email, today)
     limits = PLAN_LIMITS.get(plan, PLAN_LIMITS["guest"])
     return {
         "plan": plan,
@@ -417,6 +454,7 @@ def get_user_plan(user_email: str) -> Dict[str, Any]:
         "daily_limit": limits["daily_limit"],
         "remaining": max(0, limits["daily_limit"] - requests_today),
         "allowed_providers": limits["providers"],
+        "plan_expiry": plan_expiry,
     }
 
 
@@ -430,25 +468,17 @@ def check_and_increment_rate_limit(user_email: str) -> Dict[str, Any]:
         info["allowed"] = False
         return info
 
-    # Increment
     today = datetime.utcnow().strftime("%Y-%m-%d")
-    conn = sqlite3.connect(DB_PATH, timeout=20)
-    cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE user_plans SET requests_today = requests_today + 1, last_reset_date = ? WHERE user_email = ?",
-        (today, user_email)
-    )
-    conn.commit()
-    conn.close()
+    new_count = increment_daily_request_count(user_email, today)
 
-    info["requests_today"] += 1
-    info["remaining"] = max(0, info["daily_limit"] - info["requests_today"])
+    info["requests_today"] = new_count
+    info["remaining"] = max(0, info["daily_limit"] - new_count)
     info["allowed"] = True
     return info
 
 
-def upgrade_user_plan(user_email: str, new_plan: str) -> bool:
-    """Upgrade or change a user's plan."""
+def upgrade_user_plan(user_email: str, new_plan: str, plan_expiry: Optional[str] = None) -> bool:
+    """Upgrade or change a user's plan. Optionally set plan_expiry (ISO date string)."""
     if new_plan not in PLAN_LIMITS:
         return False
     today = datetime.utcnow().strftime("%Y-%m-%d")
@@ -456,10 +486,12 @@ def upgrade_user_plan(user_email: str, new_plan: str) -> bool:
         conn = sqlite3.connect(DB_PATH, timeout=20)
         cursor = conn.cursor()
         cursor.execute(
-            """INSERT INTO user_plans (user_email, plan, requests_today, last_reset_date)
-               VALUES (?, ?, 0, ?)
-               ON CONFLICT(user_email) DO UPDATE SET plan = excluded.plan""",
-            (user_email, new_plan, today)
+            """INSERT INTO user_plans (user_email, plan, requests_today, last_reset_date, plan_expiry)
+               VALUES (?, ?, 0, ?, ?)
+               ON CONFLICT(user_email) DO UPDATE SET
+                   plan = excluded.plan,
+                   plan_expiry = excluded.plan_expiry""",
+            (user_email, new_plan, today, plan_expiry)
         )
         conn.commit()
         conn.close()
@@ -467,6 +499,60 @@ def upgrade_user_plan(user_email: str, new_plan: str) -> bool:
     except Exception as e:
         print(f"Error upgrading plan: {e}")
         return False
+
+
+def save_payment(user_email: str, amount: float, plan: str, valid_until: str) -> Optional[str]:
+    """Record a payment in the payments table. Returns payment ID or None on failure."""
+    try:
+        payment_id = str(uuid.uuid4())
+        now = datetime.utcnow().isoformat()
+        conn = sqlite3.connect(DB_PATH, timeout=20)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO payments (id, user_email, amount, currency, plan, status, payment_method, created_at, valid_until)
+            VALUES (?, ?, ?, 'usd', ?, 'completed', 'demo', ?, ?)
+        ''', (payment_id, user_email, amount, plan, now, valid_until))
+        conn.commit()
+        conn.close()
+        return payment_id
+    except Exception as e:
+        print(f"Error saving payment: {e}")
+        return None
+
+
+def get_daily_request_count(user_email: str, date: str) -> int:
+    """Get the request count for a user on a specific date."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT request_count FROM daily_requests WHERE user_email = ? AND date = ?",
+        (user_email, date)
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return row[0] if row else 0
+
+
+def increment_daily_request_count(user_email: str, date: str) -> int:
+    """Increment the request count for a user on a specific date. Returns new count."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    cursor.execute('''
+        INSERT INTO daily_requests (user_email, date, request_count, last_updated)
+        VALUES (?, ?, 1, ?)
+        ON CONFLICT(user_email, date) DO UPDATE SET
+            request_count = request_count + 1,
+            last_updated = excluded.last_updated
+    ''', (user_email, date, now))
+    conn.commit()
+    cursor.execute(
+        "SELECT request_count FROM daily_requests WHERE user_email = ? AND date = ?",
+        (user_email, date)
+    )
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
 
 
 # ─────────────────────────────────────────────────────────────────────────────

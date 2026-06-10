@@ -420,11 +420,31 @@ Each agent specialization has a curated set of tools. See `src/mcp/mcp_config.py
 
 ### Plans
 
-| Plan | Daily Limit | Features |
-|------|-------------|----------|
-| Guest | 3 requests | Try without signup, chat history saved to browser localStorage |
-| Free | 20 requests | Google sign-in, all agents, server-side chat history |
-| Pro | 50 requests ($9/mo) | Priority, all providers, server-side + localStorage chat history |
+| Plan | Daily Limit | Features | Validity |
+|------|-------------|----------|----------|
+| Guest | 3 requests | Try without signup, chat history saved to browser localStorage | — |
+| Free | 20 requests | Google sign-in, all agents, server-side chat history | — |
+| Pro | 50 requests ($9.99/mo) | Priority, all providers, all features | 1 year from purchase |
+
+**Plan Expiry:** Pro auto-downgrades to Free after 1 year. Payment history stored in `payments` table.
+
+### Plan Display
+
+Plan badges are shown dynamically across all pages:
+
+| Component | Location | What it shows |
+|-----------|----------|---------------|
+| **Header** | Top-right dropdown | `GUEST` (muted) / `FREE` (blue) / `PRO` (gold) — from `useAuth().plan` |
+| **Sidebar** | Offcanvas header | Plan badge + user email |
+| **ProfileModals** | "My Plan" tab | Plan badge, usage progress bar, remaining count, expiry date |
+
+### Database Tables for Plans
+
+| Table | Purpose |
+|-------|---------|
+| `user_plans` | Plan type (`guest`/`free`/`pro`) + `plan_expiry` column |
+| `daily_requests` | Per-user per-day request count (FK → `user_plans`) |
+| `payments` | Payment history (demo sandbox, future Stripe) |
 
 ### Chat History
 
@@ -495,7 +515,7 @@ GEMINI_API_KEY, ANTHROPIC_API_KEY
 GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
 JWT_SECRET, SECRET_KEY
-DATABASE_PATH=/tmp/chat_history.db
+DATABASE_PATH=/tmp/custodian.db
 ```
 
 ---

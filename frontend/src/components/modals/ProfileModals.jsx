@@ -431,6 +431,11 @@ export default function ProfileModals({ show, onClose, user, onLogout, onRefresh
                           <div className="text-center small mt-3" style={{ color: 'var(--text-muted)' }}>
                             <i className="fas fa-check-circle text-success me-1"></i>
                             You have full Pro access to all providers and features.
+                            {planInfo.plan_expiry && (
+                              <div className="mt-1" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                Valid until {new Date(planInfo.plan_expiry).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

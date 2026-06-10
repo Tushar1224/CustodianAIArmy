@@ -572,8 +572,16 @@ async def auth_status(
             print(f"DEBUG /auth/status - JWT decode failed")
     
     if user:
-        # Convert to JSON-serializable dict
         user_dict = user.model_dump(mode='json') if hasattr(user, 'model_dump') else user.dict()
+        # Include plan info in auth status response
+        from src.core.database import get_user_plan
+        try:
+            plan_info = get_user_plan(user.email)
+            user_dict["plan"] = plan_info.get("plan", "guest")
+            user_dict["plan_expiry"] = plan_info.get("plan_expiry")
+        except Exception:
+            user_dict["plan"] = "guest"
+            user_dict["plan_expiry"] = None
         return JSONResponse(
             status_code=200,
             content={

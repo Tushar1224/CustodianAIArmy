@@ -19,7 +19,7 @@ from src.agents.agent_manager import AgentManager
 from src.core.database import (
     get_chats_for_user, save_chat_session, DB_PATH,
     get_user_api_keys, get_user_api_keys_raw, save_user_api_keys, delete_user_api_key, get_user_github_token, save_custom_agent_config, get_custom_agent_config,
-    get_user_plan, check_and_increment_rate_limit, upgrade_user_plan,
+    get_user_plan, check_and_increment_rate_limit, upgrade_user_plan, save_payment,
     save_resume, get_user_resumes, get_resume, get_resume_count, delete_resume,
     save_template, list_templates, get_template_by_name
 )
@@ -1420,8 +1420,16 @@ async def upgrade_plan(
     if request.plan not in valid_plans:
         raise HTTPException(status_code=400, detail=f"Invalid plan. Must be one of: {', '.join(valid_plans)}")
     try:
-        success = upgrade_user_plan(current_user.email, request.plan)
+        from datetime import timedelta
+        expiry_date = (datetime.utcnow() + timedelta(days=365)).isoformat()
+        success = upgrade_user_plan(current_user.email, request.plan, plan_expiry=expiry_date)
         if success:
+            save_payment(
+                user_email=current_user.email,
+                amount=9.99,
+                plan=request.plan,
+                valid_until=expiry_date
+            )
             plan_info = get_user_plan(current_user.email)
             return {
                 "status": "success",

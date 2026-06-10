@@ -1,7 +1,9 @@
 import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AdSenseAd from '../components/layout/AdSenseAd';
 
 export default function PaymentPage() {
+  const navigate = useNavigate();
   const formatCardNumber = useCallback((input) => {
     let v = input.value.replace(/\D/g, '').substring(0, 16);
     input.value = v.replace(/(.{4})/g, '$1 ').trim();
@@ -51,13 +53,9 @@ export default function PaymentPage() {
       document.getElementById('payment-form-section').style.display = 'none';
       document.getElementById('success-section').style.display = 'block';
 
-      let count = 3;
-      const timer = setInterval(() => {
-        count--;
-        const el = document.getElementById('countdown');
-        if (el) el.textContent = count;
-        if (count <= 0) { clearInterval(timer); window.close(); }
-      }, 1000);
+      setTimeout(() => {
+        navigate('/');
+      }, 2000);
     } catch (err) {
       if (btn) {
         btn.disabled = false;
@@ -139,7 +137,7 @@ export default function PaymentPage() {
             <div style={{ fontSize: '4rem', color: '#28a745', marginBottom: '1rem' }}><i className="fas fa-check-circle"></i></div>
             <h2 style={{ color: '#28a745', margin: '0 0 0.5rem 0' }}>Payment Successful!</h2>
             <p style={{ color: '#aaa', marginBottom: '0.25rem' }}>You've been upgraded to <strong className="text-warning">Pro</strong>.</p>
-            <p style={{ color: '#666', fontSize: '0.875rem' }}>This window will close automatically in <span id="countdown">3</span> seconds...</p>
+            <p style={{ color: '#666', fontSize: '0.875rem' }}>Redirecting to home page...</p>
           </div>
         </div>
       </div>
