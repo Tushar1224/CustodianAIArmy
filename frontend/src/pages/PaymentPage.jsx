@@ -1,9 +1,7 @@
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import AdSenseAd from '../components/layout/AdSenseAd';
 
 export default function PaymentPage() {
-  const navigate = useNavigate();
   const formatCardNumber = useCallback((input) => {
     let v = input.value.replace(/\D/g, '').substring(0, 16);
     input.value = v.replace(/(.{4})/g, '$1 ').trim();
@@ -54,7 +52,7 @@ export default function PaymentPage() {
       document.getElementById('success-section').style.display = 'block';
 
       setTimeout(() => {
-        navigate('/');
+        window.location.href = '/';
       }, 2000);
     } catch (err) {
       if (btn) {
