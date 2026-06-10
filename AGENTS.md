@@ -490,3 +490,68 @@ Templates used on resumes are now automatically saved to the database, building 
 
 ### Known Issues
 - 4 structural templates (Classic Academic, Full-Stack Developer, Executive Leader, Creative Portfolio) have empty data — user must fill sections manually after switching, or run AI optimization to populate them from existing Modern Professional data
+
+## Session: 2026-06-10 — Plan System Overhaul + HomePage Profile Unification
+
+### What was done
+
+#### Backend — Database (`src/core/database.py`)
+| Change | Detail |
+|--------|--------|
+| DB renamed | `chat_history.db` → `custodian.db` |
+| `user_plans` table | Added `plan_expiry TEXT` column (ISO date, 1-year validity for Pro) |
+| `payments` table (new) | Payment history: `id, user_email, amount, plan, status, created_at, valid_until` |
+| `daily_requests` table (new) | Per-user per-day request counter with FK → `user_plans(user_email)` |
+| `get_user_plan()` | Now queries `daily_requests` for counts; auto-downgrades expired Pro → Free |
+| `check_and_increment_rate_limit()` | Uses `daily_requests` table via `increment_daily_request_count()` |
+| `upgrade_user_plan()` | Accepts `plan_expiry` param |
+| `save_payment()` | Records payment history |
+| `get_daily_request_count()`, `increment_daily_request_count()` | New helpers for daily_requests table |
+
+#### Backend — API (`src/api/routes.py`)
+| Change | Detail |
+|--------|--------|
+| `POST /user/upgrade-plan` | Sets 1-year `plan_expiry` from now + saves payment record via `save_payment()` |
+| Import | Added `save_payment` to imports |
+
+#### Backend — Auth (`src/api/auth.py`)
+| Change | Detail |
+|--------|--------|
+| `GET /auth/status` | Now returns `user.plan` and `user.plan_expiry` alongside user data |
+
+#### Frontend — Shared Components
+| File | Change |
+|------|--------|
+| `hooks/useAuth.js` | Exposes `plan` from auth status response |
+| `components/layout/Header.jsx` | Dynamic plan badge (`GUEST`/`FREE`/`PRO`) instead of hardcoded `FREE`; color-coded (Pro = gold) |
+| `components/layout/Sidebar.jsx` | Shows user email + plan badge in offcanvas header |
+| `components/modals/ProfileModals.jsx` | Shows `plan_expiry` date for Pro users ("Valid until June 10, 2027") |
+
+#### Frontend — Pages
+| File | Change |
+|------|--------|
+| `pages/HomePage.jsx` | Replaced inline nav bar (hardcoded "Guest") with shared `Header` component; wired `ProfileModals` with `useAuth` user + logout |
+| `pages/PaymentPage.jsx` | Redirects to `/` (home) after successful payment instead of `window.close()` |
+| `static/payment.html` | Same redirect fix |
+
+#### Docs
+| File | Change |
+|------|--------|
+| `PRD.md` | Bumped to v1.3.0; added §7.3 Payment Flow, §7.4 DB tables DDL, §7.5 Request Tracking, §7.6 Plan Display; updated all `chat_history.db` → `custodian.db` |
+| `README.md` | Added Plan Validity column, Plan Display table, DB tables for plans section |
+| `.gitignore` | Added `*.db` and related journal/WAL/SHM files to prevent data file commits |
+
+### Key Design Decisions
+- Daily request counts moved to a separate `daily_requests` table (FK → `user_plans`) for cleaner tracking with atomic `INSERT ... ON CONFLICT DO UPDATE` — old `requests_today`/`last_reset_date` columns kept in `user_plans` for backward compatibility
+- Pro plans have 1-year validity; auto-downgrade on `get_user_plan()` call — no cron job needed
+- Payment history stored in `payments` table with `valid_until` for future Stripe integration
+- `auth/status` now returns plan info so `useAuth` exposes it globally without an extra network call
+- HomePage uses same `Header` + `ProfileModals` pattern as `MainLayout` — consistent across all pages
+
+### Known Issues
+- No Stripe integration yet (user to implement)
+- Old `chat_history.db` data must be renamed to `custodian.db` or migrated manually
+- Free/guest users have `plan_expiry: null` — only Pro has expiry tracking
+
+### Fixes
+- **Sidebar**: Replaced email display with user name (or "Guest" if not logged in); consolidated plan badge into the user info row; removed duplicate badge from offcanvas header

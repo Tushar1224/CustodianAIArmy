@@ -20,6 +20,7 @@ export default function Sidebar({ id = 'sidebarOffcanvas', showPricingRoadmap = 
   const location = useLocation();
   const navigate = useNavigate();
   const { user, plan } = useAuth();
+  const displayName = user ? (user.name || user.email || 'User') : 'Guest';
   const planLabel = { guest: 'GUEST', free: 'FREE', pro: 'PRO' }[plan] || 'FREE';
   const planColor = plan === 'pro' ? 'var(--warning-color)' : plan === 'free' ? 'var(--primary-color)' : 'var(--text-muted)';
 
@@ -45,21 +46,16 @@ export default function Sidebar({ id = 'sidebarOffcanvas', showPricingRoadmap = 
          data-bs-scroll="true" data-bs-backdrop="false">
       <div className="offcanvas-header">
         <h5 className="offcanvas-title" style={{ color: 'var(--primary-color, #4dabf7)' }}>Menu</h5>
-        <div className="d-flex align-items-center gap-2">
-          {user && (
-            <span className="badge" style={{ background: planColor, color: plan === 'pro' ? '#000' : '#fff', fontSize: '0.65rem', padding: '0.2rem 0.5rem' }}>
-              <i className={`fas fa-${plan === 'pro' ? 'crown' : plan === 'free' ? 'user' : 'user-secret'} me-1`}></i>{planLabel}
-            </span>
-          )}
-          <button type="button" className="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-        </div>
+        <button type="button" className="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
       </div>
       <div className="offcanvas-body p-0">
-        {user && (
-          <div className="px-3 py-2" style={{ borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            <i className="fas fa-user-circle me-1"></i> {user.email}
-          </div>
-        )}
+        <div className="px-3 py-2 d-flex align-items-center gap-2" style={{ borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          <i className="fas fa-user-circle"></i>
+          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</span>
+          <span className="badge" style={{ background: planColor, color: plan === 'pro' ? '#000' : '#fff', fontSize: '0.6rem', padding: '0.15rem 0.4rem', flexShrink: 0 }}>
+            {planLabel}
+          </span>
+        </div>
         <nav className="nav flex-column nav-menu p-2">
           {filteredNav.map(item => (
             <a
