@@ -266,6 +266,7 @@ cd frontend && npm run build && cd .. && python main.py
 | `/portfolio` | PortfolioPage | AI-generated developer portfolios |
 | `/build` | BuildPage | 5-phase MVP Builder pipeline |
 | `/agents` | CustomAgentsPage | Create/manage custom agents |
+| `/resume` | ResumePage | Resume Optimizer — upload, edit, ATS-optimize, multi-template |
 | `/payment` | PaymentPage | Upgrade to Pro plan |
 
 ---
@@ -528,7 +529,73 @@ The 5-phase product development pipeline:
 5. **Build** — Generate and publish to GitHub
 
 ---
+## AdSense Integration
+
+Every page must display an AdSense banner. Two integration patterns exist:
+
+### Pattern A: Via `MainLayout` (recommended)
+
+Most pages wrap content in `<MainLayout>` which renders `<AdSenseAd />` automatically between the header and content area. `showAd` defaults to `true` — pass `showAd={false}` to suppress (not recommended).
+
+### Pattern B: Direct `<AdSenseAd />`
+
+Pages that don't use `MainLayout` (e.g., `HomePage`, `PaymentPage`) must import and render `<AdSenseAd />` directly.
+
+**When creating a new page, you MUST ensure an ad unit is rendered.** If the page uses `MainLayout`, ads are automatic. If standalone, add `<AdSenseAd />` explicitly.
+
+See `frontend/src/components/layout/AdSenseAd.jsx` for the component. Publisher ID: `ca-pub-6476201805386001`.
+
+---
+
+## Resume Optimizer
+
+A full-featured resume builder with AI-powered ATS optimization, document upload, multi-template support, and chat-based modifications.
+
+### Features
+| Feature | Description |
+|---------|-------------|
+| **3-View Layout** | List (card grid with ATS scores), Editor (form + templates + live preview), Viewer (NOVA-style document with inline edit) |
+| **Document Upload** | PDF, DOCX, TXT — text extraction + AI parsing to structured JSON |
+| **AI Optimization** | Tailor resume to a job description, improve ATS score above 90, score breakdown |
+| **Chat Modifications** | Type instructions like "Add more Python keywords" → AI updates resume + auto-saves |
+| **Template System** | 5 built-in templates across categories (Professional, Academic, Technical, Creative, General) |
+| **Section Management** | Enable/disable any of 12 section types per resume |
+| **Multi-Page Support** | Templates can define multiple pages (e.g., Academic has 2 pages) |
+| **Template Accumulation** | Every unique template used is auto-saved to DB and globally available |
+| **Responsive** | Desktop two-column layout, stacks vertically on mobile (<768px) |
+
+### Built-in Templates
+| Template | Category | Pages | Best For |
+|----------|----------|-------|----------|
+| Modern Professional | Professional | 1 | Corporate & tech roles |
+| Classic Academic | Academic | 2 | Research & academia |
+| Full-Stack Developer | Technical | 1 | Engineering roles |
+| Executive Leader | Professional | 2 | Senior leadership |
+| Creative Portfolio | Creative | 1 | Design & creative |
+
+### Resume API Endpoints
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/resumes` | List user's resumes |
+| POST | `/resumes` | Create new resume |
+| GET | `/resumes/{id}` | Get single resume |
+| PUT | `/resumes/{id}` | Update resume |
+| DELETE | `/resumes/{id}` | Delete resume |
+| POST | `/resumes/{id}/optimize` | AI-optimize with optional JD |
+| POST | `/resumes/parse` | Parse raw text to structured JSON |
+| POST | `/resumes/upload` | Upload PDF/DOCX/TXT file |
+| GET | `/resumes/templates` | List templates (optional `?category=` filter) |
+| POST | `/resumes/templates` | Save a template |
+| GET | `/resumes/templates/categories` | List all template categories |
+
+### Storage Limits
+| Plan | Resumes | Rate Limit |
+|------|---------|------------|
+| Guest | 3 | 3 optimizations/day |
+| Free | 3 | 20/day |
+| Pro | Unlimited | 50/day |
+
+---
 
 ## License
-
 MIT

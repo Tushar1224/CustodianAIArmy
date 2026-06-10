@@ -6,6 +6,7 @@ import PortfolioPage from './pages/PortfolioPage';
 import BuildPage from './pages/BuildPage';
 import CustomAgentsPage from './pages/CustomAgentsPage';
 import PaymentPage from './pages/PaymentPage';
+import ResumePage from './pages/ResumePage';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path="/build" element={<BuildPage />} />
         <Route path="/agents" element={<CustomAgentsPage />} />
         <Route path="/payment" element={<PaymentPage />} />
+        <Route path="/resume" element={<ResumePage />} />
       </Routes>
     </BrowserRouter>
   );

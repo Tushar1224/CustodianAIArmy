@@ -108,6 +108,47 @@ def init_db():
             )
         ''')
 
+        # Resume storage table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_resumes (
+                id TEXT PRIMARY KEY,
+                user_email TEXT NOT NULL,
+                title TEXT NOT NULL DEFAULT 'Untitled Resume',
+                data TEXT NOT NULL DEFAULT '{}',
+                jd TEXT,
+                ats_score INTEGER,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        ''')
+
+        # Add template_name column if missing
+        try:
+            cursor.execute("ALTER TABLE user_resumes ADD COLUMN template_name TEXT")
+        except sqlite3.OperationalError:
+            pass  # column already exists
+
+        # User templates table (globally shared templates with categories)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_templates (
+                name TEXT PRIMARY KEY,
+                category TEXT NOT NULL DEFAULT 'general',
+                config TEXT NOT NULL,
+                section_defs TEXT NOT NULL DEFAULT '[]',
+                user_email TEXT,
+                is_system INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            )
+        ''')
+        try:
+            cursor.execute("ALTER TABLE user_templates ADD COLUMN category TEXT NOT NULL DEFAULT 'general'")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE user_templates ADD COLUMN section_defs TEXT NOT NULL DEFAULT '[]'")
+        except sqlite3.OperationalError:
+            pass
+
         # Custom Agent Configurations table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS custom_agent_configs (
@@ -596,6 +637,220 @@ def get_user_github_repo_permissions(user_email: str) -> List[Dict[str, Any]]:
         {"repo_name": row[0], "permission_granted": bool(row[1]), "last_updated": row[2]}
         for row in rows
     ]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RESUME FUNCTIONS
+# ─────────────────────────────────────────────────────────────────────────────
+# Template CRUD
+# ─────────────────────────────────────────────────────────────────────────────
+
+def save_template(name: str, config: dict, user_email: Optional[str] = None, category: str = 'general', section_defs: Optional[list] = None) -> bool:
+    """Save a resume template if it doesn't already exist. Returns True if new."""
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=20)
+        cursor = conn.cursor()
+        now = datetime.utcnow().isoformat()
+        cursor.execute('''
+            INSERT OR IGNORE INTO user_templates (name, category, config, section_defs, user_email, is_system, created_at)
+            VALUES (?, ?, ?, ?, ?, 0, ?)
+        ''', (name, category, json.dumps(config), json.dumps(section_defs or []), user_email, now))
+        inserted = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return inserted
+    except Exception as e:
+        print(f"Error saving template: {e}")
+        return False
+
+
+def list_templates(category: Optional[str] = None) -> List[Dict[str, Any]]:
+    """List all resume templates, optionally filtered by category."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    if category:
+        cursor.execute('''
+            SELECT name, category, config, section_defs, user_email, is_system, created_at
+            FROM user_templates
+            WHERE category = ?
+            ORDER BY is_system DESC, created_at DESC
+        ''', (category,))
+    else:
+        cursor.execute('''
+            SELECT name, category, config, section_defs, user_email, is_system, created_at
+            FROM user_templates
+            ORDER BY is_system DESC, created_at DESC
+        ''')
+    rows = cursor.fetchall()
+    conn.close()
+
+    results = []
+    for row in rows:
+        results.append({
+            "name": row[0],
+            "category": row[1],
+            "config": json.loads(row[2]) if row[2] else {},
+            "section_defs": json.loads(row[3]) if row[3] else [],
+            "user_email": row[4],
+            "is_system": bool(row[5]),
+            "created_at": row[6],
+        })
+    return results
+
+
+def list_template_categories() -> List[str]:
+    """List all distinct template categories."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute('SELECT DISTINCT category FROM user_templates ORDER BY category')
+    rows = cursor.fetchall()
+    conn.close()
+    return [r[0] for r in rows]
+
+
+def get_template_by_name(name: str) -> Optional[Dict[str, Any]]:
+    """Get a single template by name."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT name, category, config, section_defs, user_email, is_system, created_at
+        FROM user_templates WHERE name = ?
+    ''', (name,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {
+        "name": row[0],
+        "category": row[1],
+        "config": json.loads(row[2]) if row[2] else {},
+        "section_defs": json.loads(row[3]) if row[3] else [],
+        "user_email": row[4],
+        "is_system": bool(row[5]),
+        "created_at": row[6],
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+def save_resume(resume_data: Dict[str, Any]) -> str:
+    """Save or update a resume. Returns resume ID."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+
+    resume_id = resume_data.get("id")
+    if not resume_id:
+        resume_id = str(uuid.uuid4())
+
+    data_str = json.dumps(resume_data.get("data", {}))
+    now = datetime.utcnow().isoformat()
+
+    cursor.execute('''
+        INSERT INTO user_resumes (id, user_email, title, data, jd, ats_score, created_at, updated_at, template_name)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            title=excluded.title,
+            data=excluded.data,
+            jd=excluded.jd,
+            ats_score=excluded.ats_score,
+            updated_at=excluded.updated_at,
+            template_name=excluded.template_name
+    ''', (
+        resume_id,
+        resume_data.get("user_email"),
+        resume_data.get("title", "Untitled Resume"),
+        data_str,
+        json.dumps(resume_data.get("jd")) if resume_data.get("jd") else None,
+        resume_data.get("ats_score"),
+        resume_data.get("created_at", now),
+        now,
+        resume_data.get("template_name"),
+    ))
+
+    conn.commit()
+    conn.close()
+    return resume_id
+
+
+def get_user_resumes(user_email: str) -> List[Dict[str, Any]]:
+    """Get all resumes for a user."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, user_email, title, data, jd, ats_score, created_at, updated_at, template_name
+        FROM user_resumes
+        WHERE user_email = ?
+        ORDER BY updated_at DESC
+    ''', (user_email,))
+    rows = cursor.fetchall()
+    conn.close()
+
+    results = []
+    for row in rows:
+        results.append({
+            "id": row[0],
+            "user_email": row[1],
+            "title": row[2],
+            "data": json.loads(row[3]) if row[3] else {},
+            "jd": json.loads(row[4]) if row[4] else None,
+            "ats_score": row[5],
+            "created_at": row[6],
+            "updated_at": row[7],
+            "template_name": row[8],
+        })
+    return results
+
+
+def get_resume(resume_id: str, user_email: str) -> Optional[Dict[str, Any]]:
+    """Get a single resume by ID and verify ownership."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, user_email, title, data, jd, ats_score, created_at, updated_at, template_name
+        FROM user_resumes WHERE id = ? AND user_email = ?
+    ''', (resume_id, user_email))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return None
+
+    return {
+        "id": row[0],
+        "user_email": row[1],
+        "title": row[2],
+        "data": json.loads(row[3]) if row[3] else {},
+        "jd": json.loads(row[4]) if row[4] else None,
+        "ats_score": row[5],
+        "created_at": row[6],
+        "updated_at": row[7],
+        "template_name": row[8],
+    }
+
+
+def get_resume_count(user_email: str) -> int:
+    """Get number of resumes for a user."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) FROM user_resumes WHERE user_email = ?', (user_email,))
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
+
+
+def delete_resume(resume_id: str, user_email: str) -> bool:
+    """Delete a resume by ID and verify ownership."""
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=20)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM user_resumes WHERE id = ? AND user_email = ?', (resume_id, user_email))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return deleted
+    except Exception as e:
+        print(f"Error deleting resume: {e}")
+        return False
+
 
 # Initialize the database when this module is loaded
 try:

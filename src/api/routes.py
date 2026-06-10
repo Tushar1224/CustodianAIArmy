@@ -3,7 +3,7 @@ API Routes for Custodian AI Army
 """
 import json
 import asyncio
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request, WebSocket, WebSocketDisconnect, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 import subprocess
 import random
@@ -19,13 +19,16 @@ from src.agents.agent_manager import AgentManager
 from src.core.database import (
     get_chats_for_user, save_chat_session, DB_PATH,
     get_user_api_keys, get_user_api_keys_raw, save_user_api_keys, delete_user_api_key, get_user_github_token, save_custom_agent_config, get_custom_agent_config,
-    get_user_plan, check_and_increment_rate_limit, upgrade_user_plan
+    get_user_plan, check_and_increment_rate_limit, upgrade_user_plan,
+    save_resume, get_user_resumes, get_resume, get_resume_count, delete_resume,
+    save_template, list_templates, get_template_by_name
 )
 from src.agents.astro_agent import AstroAgent # Import AstroAgent
 from src.agents.base_agent import AgentMessage, AgentCapability, BaseAgent
 from src.core.logging_config import get_logger
 from src.api.auth import get_current_user_from_cookies, User
 from src.api.build import get_mvp_builder, MVPBuilder
+from src.core.document_extractor import extract_text
 
 # Initialize router and logger
 router = APIRouter()
@@ -1771,6 +1774,483 @@ async def mvp_preview(
     except Exception as e:
         logger.error(f"Error serving preview: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Resume Optimizer Endpoints
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ResumeCreateRequest(BaseModel):
+    title: str = "Untitled Resume"
+    data: Dict[str, Any] = {}
+    jd: Optional[str] = None
+    template_name: Optional[str] = None
+
+
+class ResumeUpdateRequest(BaseModel):
+    title: Optional[str] = None
+    data: Optional[Dict[str, Any]] = None
+    jd: Optional[str] = None
+    template_name: Optional[str] = None
+
+
+class TemplateCreateRequest(BaseModel):
+    name: str
+    config: Dict[str, Any]
+    category: str = 'general'
+    section_defs: List[Dict[str, Any]] = []
+
+
+class ResumeOptimizeRequest(BaseModel):
+    resume_id: str
+    jd: Optional[str] = None
+    instructions: Optional[str] = None
+
+
+class ResumeParseRequest(BaseModel):
+    raw_text: str
+    title: str = "Imported Resume"
+
+
+def _get_resume_limit(user_email: str) -> int:
+    """Get resume storage limit based on user plan."""
+    from src.core.database import get_user_plan as _get_plan
+    plan_info = _get_plan(user_email)
+    if plan_info["plan"] == "pro":
+        return 999999  # unlimited for pro
+    return 3  # free/guest get 3
+
+
+@router.get("/resumes/templates/categories")
+async def get_template_categories(current_user: User = Depends(get_current_user_from_cookies)):
+    """List all distinct template categories."""
+    from src.core.database import list_template_categories
+    categories = list_template_categories()
+    return {"categories": categories}
+
+
+@router.get("/resumes/templates")
+async def get_templates(
+    category: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """List all resume templates, optionally filtered by category."""
+    templates = list_templates(category=category)
+    return {"templates": templates}
+
+
+@router.post("/resumes/templates")
+async def create_template(
+    req: TemplateCreateRequest,
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """Save a new resume template (no-op if already exists)."""
+    inserted = save_template(req.name, req.config, current_user.email, req.category, req.section_defs)
+    return {"inserted": inserted, "message": "Template saved" if inserted else "Template already exists"}
+
+
+@router.get("/resumes")
+async def list_resumes(current_user: User = Depends(get_current_user_from_cookies)):
+    """List all resumes for the current user."""
+    resumes = get_user_resumes(current_user.email)
+    return {"resumes": resumes, "count": len(resumes)}
+
+
+def _maybe_save_template(req, user_email: str):
+    """If the request has a template_name and the data includes a matching template, auto-save it."""
+    try:
+        template_name = getattr(req, 'template_name', None)
+        if template_name:
+            existing = get_template_by_name(template_name)
+            data = getattr(req, 'data', None)
+            if not existing and data:
+                save_template(template_name, data, user_email)
+    except Exception as e:
+        logger.warning(f"Failed to auto-save template: {e}")
+
+
+@router.post("/resumes")
+async def create_resume(
+    req: ResumeCreateRequest,
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """Create a new resume."""
+    limit = _get_resume_limit(current_user.email)
+    current_count = get_resume_count(current_user.email)
+    if current_count >= limit:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Resume limit reached ({limit}). Upgrade to Pro for unlimited resumes."
+        )
+
+    _maybe_save_template(req, current_user.email)
+
+    resume_id = save_resume({
+        "user_email": current_user.email,
+        "title": req.title,
+        "data": req.data,
+        "jd": req.jd,
+        "template_name": req.template_name,
+    })
+    resume = get_resume(resume_id, current_user.email)
+    return {"resume": resume, "message": "Resume created successfully"}
+
+
+@router.post("/resumes/parse")
+async def parse_resume_document(
+    req: ResumeParseRequest,
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """Parse uploaded resume document text and extract structured data using AI."""
+    try:
+        from src.agents.agent_manager import AgentManager
+        agent_mgr = AgentManager()
+        agent = agent_mgr.get_agent_by_name("TechnicalAI")
+        if not agent:
+            agent = agent_mgr.get_agent_by_name("CustodianAI")
+
+        prompt = f"""You are an expert resume parser. Analyze the following raw resume text and extract all information into a structured JSON object. Be thorough — capture every detail you find.
+
+Raw resume text:
+{req.raw_text}
+
+Return ONLY valid JSON with this exact structure (use empty arrays/strings for missing fields):
+{{
+  "personal_info": {{
+    "full_name": "",
+    "email": "",
+    "phone": "",
+    "linkedin": "",
+    "github": "",
+    "website": "",
+    "title": "",
+    "summary": ""
+  }},
+  "education": [
+    {{"id": 1, "degree": "", "institution": "", "field_of_study": "", "start_date": "", "end_date": "", "cgpa": "", "achievements": ""}}
+  ],
+  "experience": [
+    {{"id": 1, "company": "", "role": "", "location": "", "start_date": "", "end_date": "", "current": false, "description": "", "tech_stack": [], "achievements": []}}
+  ],
+  "certifications": [
+    {{"id": 1, "name": "", "issuer": "", "date": "", "url": ""}}
+  ],
+  "skills": [
+    {{"id": 1, "value": ""}}
+  ],
+  "projects": [
+    {{"id": 1, "name": "", "description": "", "tech_stack": [], "url": ""}}
+  ],
+  "achievements": [
+    {{"id": 1, "value": ""}}
+  ]
+}}"""
+
+        msg = AgentMessage(sender_id="api", receiver_id=agent.agent_id, content=prompt)
+        result_msg = await agent.process_message(msg)
+        result = result_msg.content
+
+        import re
+        json_match = re.search(r'\{.*\}', result, re.DOTALL)
+        if json_match:
+            parsed_data = json.loads(json_match.group())
+        else:
+            parsed_data = json.loads(result)
+
+        now = datetime.utcnow().isoformat()
+        resume_id = save_resume({
+            "user_email": current_user.email,
+            "title": req.title,
+            "data": parsed_data,
+            "created_at": now,
+        })
+        resume = get_resume(resume_id, current_user.email)
+
+        return {
+            "resume": resume,
+            "message": "Resume parsed successfully"
+        }
+
+    except Exception as e:
+        logger.error(f"Error parsing resume: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Parsing failed: {str(e)}")
+
+
+import tempfile
+from pathlib import Path
+from fastapi import UploadFile, File
+
+
+@router.post("/resumes/upload")
+async def upload_resume_document(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    try:
+        ext = Path(file.filename).suffix.lower() if file.filename else '.txt'
+        if ext not in {'.pdf', '.docx', '.txt'}:
+            raise HTTPException(status_code=400, detail=f"Unsupported file type '{ext}'. Use PDF, DOCX, or TXT.")
+
+        contents = await file.read()
+        text = extract_text(contents, file.filename or "resume.txt")
+
+        from src.agents.agent_manager import AgentManager
+        agent_mgr = AgentManager()
+        agent = agent_mgr.get_agent_by_name("TechnicalAI")
+        if not agent:
+            agent = agent_mgr.get_agent_by_name("CustodianAI")
+
+        prompt = f"""You are an expert resume parser. Analyze the following raw resume text and extract all information into a structured JSON object. Be thorough — capture every detail you find.
+
+Raw resume text:
+{text}
+
+Return ONLY valid JSON with this exact structure (use empty arrays/strings for missing fields):
+{{
+  "personal_info": {{
+    "full_name": "",
+    "email": "",
+    "phone": "",
+    "linkedin": "",
+    "github": "",
+    "website": "",
+    "title": "",
+    "summary": ""
+  }},
+  "education": [
+    {{"id": 1, "degree": "", "institution": "", "field_of_study": "", "start_date": "", "end_date": "", "cgpa": "", "achievements": ""}}
+  ],
+  "experience": [
+    {{"id": 1, "company": "", "role": "", "location": "", "start_date": "", "end_date": "", "current": false, "description": "", "tech_stack": [], "achievements": []}}
+  ],
+  "certifications": [
+    {{"id": 1, "name": "", "issuer": "", "date": "", "url": ""}}
+  ],
+  "skills": [
+    {{"id": 1, "value": ""}}
+  ],
+  "projects": [
+    {{"id": 1, "name": "", "description": "", "tech_stack": [], "url": ""}}
+  ],
+  "achievements": [
+    {{"id": 1, "value": ""}}
+  ]
+}}"""
+
+        msg = AgentMessage(sender_id="api", receiver_id=agent.agent_id, content=prompt)
+        result_msg = await agent.process_message(msg)
+        result = result_msg.content
+
+        import re
+        json_match = re.search(r'\{.*\}', result, re.DOTALL)
+        if json_match:
+            parsed_data = json.loads(json_match.group())
+        else:
+            parsed_data = json.loads(result)
+
+        now = datetime.utcnow().isoformat()
+        title = Path(file.filename).stem if file.filename else "Imported Resume"
+        template_name = "Modern Professional"
+        resume_id = save_resume({
+            "user_email": current_user.email,
+            "title": title,
+            "data": parsed_data,
+            "template_name": template_name,
+            "created_at": now,
+        })
+        save_template(template_name, parsed_data, current_user.email, category='professional')
+        resume = get_resume(resume_id, current_user.email)
+
+        return {"resume": resume, "message": f"Resume extracted from {Path(file.filename).suffix if file.filename else 'file'} and parsed successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading resume: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+
+@router.get("/resumes/{resume_id}")
+async def get_resume_endpoint(
+    resume_id: str,
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """Get a single resume."""
+    resume = get_resume(resume_id, current_user.email)
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    return {"resume": resume}
+
+
+@router.put("/resumes/{resume_id}")
+async def update_resume(
+    resume_id: str,
+    req: ResumeUpdateRequest,
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """Update an existing resume."""
+    existing = get_resume(resume_id, current_user.email)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    _maybe_save_template(req, current_user.email)
+
+    update_data = {
+        "id": resume_id,
+        "user_email": current_user.email,
+        "title": req.title if req.title is not None else existing["title"],
+        "data": req.data if req.data is not None else existing["data"],
+        "jd": req.jd if req.jd is not None else existing["jd"],
+        "ats_score": existing.get("ats_score"),
+        "created_at": existing["created_at"],
+        "template_name": req.template_name if req.template_name is not None else existing.get("template_name"),
+    }
+    save_resume(update_data)
+    updated = get_resume(resume_id, current_user.email)
+    return {"resume": updated, "message": "Resume updated successfully"}
+
+
+@router.delete("/resumes/{resume_id}")
+async def delete_resume_endpoint(
+    resume_id: str,
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """Delete a resume."""
+    deleted = delete_resume(resume_id, current_user.email)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    return {"message": "Resume deleted successfully"}
+
+
+@router.post("/resumes/{resume_id}/optimize")
+async def optimize_resume(
+    resume_id: str,
+    req: ResumeOptimizeRequest,
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """Optimize a resume using AI. Optionally with JD tailoring."""
+    resume = get_resume(resume_id, current_user.email)
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    jd_text = req.jd or resume.get("jd") or ""
+
+    # Fetch template structure for proper formatting
+    template_section_defs = []
+    template_pages = []
+    template_styling = {}
+    if resume.get("template_name"):
+        try:
+            from src.core.database import get_template_by_name
+            tpl = get_template_by_name(resume["template_name"])
+            if tpl:
+                template_section_defs = tpl.get("section_defs", [])
+                template_pages = tpl.get("config", {}).get("pages", [])
+                template_styling = tpl.get("config", {}).get("styling", {})
+        except Exception:
+            pass
+
+    try:
+        from src.agents.agent_manager import AgentManager
+        agent_mgr = AgentManager()
+        agent = agent_mgr.get_agent_by_name("TechnicalAI")
+        if not agent:
+            agent = agent_mgr.get_agent_by_name("CustodianAI")
+        if not agent:
+            raise HTTPException(status_code=503, detail="No AI agent available for optimization")
+
+        prompt_parts = [
+            "You are an expert ATS resume optimizer and career coach.",
+            "Analyze the following FULL resume data and optimize it for maximum ATS score (>90).",
+            "Read through every section carefully — personal info, education, experience, skills, certifications, projects, achievements.",
+            f"Resume data:\n{json.dumps(resume['data'], indent=2)}",
+        ]
+
+        if resume.get("template_name") and template_section_defs:
+            prompt_parts.append(f"This resume uses the '{resume['template_name']}' template.")
+            prompt_parts.append(f"The template defines these sections in this exact order:\n{json.dumps(template_section_defs, indent=2)}")
+            if template_pages:
+                prompt_parts.append(f"The template has these pages with section layout:\n{json.dumps(template_pages, indent=2)}")
+            if template_styling:
+                prompt_parts.append(f"Template styling:\n{json.dumps(template_styling, indent=2)}")
+            prompt_parts.append(
+                "IMPORTANT: Your output MUST restructure the resume data to fit this template's "
+                "section ordering, page layout, and styling. Fill in each section with the user's "
+                "existing data, reformatted to match the template's structure. Add missing sections "
+                "with empty defaults. The final output should look like a complete resume in this template."
+            )
+        elif resume.get("template_name"):
+            prompt_parts.append(f"This resume uses the '{resume['template_name']}' template. Keep stylistic choices consistent with this template.")
+
+        if jd_text:
+            prompt_parts.append(f"Job Description to tailor to:\n{jd_text}")
+            prompt_parts.append("Tailor the resume to match this job description while keeping it truthful.")
+
+        if req.instructions:
+            prompt_parts.append(f"Additional instructions:\n{req.instructions}")
+
+        prompt_parts.append("""
+Return ONLY a valid JSON object with this exact structure (use empty arrays/strings for missing fields) — NO other text:
+{
+  "optimized_data": { ... FULL updated resume object containing ALL sections defined by the template, with every section populated (use user data if available, otherwise empty defaults) ... },
+  "ats_score": <number 80-100>,
+  "changes": ["change1", "change2", ...],
+  "suggestions": ["suggestion1", "suggestion2", ...],
+  "score_breakdown": {
+    "keywords": <number>,
+    "format": <number>,
+    "experience": <number>,
+    "education": <number>,
+    "skills": <number>
+  }
+}""")
+
+        prompt = "\n\n".join(prompt_parts)
+        msg = AgentMessage(sender_id="api", receiver_id=agent.agent_id, content=prompt)
+        result_msg = await agent.process_message(msg)
+        result = result_msg.content.strip()
+
+        # Detect if the agent returned an error
+        if not result or "error" in result.lower()[:200]:
+            raise HTTPException(status_code=502, detail=f"AI agent error: {result[:500]}")
+
+        try:
+            import re
+            json_match = re.search(r'\{.*\}', result, re.DOTALL)
+            if json_match:
+                optimization = json.loads(json_match.group())
+            else:
+                optimization = json.loads(result)
+        except (json.JSONDecodeError, AttributeError) as e:
+            raise HTTPException(status_code=502, detail=f"AI returned invalid JSON: {result[:500]}")
+
+        # Validate optimized_data exists
+        if not optimization.get("optimized_data"):
+            raise HTTPException(status_code=502, detail="AI response missing optimized_data")
+
+        # Save the optimized resume
+        update_data = {
+            "id": resume_id,
+            "user_email": current_user.email,
+            "title": resume["title"],
+            "data": optimization["optimized_data"],
+            "jd": jd_text or resume.get("jd"),
+            "ats_score": optimization.get("ats_score", resume.get("ats_score")),
+            "created_at": resume["created_at"],
+            "template_name": resume.get("template_name"),
+        }
+        save_resume(update_data)
+
+        return {
+            "optimization": optimization,
+            "message": "Resume optimized successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error optimizing resume: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Optimization failed: {str(e)}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

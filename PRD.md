@@ -1,6 +1,6 @@
 # Custodian AI Army — Product Requirements Document
 
-> **Version:** 1.1.0 · **Last Updated:** 2026-06-09  
+> **Version:** 1.2.0 · **Last Updated:** 2026-06-10  
 > **Project:** Custodian AI Army — A futuristic multi-agent AI orchestration system
 
 ---
@@ -358,6 +358,7 @@ sessions            -- Persistent auth sessions
 | `/portfolio`     | `pages/PortfolioPage.jsx`     | Portfolio Builder               |
 | `/build`         | `pages/BuildPage.jsx`         | Build Your Product (MVP)        |
 | `/agents`        | `pages/CustomAgentsPage.jsx`  | Custom Agent management         |
+| `/resume`        | `pages/ResumePage.jsx`        | Resume Optimizer — upload, ATS-optimize, multi-template |
 | `/payment`       | `pages/PaymentPage.jsx`       | Payment/upgrade page            |
 | `/api/docs`      | —                             | Swagger UI (auto-generated)     |
 | `/api/redoc`     | —                             | ReDoc UI (auto-generated)       |
@@ -447,7 +448,63 @@ On **mobile and tablet** (<768px viewport), the dashboard switches to a compact 
 
 **Performance:** Buffered via 3 ref arrays (`nsRef`, `psRef`, `pulsesRef`); `useMemo` on `allFeatures` array to prevent re-init; DevicePixelRatio-aware canvas sizing.
 
-### 8.4 Known Issues & Fixes
+### 8.4 AdSense Integration (Required for all pages)
+
+Every page **must** include an AdSense banner. Two patterns:
+
+1. **Via `MainLayout`** (preferred) — `<MainLayout showAd={true}>` renders `<AdSenseAd />` automatically. `showAd` defaults to `true`, so pages using `MainLayout` get ads by default.
+2. **Direct `<AdSenseAd />`** — Standalone pages (`HomePage`, `PaymentPage`) must import and render the component explicitly.
+
+**Rule:** Any new page MUST have an ad unit. If the page uses `MainLayout`, ads are automatic. If it doesn't, add `<AdSenseAd />` at the top of the content area.
+
+Component: `frontend/src/components/layout/AdSenseAd.jsx` | Publisher: `ca-pub-6476201805386001` | Slot: `5335186375`
+
+### 8.5 Resume Optimizer (`/resume`)
+
+A full-featured resume builder with AI-powered ATS optimization, document parsing, multi-template support, and chat-based modifications.
+
+#### Views
+1. **List View** — Card grid of all user resumes with ATS score badges, inline title rename
+2. **Editor View** — Split panel: LHS has collapsible template selector (category tabs + 5 templates + user-accumulated) + 7-tab form (Personal, Education, Experience, Skills, Certs, Projects, Achievements) + section management checkboxes; RHS has JD input + live preview
+3. **Viewer View** — 2-column: LHS = NOVA-style white document with click-to-edit fields; RHS = chat modifications + ATS suggestions; compact template badge dropdown in top action bar
+
+#### Template System
+- **5 built-in templates** across 5 categories (Professional, Academic, Technical, Creative, General) with section definitions, multi-page layouts, and styling
+- **Section management** — checkboxes to enable/disable any of 12 section types per resume (personal_info, summary, education, experience, skills, certifications, projects, achievements, languages, publications, volunteering, references)
+- **Template accumulation** — every unique template used is auto-saved to `user_templates` DB table with `category` and `section_defs`; globally available to all users
+- **Multi-page** — templates define page layouts with section-to-page mapping; viewer shows Prev/Next navigation
+
+#### Upload & Parsing
+| File Type | Backend | Extraction |
+|-----------|---------|------------|
+| PDF | PyPDF2 | Full text extraction |
+| DOCX | python-docx | Full text extraction |
+| TXT | Direct read | Raw text |
+| DOC | — | Returns clear error (legacy format) |
+
+#### AI Optimization Flow
+1. User clicks Optimize or sends chat instruction
+2. Backend calls `TechnicalAI` agent (falls back to `CustodianAI`) with full resume data + template context + optional JD
+3. Agent returns structured JSON: `optimized_data`, `ats_score`, `changes`, `suggestions`, `score_breakdown`
+4. Frontend deep-merges `optimized_data` into existing resume data (partial response doesn't wipe fields)
+5. Auto-saves via PUT to backend
+
+#### Storage & Rate Limits
+| Plan | Max Resumes | Optimization Rate |
+|------|-------------|-------------------|
+| Guest | 3 | 3/day |
+| Free | 3 | 20/day |
+| Pro | Unlimited | 50/day |
+
+#### Key Files
+| File | Purpose |
+|------|---------|
+| `frontend/src/pages/ResumePage.jsx` | 3-view React component (~1550 lines) |
+| `src/api/routes.py` | 11 resume endpoints |
+| `src/core/database.py` | `user_resumes` + `user_templates` tables, CRUD |
+| `src/core/document_extractor.py` | PDF/DOCX/TXT text extraction |
+
+### 8.5 Known Issues & Fixes
 
 | Issue | Fix |
 |-------|-----|

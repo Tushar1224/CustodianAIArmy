@@ -1,18 +1,17 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
+import ProfileModals from '../components/modals/ProfileModals';
 import AdSenseAd from '../components/layout/AdSenseAd';
 import Footer from '../components/layout/Footer';
 import NeuronBrain from '../components/NeuronBrain';
 
-function closeOffcanvas() {
-  const el = document.getElementById('homeOffcanvas');
-  const instance = window.bootstrap?.Offcanvas?.getInstance(el);
-  instance?.hide();
-}
-
 export default function HomePage() {
   const navigate = useNavigate();
+  const [showProfile, setShowProfile] = useState(false);
+
+  const handleCloseProfile = useCallback(() => setShowProfile(false), []);
+  const handleOpenProfile = useCallback(() => setShowProfile(true), []);
 
   const allFeatures = useMemo(() => [
     {
@@ -52,6 +51,15 @@ export default function HomePage() {
       color: '#4dabf7',
     },
     {
+      id: 'resume',
+      name: 'Resume Optimizer',
+      icon: 'fas fa-file-alt',
+      href: '/resume',
+      status: 'working',
+      description: 'Build ATS-optimized resumes with AI. Upload, edit, optimize with JD matching, and get scores above 90.',
+      color: '#4dabf7',
+    },
+    {
       id: 'portfolio',
       name: 'Build Portfolio',
       icon: 'fab fa-github',
@@ -64,7 +72,9 @@ export default function HomePage() {
 
   const handleNav = (path) => (e) => {
     e.preventDefault();
-    closeOffcanvas();
+    const el = document.getElementById('sidebarOffcanvas');
+    const instance = window.bootstrap?.Offcanvas?.getInstance(el);
+    instance?.hide();
     navigate(path);
   };
 
@@ -75,70 +85,21 @@ export default function HomePage() {
   };
 
   const handleFeatureHover = () => {};
-
   const handleFeatureLeave = () => {};
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'dark');
-    // Close sidebar when clicking outside
-    const handler = (e) => {
-      const oc = document.getElementById('homeOffcanvas');
-      const hb = document.querySelector('.hamburger-btn');
-      if (!oc || !hb) return;
-      const oi = window.bootstrap?.Offcanvas?.getInstance(oc);
-      if (!oi) return;
-      if (!oc.contains(e.target) && !hb.contains(e.target)) oi.hide();
-    };
-    document.addEventListener('click', handler);
-    return () => document.removeEventListener('click', handler);
   }, []);
 
   return (
     <div style={{ background: '#0a0a0f', minHeight: '100vh', color: '#e8e8f0', fontFamily: "'Exo 2', sans-serif" }}>
-      {/* Offcanvas Sidebar */}
-      <div className="offcanvas offcanvas-start home-offcanvas" tabIndex="-1" id="homeOffcanvas"
-           data-bs-scroll="true" data-bs-backdrop="false"
-           style={{ background: '#0f0f1a !important', color: '#e8e8f0 !important', borderRight: '1px solid rgba(77,171,247,0.2) !important', maxWidth: '300px !important', width: '80vw !important' }}>
-        <div className="offcanvas-header" style={{ borderBottom: '1px solid rgba(77,171,247,0.15)', background: 'rgba(77,171,247,0.05)' }}>
-          <h5 className="offcanvas-title" style={{ fontFamily: "'Orbitron', monospace", color: '#4dabf7', letterSpacing: '1px', fontSize: '1rem' }}>Menu</h5>
-          <button type="button" className="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
-        </div>
-        <div className="offcanvas-body p-0">
-          <nav style={{ display: 'flex', flexDirection: 'column', padding: '0.75rem' }}>
-            <a href="/" className="offcanvas-nav-link active" onClick={handleNav('/')} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '6px', textDecoration: 'none', color: '#e8e8f0', fontSize: '0.9rem', background: 'rgba(77,171,247,0.12)', borderColor: 'rgba(77,171,247,0.4)', border: '1px solid transparent', marginBottom: '0.2rem' }}>
-              <i className="fas fa-home" style={{ width: '18px', textAlign: 'center' }}></i> Home
-            </a>
-            {[
-              { href: '/dashboard', icon: 'fas fa-brain', label: 'AI Dashboard' },
-              { href: '/learn', icon: 'fas fa-graduation-cap', label: 'Learn with AI' },
-              { href: '/portfolio', icon: 'fab fa-github', label: 'Build Your Portfolio' },
-              { href: '/agents', icon: 'fas fa-users-cog', label: 'Custom Agents' },
-              { href: '/build', icon: 'fas fa-cubes', label: 'Build Your Product' },
-            ].map((item, i) => (
-              <a key={i} href={item.href} className="offcanvas-nav-link" onClick={handleNav(item.href)}
-                 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '6px', textDecoration: 'none', color: '#e8e8f0', border: '1px solid transparent', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.2rem' }}>
-                <i className={item.icon} style={{ width: '18px', textAlign: 'center' }}></i> {item.label}
-              </a>
-            ))}
-            <hr style={{ borderColor: 'rgba(77,171,247,0.15)', margin: '0.5rem 0' }} />
-            <a href="#pricing" className="offcanvas-nav-link" onClick={handleNav('/#pricing')} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '6px', textDecoration: 'none', color: '#e8e8f0', border: '1px solid transparent', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.2rem' }}>
-              <i className="fas fa-tag" style={{ width: '18px', textAlign: 'center' }}></i> Pricing
-            </a>
-            <a href="#coming-soon" className="offcanvas-nav-link" onClick={handleNav('/#coming-soon')} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '6px', textDecoration: 'none', color: '#e8e8f0', border: '1px solid transparent', fontWeight: 500, fontSize: '0.9rem', marginBottom: '0.2rem' }}>
-              <i className="fas fa-road" style={{ width: '18px', textAlign: 'center' }}></i> Roadmap
-            </a>
-            <hr style={{ borderColor: 'rgba(77,171,247,0.15)', margin: '0.5rem 0' }} />
-            <a href="/api/v1/auth/google" className="offcanvas-signin" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem 1rem', borderRadius: '6px', textDecoration: 'none', color: '#000', background: '#4dabf7', fontWeight: 700, fontSize: '0.9rem', marginTop: '0.5rem' }}>
-              <i className="fab fa-google"></i> Sign In with Google
-            </a>
-          </nav>
-        </div>
-      </div>
+      {/* Shared Sidebar */}
+      <Sidebar id="sidebarOffcanvas" showHome={false} />
 
       {/* Nav Bar */}
       <nav className="main-nav" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1.5rem', height: '60px', background: 'rgba(10,10,15,0.92)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(77,171,247,0.15)' }}>
         <div className="nav-left" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button type="button" className="hamburger-btn" data-bs-toggle="offcanvas" data-bs-target="#homeOffcanvas" aria-label="Open menu"
+          <button type="button" className="hamburger-btn" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-label="Open menu"
             style={{ background: 'none', border: 'none', color: '#4dabf7', fontSize: '1.4rem', cursor: 'pointer', padding: '0.25rem', lineHeight: 1 }}>
             <i className="fas fa-bars"></i>
           </button>
@@ -148,14 +109,36 @@ export default function HomePage() {
           </a>
         </div>
 
-        {/* Sign In */}
+        {/* Profile Dropdown */}
         <div className="dropdown" id="home-profile-dropdown">
-          <a href="/api/v1/auth/google" className="nav-signin" id="home-signin-btn"
-            style={{ background: '#4dabf7', color: '#000', padding: '0.45rem 1.1rem', borderRadius: '4px', fontWeight: 700, fontSize: '0.875rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}>
-            <i className="fab fa-google"></i> Sign In
-          </a>
+          <button className="btn-icon-only dropdown-toggle" type="button"
+            id="homeProfileDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+            style={{ background: 'none', border: '1px solid #4dabf7', borderRadius: '4px', padding: '0.4rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#4dabf7', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer' }}>
+            <i className="fas fa-user-circle me-1"></i>
+            <span>Guest</span>
+          </button>
+          <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="homeProfileDropdown"
+            style={{ background: '#0f0f1a', border: '1px solid #4dabf7' }}>
+            <li><span className="dropdown-item-text" style={{ fontSize: '0.75rem', color: '#9090b0' }}>Guest</span></li>
+            <li><hr className="dropdown-divider" style={{ borderColor: 'rgba(77,171,247,0.15)' }} /></li>
+            <li>
+              <button className="dropdown-item" onClick={() => setShowProfile(true)}
+                style={{ color: '#e8e8f0', cursor: 'pointer', background: 'none', border: 'none', width: '100%', textAlign: 'left' }}>
+                <i className="fas fa-user-edit me-2"></i>Profile & Settings
+              </button>
+            </li>
+            <li><hr className="dropdown-divider" style={{ borderColor: 'rgba(77,171,247,0.15)' }} /></li>
+            <li>
+              <a className="dropdown-item" href="/api/v1/auth/google" style={{ color: '#10b981' }}>
+                <i className="fab fa-google me-2"></i>Sign In with Google
+              </a>
+            </li>
+          </ul>
         </div>
       </nav>
+
+      {/* Profile Modals */}
+      <ProfileModals show={showProfile} onClose={handleCloseProfile} />
 
       {/* AdSense */}
       <AdSenseAd />
@@ -183,19 +166,6 @@ export default function HomePage() {
             topOffset={80}
           />
         </div>
-
-        <style>{`
-          @keyframes slideUp {
-            from {
-              opacity: 0;
-              transform: translateY(20px);
-            }
-            to {
-              opacity: 1;
-              transform: translateY(0);
-            }
-          }
-        `}</style>
       </section>
 
       {/* Features */}
@@ -319,7 +289,6 @@ export default function HomePage() {
           <p style={{ color: '#9090b0', fontSize: '1rem', maxWidth: '500px', margin: '0 auto' }}>Start free. Upgrade when you need more power.</p>
         </div>
         <div className="pricing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem', maxWidth: '800px', margin: '0 auto' }}>
-          {/* Free */}
           <div className="pricing-card" style={{ background: '#12121f', border: '1px solid rgba(77,171,247,0.15)', borderRadius: '12px', padding: '2.5rem 2rem', textAlign: 'center' }}>
             <div className="pricing-plan" style={{ fontFamily: "'Orbitron', monospace", fontSize: '1.1rem', color: '#9090b0', marginBottom: '0.5rem' }}>Free</div>
             <div className="pricing-price" style={{ fontFamily: "'Orbitron', monospace", fontSize: '3rem', fontWeight: 900, color: '#4dabf7', marginBottom: '0.25rem' }}>
@@ -338,7 +307,6 @@ export default function HomePage() {
             </a>
           </div>
 
-          {/* Pro */}
           <div className="pricing-card featured" style={{ background: '#12121f', border: '1px solid #4dabf7', borderRadius: '12px', padding: '2.5rem 2rem', textAlign: 'center', position: 'relative', boxShadow: '0 0 40px rgba(77,171,247,0.15)' }}>
             <div className="pricing-badge" style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', background: '#4dabf7', color: '#000', fontSize: '0.75rem', fontWeight: 700, padding: '0.25rem 1rem', borderRadius: '10px' }}>Most Popular</div>
             <div className="pricing-plan" style={{ fontFamily: "'Orbitron', monospace", fontSize: '1.1rem', color: '#9090b0', marginBottom: '0.5rem' }}>Pro</div>
@@ -347,7 +315,7 @@ export default function HomePage() {
             </div>
             <div className="pricing-desc" style={{ color: '#9090b0', fontSize: '0.875rem', marginBottom: '2rem' }}>For power users and professionals</div>
             <ul className="pricing-features" style={{ listStyle: 'none', textAlign: 'left', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: 0 }}>
-              {['50 requests/day', 'All AI agents', 'All providers (Gemini, Claude, Claude)', 'Priority processing', 'Chat history saved', 'Learn with AI + progress tracking', 'Early access to new features', 'Email support'].map((f, i) => (
+              {['50 requests/day', 'All AI agents', 'All providers (Gemini, Claude)', 'Priority processing', 'Chat history saved', 'Unlimited resume storage', 'Learn with AI + progress tracking', 'Early access to new features', 'Email support'].map((f, i) => (
                 <li key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.9rem', color: '#9090b0' }}>
                   <i className="fas fa-check" style={{ color: '#10b981', width: '16px' }}></i> {f}
                 </li>
