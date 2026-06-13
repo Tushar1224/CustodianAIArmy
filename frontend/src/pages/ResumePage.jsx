@@ -472,6 +472,9 @@ export default function ResumePage() {
         setCurrentResume(result.resume);
         setOptimizationResult(optimization);
         await loadResumes();
+      } else if (res.status === 404) {
+        setView('list');
+        setCurrentResume(null);
       }
     } catch (e) { console.error('Failed to save accepted data', e); }
     setLoading(false);
@@ -509,6 +512,8 @@ export default function ResumePage() {
           }
         }
         setView('viewer');
+      } else if (res.status === 404) {
+        setView('list'); setCurrentResume(null);
       }
     } catch (e) { console.error('Failed to optimize resume', e); }
     setLoading(false);
@@ -729,9 +734,15 @@ export default function ResumePage() {
         saveChatHistory(newHistory);
       } else {
         const err = await res.json().catch(() => ({}));
-        const newHistory = [...chatHistory.filter(m => !m._temp), { role: 'user', content: msg }, { role: 'assistant', content: `Error: ${err.detail || 'Optimization failed'}` }];
-        setChatHistory(newHistory);
-        saveChatHistory(newHistory);
+        if (res.status === 404 && err.detail === 'Resume not found') {
+          setChatHistory(prev => [...prev.filter(m => !m._temp), { role: 'user', content: msg }, { role: 'assistant', content: '⚠ This resume no longer exists on the server. Switching back to resume list.' }]);
+          saveChatHistory([...chatHistory.filter(m => !m._temp), { role: 'user', content: msg }, { role: 'assistant', content: '⚠ This resume no longer exists on the server.' }]);
+          setTimeout(() => { setView('list'); setCurrentResume(null); }, 2000);
+        } else {
+          const newHistory = [...chatHistory.filter(m => !m._temp), { role: 'user', content: msg }, { role: 'assistant', content: `Error: ${err.detail || 'Optimization failed'}` }];
+          setChatHistory(newHistory);
+          saveChatHistory(newHistory);
+        }
       }
     } catch (e) {
       console.error('Chat failed', e);
