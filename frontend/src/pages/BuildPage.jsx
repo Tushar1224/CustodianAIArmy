@@ -20,6 +20,221 @@ const MODE_DESCRIPTIONS = {
   plan: 'Discuss and brainstorm with the AI',
   act: 'Generate code and create files',
 };
+function renderMarkdown(text) {
+  if (!text) return null;
+  const lines = text.split('\n');
+  const elements = [];
+  let inTable = false;
+  let tableRows = [];
+  let inCodeBlock = false;
+  let codeLines = [];
+  let inList = false;
+  let listItems = [];
+
+  function flushList(li) {
+    if (li.length) {
+      const key = elements.length;
+      elements.push(<ul key={`ul-${key}`} className="md-list">{li}</ul>);
+      li.length = 0;
+    }
+  }
+  function flushTable(tr, key) {
+    if (tr.length >= 2) {
+      const header = tr[0].map((c, i) => <th key={i}>{parseInline(c)}</th>);
+      const body = tr.slice(2).map((r, ri) => <tr key={ri}>{r.map((c, ci) => <td key={ci}>{parseInline(c)}</td>)}</tr>);
+      elements.push(<table key={`tbl-${key}`} className="md-table"><thead><tr>{header}</tr></thead><tbody>{body}</tbody></table>);
+    }
+    tr.length = 0;
+  }
+  function flushCode(k) {
+    if (codeLines.length) {
+      elements.push(<pre key={`code-${k}`} className="md-code"><code>{codeLines.join('\n')}</code></pre>);
+      codeLines.length = 0;
+    }
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (inCodeBlock) {
+      if (trimmed.startsWith('```')) {
+        inCodeBlock = false;
+        flushCode(elements.length);
+        continue;
+      }
+      codeLines.push(line);
+      continue;
+    }
+    if (trimmed.startsWith('```')) {
+      flushList(listItems);
+      inTable = false; tableRows.length = 0;
+      inCodeBlock = true;
+      codeLines = [];
+      continue;
+    }
+
+    if (!trimmed) {
+      flushList(listItems);
+      inTable = false;
+      if (tableRows.length >= 2) {
+        flushTable(tableRows, elements.length);
+        tableRows = [];
+      }
+      elements.push(<br key={`br-${i}`} />);
+      continue;
+    }
+
+    // Tables
+    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+      flushList(listItems);
+      const cells = trimmed.split('|').filter(c => c.trim()).map(c => c.trim());
+      if (cells.length && trimmed.includes('---')) {
+        tableRows.push(cells.map(() => '---'));
+        inTable = true;
+        continue;
+      }
+      tableRows.push(cells);
+      inTable = true;
+      continue;
+    }
+
+    // If we were building a table and hit a non-table line, flush it
+    if (inTable && tableRows.length >= 2) {
+      flushTable(tableRows, elements.length);
+      tableRows = [];
+      inTable = false;
+    }
+
+    // Headers
+    if (trimmed.startsWith('#### ')) {
+      flushList(listItems);
+      elements.push(<h4 key={`h4-${i}`} className="md-h4">{parseInline(trimmed.slice(5))}</h4>);
+      continue;
+    }
+    if (trimmed.startsWith('### ')) {
+      flushList(listItems);
+      elements.push(<h3 key={`h3-${i}`} className="md-h3">{parseInline(trimmed.slice(4))}</h3>);
+      continue;
+    }
+    if (trimmed.startsWith('## ')) {
+      flushList(listItems);
+      elements.push(<h2 key={`h2-${i}`} className="md-h2">{parseInline(trimmed.slice(3))}</h2>);
+      continue;
+    }
+    if (trimmed.startsWith('# ')) {
+      flushList(listItems);
+      elements.push(<h1 key={`h1-${i}`} className="md-h1">{parseInline(trimmed.slice(2))}</h1>);
+      continue;
+    }
+
+    // Horizontal rule
+    if (/^-{3,}$/.test(trimmed) || /^\*{3,}$/.test(trimmed)) {
+      flushList(listItems);
+      elements.push(<hr key={`hr-${i}`} className="md-hr" />);
+      continue;
+    }
+
+    // Blockquote
+    if (trimmed.startsWith('> ')) {
+      flushList(listItems);
+      elements.push(<blockquote key={`bq-${i}`} className="md-blockquote">{parseInline(trimmed.slice(2))}</blockquote>);
+      continue;
+    }
+
+    // Bullet list
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      inTable = false;
+      const content = trimmed.slice(2);
+      const isBoldHeader = content.includes('**');
+      if (isBoldHeader) {
+        const parts = content.split('**').filter(Boolean);
+        if (parts.length >= 2) {
+          listItems.push(<li key={`li-${i}`}><strong>{parts[0]}</strong>{parseInline(parts.slice(1).join(''))}</li>);
+          continue;
+        }
+      }
+      listItems.push(<li key={`li-${i}`}>{parseInline(content)}</li>);
+      inList = true;
+      continue;
+    }
+
+    // Numbered list
+    if (/^\d+[.)]\s/.test(trimmed)) {
+      inTable = false;
+      const content = trimmed.replace(/^\d+[.)]\s*/, '');
+      listItems.push(<li key={`li-${i}`}>{parseInline(content)}</li>);
+      inList = true;
+      continue;
+    }
+
+    // Regular paragraph
+    flushList(listItems);
+    elements.push(<p key={`p-${i}`} className="md-p">{parseInline(trimmed)}</p>);
+  }
+
+  flushList(listItems);
+  if (inCodeBlock) flushCode(elements.length);
+  if (inTable && tableRows.length >= 2) flushTable(tableRows, elements.length);
+
+  return <>{elements}</>;
+}
+
+function parseInline(text) {
+  const parts = [];
+  let remaining = text;
+  while (remaining.length > 0) {
+    // Bold+Italic ***text***
+    const biMatch = remaining.match(/^\*\*\*(.+?)\*\*\*/);
+    if (biMatch) {
+      parts.push(<strong key={parts.length}><em>{biMatch[1]}</em></strong>);
+      remaining = remaining.slice(biMatch[0].length);
+      continue;
+    }
+    // Bold **text**
+    const bMatch = remaining.match(/^\*\*(.+?)\*\*/);
+    if (bMatch) {
+      parts.push(<strong key={parts.length}>{bMatch[1]}</strong>);
+      remaining = remaining.slice(bMatch[0].length);
+      continue;
+    }
+    // Italic *text*
+    const iMatch = remaining.match(/^\*(.+?)\*/);
+    if (iMatch) {
+      parts.push(<em key={parts.length}>{iMatch[1]}</em>);
+      remaining = remaining.slice(iMatch[0].length);
+      continue;
+    }
+    // Inline code `text`
+    const cMatch = remaining.match(/^`(.+?)`/);
+    if (cMatch) {
+      parts.push(<code key={parts.length} className="md-inline-code">{cMatch[1]}</code>);
+      remaining = remaining.slice(cMatch[0].length);
+      continue;
+    }
+    // Link [text](url)
+    const lMatch = remaining.match(/^\[(.+?)\]\((.+?)\)/);
+    if (lMatch) {
+      parts.push(<a key={parts.length} href={lMatch[2]} target="_blank" rel="noopener noreferrer">{lMatch[1]}</a>);
+      remaining = remaining.slice(lMatch[0].length);
+      continue;
+    }
+    // Plain text up to next special char
+    const next = remaining.search(/[*[`]/);
+    if (next === 0) {
+      parts.push(remaining[0]);
+      remaining = remaining.slice(1);
+    } else if (next > 0) {
+      parts.push(remaining.slice(0, next));
+      remaining = remaining.slice(next);
+    } else {
+      parts.push(remaining);
+      remaining = '';
+    }
+  }
+  return parts;
+}
+
 const MODE_PLACEHOLDERS = {
   plan: 'Discuss your idea with the AI...',
   act: 'Tell the AI what to build...',
@@ -152,9 +367,21 @@ export default function BuildPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        const response = data.result?.response || '';
-        setChatHistory(prev => [...prev, { role: 'assistant', content: response }]);
+        setChatHistory(data.session.chat_history || []);
         setCurrentSession(data.session);
+        // Auto-compact if chat history exceeds threshold
+        const totalChars = (data.session.chat_history || []).reduce(
+          (sum, m) => sum + (m.content?.length || 0), 0
+        );
+        if (totalChars > 8000) {
+          fetch(`${API_BASE}/mvp/compact-chat/${currentSession.session_id}`, {
+            method: 'POST', credentials: 'include',
+          }).then(r => r.json()).then(compactData => {
+            if (compactData.session?.chat_history) {
+              setChatHistory(compactData.session.chat_history);
+            }
+          }).catch(() => {});
+        }
         if (mode === 'act') {
           const filesRes = await fetch(`${API_BASE}/mvp/session/${currentSession.session_id}/files`, { credentials: 'include' });
           if (filesRes.ok) {
@@ -548,7 +775,7 @@ export default function BuildPage() {
               {chatHistory.map((msg, i) => (
                 <div key={i} className={`bp-msg ${msg.role}`}>
                   <div className="bp-msg-role">{msg.role === 'user' ? 'You' : 'AI Assistant'}</div>
-                  <div className="bp-msg-bubble">{msg.content}</div>
+                  <div className="bp-msg-bubble">{renderMarkdown(msg.content)}</div>
                 </div>
               ))}
               {typing && (

@@ -123,7 +123,7 @@ class MVPSession:
             "phases": [p.to_dict() for p in self.phases],
             "files": list(self.files.keys()),
             "file_data": self.files,  # Full file content dict
-            "chat_history": self.chat_history[-20:],  # Last 20 messages
+            "chat_history": self.chat_history,  # Full chat history
             "logs": self.logs[-50:],  # Last 50 logs
             "deploy_accepted": self.deploy_accepted,
             "deploy_github_url": self.deploy_github_url,
@@ -927,6 +927,64 @@ class MVPBuilder:
     </div>
 </body>
 </html>"""
+
+    def get_chat_total_chars(self, session_id: str) -> int:
+        """Get total character count of all messages in chat history."""
+        session = self.get_session(session_id)
+        if not session:
+            return 0
+        return sum(len(m.get("content", "")) for m in session.chat_history)
+
+    async def compact_chat_history(
+        self, session_id: str, threshold: int = 8000, keep_recent: int = 4
+    ) -> Dict[str, Any]:
+        """Compact old chat messages by summarizing them via AI."""
+        session = self.get_session(session_id)
+        if not session:
+            raise ValueError(f"Session {session_id} not found")
+
+        total_chars = sum(len(m.get("content", "")) for m in session.chat_history)
+        if total_chars < threshold:
+            return {"compacted": False, "chat_history": session.chat_history, "message": "Under threshold"}
+
+        to_compact = session.chat_history[:-keep_recent] if len(session.chat_history) > keep_recent else []
+        recent = session.chat_history[-keep_recent:] if len(session.chat_history) > keep_recent else session.chat_history
+
+        if not to_compact:
+            return {"compacted": False, "chat_history": session.chat_history, "message": "Nothing to compact"}
+
+        try:
+            agent = self._get_agent_for_specialization("coordinator")
+            if not agent:
+                agent = self.agent_manager.get_agent_by_name("CustodianAI")
+
+            compact_text = "\n".join(
+                f"{m.get('role', 'unknown')}: {m.get('content', '')}" for m in to_compact
+            )
+
+            current_phase = session.current_phase
+            phase_context = current_phase.name if current_phase else "building"
+            summary_prompt = (
+                f"Summarize the following MVP building conversation for the {phase_context} phase. "
+                f"Product idea: {session.product_idea}\n\n"
+                f"Preserve: what decisions were made, user preferences, what was built so far, "
+                f"and the current state of the project. Be concise (2-4 sentences)."
+                f"\n\nConversation to summarize:\n{compact_text}"
+            )
+
+            from src.agents.base_agent import AgentMessage
+            msg = AgentMessage(sender_id="mvp_builder", receiver_id=agent.agent_id, content=summary_prompt)
+            response = await self.agent_manager.send_message(msg)
+            summary = response.content.strip()
+
+            compacted = [{"role": "system", "content": f"[Compacted] {summary}", "timestamp": datetime.utcnow().isoformat()}, *recent]
+            session.chat_history = compacted
+            self._persist_to_db(session)
+            session.add_log(f"Chat compacted: {len(to_compact)} messages summarized")
+            return {"compacted": True, "chat_history": compacted, "message": f"Compacted {len(to_compact)} messages"}
+        except Exception as e:
+            logger.warning(f"Chat compaction failed: {e}")
+            return {"compacted": False, "chat_history": session.chat_history, "error": str(e)}
 
     async def write_file(self, session_id: str, path: str, content: str) -> bool:
         """Write a file to the session workspace."""

@@ -1839,6 +1839,28 @@ async def mvp_request_changes(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/mvp/compact-chat/{mvp_session_id}")
+async def mvp_compact_chat(
+    mvp_session_id: str,
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """Compress chat history by summarizing older messages to save tokens."""
+    try:
+        mvp_builder = get_mvp_builder_instance()
+        session = await get_owned_mvp_session(mvp_session_id, current_user)
+        result = await mvp_builder.compact_chat_history(mvp_session_id)
+        return {
+            "success": True,
+            "result": result,
+            "session": session.to_dict()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error compacting MVP chat: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.delete("/mvp/session/{mvp_session_id}")
 async def mvp_delete_session(
     mvp_session_id: str,
