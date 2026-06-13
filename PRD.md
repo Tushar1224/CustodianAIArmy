@@ -321,7 +321,8 @@ Users can switch between Google and Anthropic:
 | GET     | `/resumes/{id}/chat`                          | Get resume chat history                           |
 | PUT     | `/resumes/{id}/chat`                          | Save resume chat history                          |
 | POST    | `/resumes/parse`                              | Parse raw text to structured JSON                 |
-| POST    | `/resumes/upload`                             | Upload PDF/DOCX/TXT file                          |
+| POST    | `/resumes/upload`                             | Upload PDF/DOCX/TXT file (supports optional `jd` form field) |
+| POST    | `/resumes/extract-text`                      | Extract text from PDF/DOCX/TXT document (used for JD file upload) |
 | GET     | `/resumes/templates`                          | List templates (optional `?category=` filter)     |
 | POST    | `/resumes/templates`                          | Save a template                                   |
 | GET     | `/resumes/templates/categories`               | List all template categories                      |
@@ -576,6 +577,18 @@ A full-featured resume builder with AI-powered ATS optimization, document parsin
 | DOCX | Claude native document blocks or python-docx | Same — SDK parses native format when Claude provider active |
 | TXT | Direct read | Raw text → AI parsing |
 | DOC | — | Returns clear error (legacy format) |
+
+#### Job Description Integration
+The JD (Job Description) is central to the resume optimizer — it tailors the resume for ATS matching and informs all AI interactions.
+
+- **Paste JD**: Editable textarea in all three views (list, editor, viewer) — type or paste JD text directly
+- **Upload JD document**: A dedicated file-upload button accepts PDF/DOCX/TXT; text is extracted via `POST /resumes/extract-text` (uses `extract_text()` from `document_extractor.py`) and populated into the textarea
+- **Auto-expand**: When JD text is loaded, the section auto-expands to show a 6-row editable textarea; the collapsed header shows a ~180-char inline preview
+- **Consistent UX**: All three views share the same JD section pattern — collapsed preview, auto-expand, file upload, clear button, character count badge
+- **Upload integration**: When uploading a resume file, the current JD text is included as a form field (`jd`) and saved on the resume record from the start
+- **Optimize with JD**: The viewer's "Optimize with AI" button shows "Optimize with JD" when JD is loaded; triggers `POST /resumes/{id}/optimize` with `jd` parameter
+- **Chat with JD context**: `handleChatSend` passes `jd: jdText || null` to the optimize endpoint — all chat-based modifications are JD-aware
+- **JD persistence**: After every optimize or chat call, the JD is saved back to the resume record via `resume.jd`; survives across sessions
 
 #### Chat Compaction
 - `POST /resumes/{resume_id}/compact-chat` endpoint compresses old messages via AI summarization when total chars > 8000

@@ -579,6 +579,7 @@ A full-featured resume builder with AI-powered ATS optimization, document upload
 | **Add/Delete Controls** | "+ Add" link at bottom of each array section creates blank item and opens edit form; trash button inside inline edit header |
 | **Document Upload** | PDF, DOCX, TXT — Claude native document content blocks (no local extraction) or PyPDF2/python-docx fallback; AI parses to structured JSON |
 | **AI Optimization** | Tailor resume to a job description, improve ATS score above 90, template-aware output formatting |
+| **JD Integration** | Paste JD text or upload PDF/DOCX/TXT document in all three views — auto-expands on load, 6-row editable textarea, collapsed preview; JD persists on the resume and informs all AI optimization and chat modifications |
 | **Chat Modifications** | Type instructions like "Add more Python keywords" → AI updates resume + auto-saves |
 | **Chat Compaction** | Auto-compresses chat history when >8K chars via AI summarization; keeps last 4 messages; includes last 10 in optimize prompt context |
 | **Template System** | 5 built-in templates across categories (Professional, Academic, Technical, Creative, General) with non-destructive switching (preserves user data) |
@@ -609,7 +610,8 @@ A full-featured resume builder with AI-powered ATS optimization, document upload
 | POST | `/resumes/{id}/optimize` | AI-optimize with optional JD |
 | POST | `/resumes/{id}/compact-chat` | Compact chat history when > 8K chars |
 | POST | `/resumes/parse` | Parse raw text to structured JSON |
-| POST | `/resumes/upload` | Upload PDF/DOCX/TXT file |
+| POST | `/resumes/upload` | Upload PDF/DOCX/TXT file (optional `jd` form field) |
+| POST | `/resumes/extract-text` | Extract text from PDF/DOCX/TXT document (used for JD file upload) |
 | GET | `/resumes/templates` | List templates (optional `?category=` filter) |
 | POST | `/resumes/templates` | Save a template |
 | GET | `/resumes/templates/categories` | List all template categories |

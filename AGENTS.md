@@ -807,17 +807,29 @@ Templates used on resumes are now automatically saved to the database, building 
 | | **Optimize button in viewer**: Changed from conditional "Re-optimize" (only when ATS < 90) to always-visible "Optimize with JD" / "Optimize with AI" button; shows JD context on hover |
 | | **JD file extraction loading state**: `jdLoading` + `jdUploadStatus` states for JD document upload progress |
 
+### Polish — JD Visibility & Inline Editability
+| Change | Detail |
+|--------|--------|
+| Auto-expand on load | `useEffect` triggers `setShowJdInput(true)` whenever `jdText` becomes non-empty — JD section opens automatically |
+| Preview in collapsed state | When JD is loaded but section is collapsed, shows first ~180 chars as inline preview below the heading |
+| Larger editable textarea | Textarea grows from 3→6 rows when JD is loaded; already fully editable via `onChange` |
+| Editor JD section | Upgraded from bare 4-row textarea hidden behind collapse to full pattern (auto-expand, preview, file upload, clear button) matching list/viewer |
+| Consistent across all 3 views | List, Editor, and Viewer all share the same JD UX: collapsed preview + auto-expanded editable textarea + file upload + clear
+
 ### How it works
-1. **Paste JD**: User can paste JD text into the textarea in either list or viewer view
+1. **Paste JD**: User can paste JD text into the textarea in either list, editor, or viewer view
 2. **Upload JD document**: User clicks "Upload JD Document" button, picks a PDF/DOCX/TXT file → file sent to `/resumes/extract-text` → extracted text populated into JD textarea
-3. **Upload resume with JD**: When uploading a resume, the JD text is included as a form field → backend saves it on the resume record
-4. **Optimize with JD**: "Optimize with JD" button (always visible in viewer) sends `jd: jdText` to `/resumes/{id}/optimize` → AI tailors resume to the JD
-5. **Chat with JD context**: `handleChatSend` already passes `jd: jdText || null` → all chat-based modifications are JD-aware
-6. **JD persistence**: After any optimize/chat call, the JD is saved back to the resume record → persists across sessions
+3. **Auto-expand**: Once JD is loaded, the section auto-expands to show the full text in a 6-row editable textarea; a 180-char preview shows in the collapsed header
+4. **Upload resume with JD**: When uploading a resume, the JD text is included as a form field → backend saves it on the resume record
+5. **Optimize with JD**: "Optimize with JD" button (always visible in viewer) sends `jd: jdText` to `/resumes/{id}/optimize` → AI tailors resume to the JD
+6. **Chat with JD context**: `handleChatSend` already passes `jd: jdText || null` → all chat-based modifications are JD-aware
+7. **JD persistence**: After any optimize/chat call, the JD is saved back to the resume record → persists across sessions
 
 ### Key Design Decisions
 - JD document upload uses a dedicated lightweight endpoint (`/resumes/extract-text`) rather than overloading the main upload flow
-- JD section is collapsible to keep UI clean; shows character count badge when JD is loaded
+- JD section auto-expands on text load so the user always sees their JD content; shows preview in collapsed state
+- Three-... system means the JD is carried regardless of which view the user is in
+- All three views (list, editor, viewer) share identical JD UX: collapsed preview + auto-expand + file upload + clear
 - Optimize button always visible (not conditional on ATS score) so users can re-optimize anytime with new JD
-- No DB changes needed — `user_resumes` already had a `jd` column
+- No DB changes needed — `user_resumes` already had a `jd` column; `jd` form field added to upload endpoint
 - JD is included in both optimize and chat requests, so all AI interactions are JD-context-aware
