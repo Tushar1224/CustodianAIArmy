@@ -757,9 +757,9 @@ export default function ResumePage() {
               <button className="btn btn-primary" onClick={createResume}>
                 <i className="fas fa-plus me-2"></i>Create New Resume
               </button>
-              <label className="btn btn-outline-info">
-                <i className="fas fa-upload me-2"></i>Upload Resume
-                <input type="file" accept=".pdf,.doc,.docx,.txt" style={{ display: 'none' }} onChange={handleFileUpload} />
+              <label className={`btn ${loading ? 'btn-info disabled' : 'btn-outline-info'}`} style={{ cursor: loading ? 'not-allowed' : 'pointer' }}>
+                {loading ? <><span className="spinner-border spinner-border-sm me-2" role="status"></span>Uploading...</> : <><i className="fas fa-upload me-2"></i>Upload Resume</>}
+                <input type="file" accept=".pdf,.doc,.docx,.txt" style={{ display: 'none' }} onChange={handleFileUpload} disabled={loading} />
               </label>
             </div>
           </div>
