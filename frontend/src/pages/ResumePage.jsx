@@ -221,6 +221,8 @@ export default function ResumePage() {
 
   const [userTemplates, setUserTemplates] = useState([]);
   const [uploadStatus, setUploadStatus] = useState('');
+  const [jdUploadStatus, setJdUploadStatus] = useState('');
+  const [jdLoading, setJdLoading] = useState(false);
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -621,6 +623,7 @@ export default function ResumePage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      if (jdText?.trim()) formData.append('jd', jdText.trim());
       const uploadRes = await fetch(`${API_BASE}/resumes/upload`, {
         method: 'POST',
         credentials: 'include',
@@ -646,6 +649,35 @@ export default function ResumePage() {
     } catch (err) { console.error('Upload failed', err); alert('Upload error — is the backend running?'); }
     setLoading(false);
     input.value = '';
+  };
+
+  const handleJdFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setJdLoading(true);
+    setJdUploadStatus('Extracting text from document...');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${API_BASE}/resumes/extract-text`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setJdText(data.text || '');
+        setJdUploadStatus('');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setJdUploadStatus(`Extraction failed: ${err.detail || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('JD upload failed', err);
+      setJdUploadStatus('Upload error — is the backend running?');
+    }
+    setJdLoading(false);
+    e.target.value = '';
   };
 
   const saveChatHistory = async (history) => {
@@ -773,6 +805,38 @@ export default function ResumePage() {
                 <input type="file" accept=".pdf,.doc,.docx,.txt" style={{ display: 'none' }} onChange={handleFileUpload} disabled={loading} />
               </label>
             </div>
+          </div>
+
+          {/* Job Description (Optional) — persists across uploads */}
+          <div className="jd-section-list mb-4" style={{ background: 'var(--secondary-bg)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '0.75rem 1rem' }}>
+            <div className="d-flex justify-content-between align-items-center mb-1">
+              <h6 style={{ margin: 0, color: 'var(--primary-color)', fontSize: '0.85rem', cursor: 'pointer' }}
+                  onClick={() => setShowJdInput(!showJdInput)}>
+                <i className="fas fa-briefcase me-2"></i>Job Description (Optional)
+                <i className={`fas fa-chevron-${showJdInput ? 'up' : 'down'} ms-2`} style={{ fontSize: '0.65rem', opacity: 0.6 }}></i>
+              </h6>
+              {jdText && <span className="badge bg-success" style={{ fontSize: '0.65rem' }}>{jdText.length} chars loaded</span>}
+            </div>
+            {showJdInput && (
+              <div>
+                <textarea className="form-control" rows="3" value={jdText}
+                  onChange={e => setJdText(e.target.value)}
+                  placeholder="Paste a job description here, or upload a JD document below. The JD will be used when optimizing or chatting about your resume."
+                  style={{ background: 'var(--tertiary-bg)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.85rem' }} />
+                <div className="d-flex align-items-center gap-2 mt-2">
+                  <label className={`btn btn-sm ${jdLoading ? 'btn-info disabled' : 'btn-outline-secondary'}`} style={{ fontSize: '0.75rem', cursor: jdLoading ? 'not-allowed' : 'pointer' }}>
+                    {jdLoading ? <><span className="spinner-border spinner-border-sm me-1" role="status"></span>Extracting...</> : <><i className="fas fa-upload me-1"></i>Upload JD Document</>}
+                    <input type="file" accept=".pdf,.doc,.docx,.txt" style={{ display: 'none' }} onChange={handleJdFileUpload} disabled={jdLoading} />
+                  </label>
+                  {jdText && (
+                    <button className="btn btn-sm btn-outline-danger" style={{ fontSize: '0.75rem' }} onClick={() => setJdText('')}>
+                      <i className="fas fa-times me-1"></i> Clear
+                    </button>
+                  )}
+                  {jdUploadStatus && <span className="text-warning" style={{ fontSize: '0.75rem' }}>{jdUploadStatus}</span>}
+                </div>
+              </div>
+            )}
           </div>
 
           {resumes.length === 0 && !loading && (
@@ -1517,11 +1581,10 @@ export default function ResumePage() {
                   ))}
                 </ul>
               </div>
-              {currentResume?.ats_score != null && currentResume.ats_score < 90 && (
-                <button className="btn btn-sm btn-warning" onClick={optimizeResume} disabled={loading}>
-                  <i className="fas fa-magic me-1"></i> Re-optimize
-                </button>
-              )}
+              <button className="btn btn-sm btn-warning" onClick={optimizeResume} disabled={loading}
+                title={jdText ? `Optimizing with JD: ${jdText.slice(0, 80)}...` : 'Optimize without JD'}>
+                <i className="fas fa-magic me-1"></i> {jdText ? 'Optimize with JD' : 'Optimize with AI'}
+              </button>
               <button className="btn btn-sm btn-outline-info" onClick={() => {
                 const win = window.open('', '_blank');
                 const doc = document.querySelector('.resume-preview-doc');
@@ -1540,6 +1603,47 @@ export default function ResumePage() {
                 <i className="fas fa-arrow-left me-1"></i> Back
               </button>
             </div>
+          </div>
+
+          {/* Viewer: JD Section */}
+          <div className="jd-section-viewer mb-3" style={{ background: 'var(--secondary-bg)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '0.75rem 1rem' }}>
+            <div className="d-flex justify-content-between align-items-center mb-1">
+              <h6 style={{ margin: 0, color: 'var(--primary-color)', fontSize: '0.85rem', cursor: 'pointer' }}
+                  onClick={() => setShowJdInput(!showJdInput)}>
+                <i className="fas fa-briefcase me-2"></i>Job Description
+                <i className={`fas fa-chevron-${showJdInput ? 'up' : 'down'} ms-2`} style={{ fontSize: '0.65rem', opacity: 0.6 }}></i>
+              </h6>
+              {jdText ? (
+                <span className="badge bg-success" style={{ fontSize: '0.65rem' }}>{jdText.length} chars</span>
+              ) : (
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Optional — paste or upload a JD</span>
+              )}
+            </div>
+            {showJdInput && (
+              <div>
+                <textarea className="form-control" rows="3" value={jdText}
+                  onChange={e => setJdText(e.target.value)}
+                  placeholder="Paste a job description here, or upload one below. The JD will be used when optimizing or chatting about your resume."
+                  style={{ background: 'var(--tertiary-bg)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.85rem' }} />
+                <div className="d-flex align-items-center gap-2 mt-2">
+                  <label className={`btn btn-sm ${jdLoading ? 'btn-info disabled' : 'btn-outline-secondary'}`} style={{ fontSize: '0.75rem', cursor: jdLoading ? 'not-allowed' : 'pointer' }}>
+                    {jdLoading ? <><span className="spinner-border spinner-border-sm me-1" role="status"></span>Extracting...</> : <><i className="fas fa-upload me-1"></i>Upload JD Document</>}
+                    <input type="file" accept=".pdf,.doc,.docx,.txt" style={{ display: 'none' }} onChange={handleJdFileUpload} disabled={jdLoading} />
+                  </label>
+                  {jdText && (
+                    <>
+                      <button className="btn btn-sm btn-outline-danger" style={{ fontSize: '0.75rem' }} onClick={() => setJdText('')}>
+                        <i className="fas fa-times me-1"></i> Clear
+                      </button>
+                      <button className="btn btn-sm btn-success" onClick={optimizeResume} disabled={loading} style={{ fontSize: '0.75rem' }}>
+                        <i className="fas fa-magic me-1"></i> Optimize with JD
+                      </button>
+                    </>
+                  )}
+                  {jdUploadStatus && <span className="text-warning" style={{ fontSize: '0.75rem' }}>{jdUploadStatus}</span>}
+                </div>
+              </div>
+            )}
           </div>
 
         <div className="viewer-two-column d-flex gap-3" style={{ flexWrap: isMobile ? 'wrap' : 'nowrap' }}>

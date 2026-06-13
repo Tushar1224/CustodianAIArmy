@@ -786,3 +786,38 @@ Templates used on resumes are now automatically saved to the database, building 
 - Upload button uses inline loading state (no overlay) to minimize visual disruption
 - `disabled` attribute on hidden file input prevents accidental double-upload even if button styling is bypassed
 - All 404 paths use a single pattern: detect status → show warning → redirect to list, ensuring the viewer never shows stale data
+
+## Session: 2026-06-13 — JD Upload & Optimize Integration
+
+### What was done
+
+#### Backend
+| File | Change |
+|------|--------|
+| `src/api/routes.py` | Added `POST /resumes/extract-text` endpoint — accepts PDF/DOCX/TXT file, extracts text via `extract_text()`, returns raw text for JD population |
+| | Modified `POST /resumes/upload` — added optional `jd: Optional[str] = Form(None)` parameter; saves JD on the resume record after upload |
+
+#### Frontend
+| File | Change |
+|------|--------|
+| `frontend/src/pages/ResumePage.jsx` | **JD section in list view**: Collapsible section below upload buttons with textarea for pasting JD + file upload button for JD documents (PDF/DOCX/TXT); uploads JD document to `/resumes/extract-text` and populates textarea |
+| | **JD section in viewer**: Same collapsible section after viewer header, before two-column layout, with "Optimize with JD" button inside the JD section |
+| | **`handleJdFileUpload()`**: New function that sends JD document to `/resumes/extract-text`, populates `jdText` state with extracted text |
+| | **`handleFileUpload` modified**: Now includes `jdText` in FormData when uploading resume, so JD is saved from the start |
+| | **Optimize button in viewer**: Changed from conditional "Re-optimize" (only when ATS < 90) to always-visible "Optimize with JD" / "Optimize with AI" button; shows JD context on hover |
+| | **JD file extraction loading state**: `jdLoading` + `jdUploadStatus` states for JD document upload progress |
+
+### How it works
+1. **Paste JD**: User can paste JD text into the textarea in either list or viewer view
+2. **Upload JD document**: User clicks "Upload JD Document" button, picks a PDF/DOCX/TXT file → file sent to `/resumes/extract-text` → extracted text populated into JD textarea
+3. **Upload resume with JD**: When uploading a resume, the JD text is included as a form field → backend saves it on the resume record
+4. **Optimize with JD**: "Optimize with JD" button (always visible in viewer) sends `jd: jdText` to `/resumes/{id}/optimize` → AI tailors resume to the JD
+5. **Chat with JD context**: `handleChatSend` already passes `jd: jdText || null` → all chat-based modifications are JD-aware
+6. **JD persistence**: After any optimize/chat call, the JD is saved back to the resume record → persists across sessions
+
+### Key Design Decisions
+- JD document upload uses a dedicated lightweight endpoint (`/resumes/extract-text`) rather than overloading the main upload flow
+- JD section is collapsible to keep UI clean; shows character count badge when JD is loaded
+- Optimize button always visible (not conditional on ATS score) so users can re-optimize anytime with new JD
+- No DB changes needed — `user_resumes` already had a `jd` column
+- JD is included in both optimize and chat requests, so all AI interactions are JD-context-aware

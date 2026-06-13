@@ -2144,12 +2144,33 @@ Return ONLY valid JSON with this exact structure (use empty arrays/strings for m
 
 import tempfile
 from pathlib import Path
-from fastapi import UploadFile, File
+from fastapi import UploadFile, File, Form
+
+
+@router.post("/resumes/extract-text")
+async def extract_text_from_document(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """Extract text from an uploaded document (PDF, DOCX, TXT). Used for JD file upload."""
+    try:
+        ext = Path(file.filename).suffix.lower() if file.filename else '.txt'
+        if ext not in {'.pdf', '.docx', '.txt'}:
+            raise HTTPException(status_code=400, detail=f"Unsupported file type '{ext}'. Use PDF, DOCX, or TXT.")
+        contents = await file.read()
+        text = extract_text(contents, file.filename or 'document.txt')
+        return {"text": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error extracting text: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Text extraction failed: {str(e)}")
 
 
 @router.post("/resumes/upload")
 async def upload_resume_document(
     file: UploadFile = File(...),
+    jd: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user_from_cookies)
 ):
     try:
@@ -2247,6 +2268,7 @@ Return ONLY valid JSON with this exact structure (use empty arrays/strings for m
             "title": title,
             "data": parsed_data,
             "template_name": template_name,
+            "jd": jd.strip() if jd else None,
             "created_at": now,
         })
         save_template(template_name, parsed_data, current_user.email, category=detected_category)
