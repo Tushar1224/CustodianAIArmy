@@ -574,15 +574,19 @@ A full-featured resume builder with AI-powered ATS optimization, document upload
 ### Features
 | Feature | Description |
 |---------|-------------|
-| **3-View Layout** | List (card grid with ATS scores), Editor (form + templates + live preview), Viewer (NOVA-style document with inline edit, add/delete controls) |
-| **Document Upload** | PDF, DOCX, TXT — text extraction + AI parsing to structured JSON; Claude-native document content blocks (no local extraction needed) |
-| **AI Optimization** | Tailor resume to a job description, improve ATS score above 90, score breakdown |
+| **3-View Layout** | List (card grid with ATS scores, upload spinner), Editor (form + templates + live preview), Viewer (NOVA-style document with inline edit, add/delete controls) |
+| **Inline Editing** | `contentEditable` personal_info fields (click to edit, blur saves); pencil-icon inline forms for array sections (education, experience, certs, projects, achievements); comma-separated skills editing |
+| **Add/Delete Controls** | "+ Add" link at bottom of each array section creates blank item and opens edit form; trash button inside inline edit header |
+| **Document Upload** | PDF, DOCX, TXT — Claude native document content blocks (no local extraction) or PyPDF2/python-docx fallback; AI parses to structured JSON |
+| **AI Optimization** | Tailor resume to a job description, improve ATS score above 90, template-aware output formatting |
 | **Chat Modifications** | Type instructions like "Add more Python keywords" → AI updates resume + auto-saves |
-| **Template System** | 5 built-in templates across categories (Professional, Academic, Technical, Creative, General) |
+| **Chat Compaction** | Auto-compresses chat history when >8K chars via AI summarization; keeps last 4 messages; includes last 10 in optimize prompt context |
+| **Template System** | 5 built-in templates across categories (Professional, Academic, Technical, Creative, General) with non-destructive switching (preserves user data) |
 | **Section Management** | Enable/disable any of 12 section types per resume |
-| **Multi-Page Support** | Templates can define multiple pages (e.g., Academic has 2 pages) |
+| **Multi-Page Support** | Templates can define multiple pages (e.g., Academic has 2 pages); Prev/Next navigation in viewer |
 | **Template Accumulation** | Every unique template used is auto-saved to DB and globally available |
-| **Inline Diff Review** | Per-field accept/reject for personal_info fields, per-section accept/reject for array sections, red/green OLD vs AI PROPOSED display, compact Accept All/Reject All bar in document |
+| **Inline Diff Review** | Per-field accept/reject for personal_info fields, per-section accept/reject for array sections, red/green OLD vs AI PROPOSED display, compact Accept All/Reject All bar at document bottom |
+| **Graceful 404 Handling** | If resume deleted server-side mid-session, viewer/chat gracefully redirects to list with user notification |
 | **Responsive** | Desktop two-column layout, stacks vertically on mobile (<768px) |
 
 ### Built-in Templates

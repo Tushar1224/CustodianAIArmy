@@ -1,6 +1,6 @@
 # Custodian AI Army — Product Requirements Document
 
-> **Version:** 1.4.0 · **Last Updated:** 2026-06-13  
+> **Version:** 1.5.0 · **Last Updated:** 2026-06-13  
 > **Project:** Custodian AI Army — A futuristic multi-agent AI orchestration system
 
 ---
@@ -307,7 +307,27 @@ Users can switch between Google and Anthropic:
 | POST    | `/api/v1/auth/user/chats`                      | Save user chat             |
 | DELETE | `/api/v1/auth/user/chats/{id}`                 | Delete chat                |
 
-### 6.7 Webhooks
+### 6.7 Resumes
+
+| Method  | Path                                          | Description                                       |
+|---------|-----------------------------------------------|---------------------------------------------------|
+| GET     | `/resumes`                                    | List user's resumes                               |
+| POST    | `/resumes`                                    | Create new resume                                 |
+| GET     | `/resumes/{id}`                               | Get single resume                                 |
+| PUT     | `/resumes/{id}`                               | Update resume                                     |
+| DELETE  | `/resumes/{id}`                               | Delete resume                                     |
+| POST    | `/resumes/{id}/optimize`                      | AI-optimize with optional JD                      |
+| POST    | `/resumes/{id}/compact-chat`                  | Compact chat history when > 8K chars              |
+| GET     | `/resumes/{id}/chat`                          | Get resume chat history                           |
+| PUT     | `/resumes/{id}/chat`                          | Save resume chat history                          |
+| POST    | `/resumes/parse`                              | Parse raw text to structured JSON                 |
+| POST    | `/resumes/upload`                             | Upload PDF/DOCX/TXT file                          |
+| GET     | `/resumes/templates`                          | List templates (optional `?category=` filter)     |
+| POST    | `/resumes/templates`                          | Save a template                                   |
+| GET     | `/resumes/templates/categories`               | List all template categories                      |
+| GET     | `/resumes/extract-templates`                  | Extract unique template structures from all resumes|
+
+### 6.8 Webhooks
 
 | Method | Path                             | Description           |
 |--------|----------------------------------|-----------------------|
@@ -525,37 +545,55 @@ Component: `frontend/src/components/layout/AdSenseAd.jsx` | Publisher: `ca-pub-6
 
 ### 8.5 Resume Optimizer (`/resume`)
 
-A full-featured resume builder with AI-powered ATS optimization, document parsing, multi-template support, and chat-based modifications.
+A full-featured resume builder with AI-powered ATS optimization, document parsing, multi-template support, and chat-based modifications with inline review.
 
 #### Views
-1. **List View** — Card grid of all user resumes with ATS score badges, inline title rename
-2. **Editor View** — Split panel: LHS has collapsible template selector (category tabs + 5 templates + user-accumulated) + 7-tab form (Personal, Education, Experience, Skills, Certs, Projects, Achievements) + section management checkboxes; RHS has JD input + live preview
-3. **Viewer View** — 2-column: LHS = NOVA-style white document with click-to-edit all fields, inline add/delete controls for array sections, per-field accept/reject inline diff review; RHS = chat modifications + ATS suggestions; compact template badge dropdown in top action bar
+1. **List View** — Card grid of all user resumes with ATS score badges, inline title rename, upload button with loading spinner
+2. **Editor View** — Split panel: LHS has collapsible template selector (category tabs + 5 built-in templates + user-accumulated) + 7-tab form (Personal, Education, Experience, Skills, Certs, Projects, Achievements) + section management checkboxes; RHS has JD input + live preview
+3. **Viewer View** — 2-column: LHS = NOVA-style white document with click-to-edit all fields (`contentEditable` for personal_info, pencil-icon inline forms for arrays), inline add/delete controls for array sections, per-field accept/reject inline diff review, compact Accept All/Reject All bar at document bottom; RHS = chat modifications + ATS suggestions; compact template badge dropdown in top action bar. Page title shows "Resume Optimizer — {resume name}" consistently.
+
+#### Inline Editing (Viewer)
+- **Personal info fields** (name, title, email, phone, linkedin, github, website, summary) — `contentEditable` on click; blur or Enter saves
+- **Array sections** (education, experience, certifications, projects, achievements) — click pencil icon or item to open inline multi-field form with Done button
+- **Skills** — click to edit as comma-separated list, saves as `{id, value}` objects
+- **Add controls** — "+ Add" link at bottom of each array section creates blank item and opens edit form (`getBlankItem()` helper returns per-section empty templates)
+- **Delete controls** — trash button inside each inline edit form header
+- Changes update `currentResume.data` immediately but do NOT auto-save to backend
 
 #### Template System
 - **5 built-in templates** across 5 categories (Professional, Academic, Technical, Creative, General) with section definitions, multi-page layouts, and styling
+- **Non-destructive switching** — applying a new template preserves existing data; intelligent merge: template structure → overwrite with existing data per section → keep extra sections not in template
+- **Only Modern Professional has demo data** — other 4 templates are structure-only; AI optimization can populate them
 - **Section management** — checkboxes to enable/disable any of 12 section types per resume (personal_info, summary, education, experience, skills, certifications, projects, achievements, languages, publications, volunteering, references)
 - **Template accumulation** — every unique template used is auto-saved to `user_templates` DB table with `category` and `section_defs`; globally available to all users
 - **Multi-page** — templates define page layouts with section-to-page mapping; viewer shows Prev/Next navigation
+- **Category-tabbed selector** — both editor and viewer show built-in + user templates filtered by selected category
 
 #### Upload & Parsing
 | File Type | Backend | Extraction |
 |-----------|---------|------------|
-| PDF | PyPDF2 | Full text extraction |
-| DOCX | python-docx | Full text extraction |
-| TXT | Direct read | Raw text |
+| PDF | Claude native document blocks or PyPDF2 | Full text extraction; Claude parses as base64 `document` content block directly |
+| DOCX | Claude native document blocks or python-docx | Same — SDK parses native format when Claude provider active |
+| TXT | Direct read | Raw text → AI parsing |
 | DOC | — | Returns clear error (legacy format) |
+
+#### Chat Compaction
+- `POST /resumes/{resume_id}/compact-chat` endpoint compresses old messages via AI summarization when total chars > 8000
+- Keeps last 4 messages as-is; stores `[{role:"system", content:"[Compacted]..."}, ...recent]`
+- Frontend `saveChatHistory()` auto-triggers compaction after each save if threshold exceeded
+- Optimize prompt includes last 10 chat messages for context continuity
 
 #### AI Optimization Flow
 1. User clicks Optimize or sends chat instruction
-2. Backend calls `TechnicalAI` agent (falls back to `CustodianAI`) with full resume data + template context + optional JD
-3. Agent returns structured JSON: `optimized_data`, `ats_score`, `changes`, `suggestions`, `score_breakdown`
-4. Frontend computes diffs per section/field — enters **review mode** with yellow document outline
-5. Each changed section shows OLD (red strikethrough) vs AI PROPOSED (green bold) side by side
-6. **Per-field accept/reject** for personal_info fields (name, title, email, phone, etc.) — individual Accept/Reject buttons next to each changed field
+2. Backend calls `TechnicalAI` agent (falls back to `CustodianAI`) with full resume data + template context (section_defs, pages, styling) + optional JD + last 10 chat messages
+3. Agent returns structured JSON: `optimized_data` (changed fields only), `ats_score`, `changes`, `suggestions`, `score_breakdown`
+4. Frontend computes diffs per section/field via `computeDiffSections()` — enters **review mode** with yellow document outline
+5. Each changed section shows **OLD** (red bg, strikethrough) and **AI PROPOSED** (green bg, bold) side by side
+6. **Per-field accept/reject** for personal_info fields (name, title, email, phone, linkedin, github, website, summary) — individual Accept/Reject buttons next to each changed field; labels like "Accept role" for title field
 7. **Per-section accept/reject** for array sections (education, experience, skills, certs, projects, achievements) — Accept/Reject at section level
-8. **Accept All / Reject All** compact bar at bottom of document below all green diffs
-9. Accepted changes merge into `currentResume.data` immediately; on Accept All, saved to backend via PUT
+8. **404 handling** — if resume deleted on server mid-session, viewer gracefully redirects to list view
+9. **Compact Accept All / Reject All** bar at bottom of document below all green diffs
+10. Accepted changes merge into `currentResume.data` immediately; on Accept All, saved to backend via PUT
 
 #### Storage & Rate Limits
 | Plan | Max Resumes | Optimization Rate |
@@ -567,13 +605,15 @@ A full-featured resume builder with AI-powered ATS optimization, document parsin
 #### Key Files
 | File | Purpose |
 |------|---------|
-| `frontend/src/pages/ResumePage.jsx` | 3-view React component (~2250 lines) — inline editing, add/delete controls, per-field diff review |
-| `src/api/routes.py` | 12 resume endpoints (includes `/compact-chat`) |
-| `src/core/database.py` | `user_resumes` + `user_templates` tables, CRUD |
-| `src/core/document_extractor.py` | PDF/DOCX/TXT text extraction |
-| `src/agents/claude_agent.py` | `parse_document()` — native Claude document content block parsing |
+| `frontend/src/pages/ResumePage.jsx` | 3-view React component (~2199 lines) — inline editing, add/delete controls, per-field diff review, 404 handling |
+| `src/api/routes.py` | 16 resume endpoints (~2264 lines total) — CRUD, optimize, upload, parse, chat, templates, compact-chat, extract-templates |
+| `src/core/database.py` | `user_resumes` + `user_templates` tables, CRUD functions, chat history compaction |
+| `src/core/document_extractor.py` | PDF/DOCX/TXT text extraction (PyPDF2, python-docx) |
+| `src/agents/claude_agent.py` | `parse_document()` — native Claude document content block parsing (no local extraction) |
+| `check_resume.py` | Resume-specific test/helper script |
+| `check_build.py` | Build verification helper |
 
-### 8.5 Known Issues & Fixes
+### 8.6 Known Issues & Fixes
 
 | Issue | Fix |
 |-------|-----|

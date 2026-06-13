@@ -770,3 +770,19 @@ Templates used on resumes are now automatically saved to the database, building 
 - `renderDiffActions` still handles non-personal_info sections (education, experience, etc.) at the section level
 - Compact Accept All / Reject All bar is inside the document div (below all section diffs) so it's visually at the bottom of the review content
 - Page title "Resume Optimizer" now appears consistently across list, viewer, and editor views
+
+## Session: 2026-06-13 — 404 Graceful Handling + Upload Loading State
+
+### What was done
+
+| File | Change |
+|------|--------|
+| `frontend/src/pages/ResumePage.jsx` | **404 handling in optimizeResume + saveAcceptedData**: If resume returns 404 (deleted server-side), automatically switches to list view (`setView('list')`) + clears `currentResume` |
+| | **404 handling in chat optimization**: If 404 on chat send, shows user-facing warning "This resume no longer exists" in chat, then auto-redirects to list after 2s timeout |
+| | **Upload button loading state**: Shows spinner + "Uploading..." text with disabled styling during file upload; disables file input to prevent double-submit |
+
+### Key Design Decisions
+- Chat 404 uses 2s `setTimeout` before navigating to list so user sees the warning message before being redirected
+- Upload button uses inline loading state (no overlay) to minimize visual disruption
+- `disabled` attribute on hidden file input prevents accidental double-upload even if button styling is bypassed
+- All 404 paths use a single pattern: detect status → show warning → redirect to list, ensuring the viewer never shows stale data
