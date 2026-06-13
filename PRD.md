@@ -1,6 +1,6 @@
 # Custodian AI Army — Product Requirements Document
 
-> **Version:** 1.3.0 · **Last Updated:** 2026-06-10  
+> **Version:** 1.4.0 · **Last Updated:** 2026-06-13  
 > **Project:** Custodian AI Army — A futuristic multi-agent AI orchestration system
 
 ---
@@ -530,7 +530,7 @@ A full-featured resume builder with AI-powered ATS optimization, document parsin
 #### Views
 1. **List View** — Card grid of all user resumes with ATS score badges, inline title rename
 2. **Editor View** — Split panel: LHS has collapsible template selector (category tabs + 5 templates + user-accumulated) + 7-tab form (Personal, Education, Experience, Skills, Certs, Projects, Achievements) + section management checkboxes; RHS has JD input + live preview
-3. **Viewer View** — 2-column: LHS = NOVA-style white document with click-to-edit fields; RHS = chat modifications + ATS suggestions; compact template badge dropdown in top action bar
+3. **Viewer View** — 2-column: LHS = NOVA-style white document with click-to-edit all fields, inline add/delete controls for array sections, per-field accept/reject inline diff review; RHS = chat modifications + ATS suggestions; compact template badge dropdown in top action bar
 
 #### Template System
 - **5 built-in templates** across 5 categories (Professional, Academic, Technical, Creative, General) with section definitions, multi-page layouts, and styling
@@ -550,8 +550,12 @@ A full-featured resume builder with AI-powered ATS optimization, document parsin
 1. User clicks Optimize or sends chat instruction
 2. Backend calls `TechnicalAI` agent (falls back to `CustodianAI`) with full resume data + template context + optional JD
 3. Agent returns structured JSON: `optimized_data`, `ats_score`, `changes`, `suggestions`, `score_breakdown`
-4. Frontend deep-merges `optimized_data` into existing resume data (partial response doesn't wipe fields)
-5. Auto-saves via PUT to backend
+4. Frontend computes diffs per section/field — enters **review mode** with yellow document outline
+5. Each changed section shows OLD (red strikethrough) vs AI PROPOSED (green bold) side by side
+6. **Per-field accept/reject** for personal_info fields (name, title, email, phone, etc.) — individual Accept/Reject buttons next to each changed field
+7. **Per-section accept/reject** for array sections (education, experience, skills, certs, projects, achievements) — Accept/Reject at section level
+8. **Accept All / Reject All** compact bar at bottom of document below all green diffs
+9. Accepted changes merge into `currentResume.data` immediately; on Accept All, saved to backend via PUT
 
 #### Storage & Rate Limits
 | Plan | Max Resumes | Optimization Rate |
@@ -563,10 +567,11 @@ A full-featured resume builder with AI-powered ATS optimization, document parsin
 #### Key Files
 | File | Purpose |
 |------|---------|
-| `frontend/src/pages/ResumePage.jsx` | 3-view React component (~1550 lines) |
-| `src/api/routes.py` | 11 resume endpoints |
+| `frontend/src/pages/ResumePage.jsx` | 3-view React component (~2250 lines) — inline editing, add/delete controls, per-field diff review |
+| `src/api/routes.py` | 12 resume endpoints (includes `/compact-chat`) |
 | `src/core/database.py` | `user_resumes` + `user_templates` tables, CRUD |
 | `src/core/document_extractor.py` | PDF/DOCX/TXT text extraction |
+| `src/agents/claude_agent.py` | `parse_document()` — native Claude document content block parsing |
 
 ### 8.5 Known Issues & Fixes
 

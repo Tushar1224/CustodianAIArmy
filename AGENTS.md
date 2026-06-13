@@ -749,3 +749,24 @@ Templates used on resumes are now automatically saved to the database, building 
 - Skills uses a special case: clicking "+ Add Skill" opens the comma-separated input with a blank field
 - All add/delete operations update `currentResume.data` in state immediately but do NOT auto-save to backend (user must trigger save elsewhere, or Accept All in review mode)
 - Build passes clean (Vite, chunk size warning is cosmetic)
+
+## Session: 2026-06-13 — Per-Field Accept/Reject + Compact Review Bar + Page Titles
+
+### What was done
+
+| File | Change |
+|------|--------|
+| `frontend/src/pages/ResumePage.jsx` | **Per-field accept/reject for personal_info**: Added `personalFieldRemaining` Set to `pendingChanges` state; Added `acceptPersonalField(field)` and `rejectPersonalField(field)` — merges/rejects individual personal_info fields (full_name, title/role, email, phone, linkedin, github, website, summary) instead of whole-section accept/reject |
+| | **`renderFieldAction(field)`**: New helper that shows Accept/Reject buttons per personal_info field, with label "Accept role" for the title field |
+| | **Compact Accept All / Reject All**: Moved from a large floating yellow bar above the chat panel into a single compact line at the bottom of the resume document (below all sections), below the green AI PROPOSED diffs |
+| | **`acceptAllChanges` fix**: Now calls `setPendingChanges(null)` + `setRemainingSections(null)` after saving, so the preview becomes editable again after accepting all |
+| | **Page title consistency**: Viewer changed from "Resume Preview" to "Resume Optimizer" with resume name subtitle; Editor now shows "Resume Optimizer" breadcrumb above the resume title; List already had it |
+| | `renderFieldAction`, `acceptPersonalField`, `rejectPersonalField` added to support per-field personal_info accept/reject |
+| | `personalFieldRemaining` added to both `optimizeResume` and `handleChatSend` `setPendingChanges` calls |
+
+### Key Design Decisions
+- `renderFieldAction` only renders when the field is in `personalFieldRemaining` Set — once accepted/rejected, buttons disappear for that field
+- When all personal_info fields are resolved, `personal_info` is automatically removed from `remainingSections`; if no sections remain, review mode exits
+- `renderDiffActions` still handles non-personal_info sections (education, experience, etc.) at the section level
+- Compact Accept All / Reject All bar is inside the document div (below all section diffs) so it's visually at the bottom of the review content
+- Page title "Resume Optimizer" now appears consistently across list, viewer, and editor views

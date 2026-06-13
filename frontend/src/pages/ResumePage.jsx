@@ -416,6 +416,49 @@ export default function ResumePage() {
     });
   };
 
+  const acceptPersonalField = (field) => {
+    setPendingChanges(prev => {
+      if (!prev) return prev;
+      const newRemaining = new Set(prev.personalFieldRemaining || []);
+      newRemaining.delete(field);
+      const newOriginal = { ...prev.originalData };
+      newOriginal.personal_info = { ...(newOriginal.personal_info || {}), [field]: prev.optimizedData.personal_info?.[field] };
+      setCurrentResume(cr => ({ ...cr, data: newOriginal }));
+      if (newRemaining.size === 0) {
+        const rem = new Set(prev.remainingSections);
+        rem.delete('personal_info');
+        if (rem.size === 0) {
+          setPendingChanges(null);
+          setRemainingSections(null);
+          return null;
+        }
+        setRemainingSections(rem);
+        return { ...prev, originalData: newOriginal, remainingSections: rem, personalFieldRemaining: new Set() };
+      }
+      return { ...prev, originalData: newOriginal, personalFieldRemaining: newRemaining };
+    });
+  };
+
+  const rejectPersonalField = (field) => {
+    setPendingChanges(prev => {
+      if (!prev) return prev;
+      const newRemaining = new Set(prev.personalFieldRemaining || []);
+      newRemaining.delete(field);
+      if (newRemaining.size === 0) {
+        const rem = new Set(prev.remainingSections);
+        rem.delete('personal_info');
+        if (rem.size === 0) {
+          setPendingChanges(null);
+          setRemainingSections(null);
+          return null;
+        }
+        setRemainingSections(rem);
+        return { ...prev, remainingSections: rem, personalFieldRemaining: new Set() };
+      }
+      return { ...prev, personalFieldRemaining: newRemaining };
+    });
+  };
+
   const saveAcceptedData = async (data, optimization) => {
     setLoading(true);
     try {
@@ -451,6 +494,7 @@ export default function ResumePage() {
         if (data.optimization?.optimized_data) {
           const originalData = JSON.parse(JSON.stringify(currentResume.data));
           const diffSections = computeDiffSections(data.optimization.optimized_data, originalData);
+          const personalFields = getChangedFields(data.optimization.optimized_data, originalData);
           setRemainingSections(diffSections);
           setPendingChanges({
             originalData,
@@ -458,6 +502,7 @@ export default function ResumePage() {
             remainingSections: diffSections,
             optimization: data.optimization,
             changes: data.optimization.changes || [],
+            personalFieldRemaining: personalFields,
           });
           if (data.optimization.ats_score) {
             setCurrentResume(prev => ({ ...prev, ats_score: data.optimization.ats_score }));
@@ -636,6 +681,8 @@ export default function ResumePage() {
       achievements: pendingChanges.optimizedData.achievements || pendingChanges.originalData?.achievements || [],
     };
     await saveAcceptedData(mergedData, pendingChanges.optimization);
+    setPendingChanges(null);
+    setRemainingSections(null);
   };
 
   const rejectAllChanges = () => {
@@ -662,6 +709,7 @@ export default function ResumePage() {
         if (data.optimization?.optimized_data) {
           const originalData = JSON.parse(JSON.stringify(currentResume.data));
           const diffSections = computeDiffSections(data.optimization.optimized_data, originalData);
+          const personalFields = getChangedFields(data.optimization.optimized_data, originalData);
           setRemainingSections(diffSections);
           setPendingChanges({
             originalData,
@@ -669,6 +717,7 @@ export default function ResumePage() {
             remainingSections: diffSections,
             optimization: data.optimization,
             changes: data.optimization.changes || [],
+            personalFieldRemaining: personalFields,
           });
           if (data.optimization.ats_score) {
             setCurrentResume(prev => ({ ...prev, ats_score: data.optimization.ats_score }));
@@ -1391,8 +1440,9 @@ export default function ResumePage() {
           <div className="d-flex justify-content-between align-items-center mb-4">
             <div>
               <h4 style={{ color: 'var(--primary-color)' }}>
-                <i className="fas fa-file-alt me-2"></i>Resume Preview
+                <i className="fas fa-file-alt me-2"></i>Resume Optimizer
               </h4>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{currentResume?.title || 'Untitled'}</span>
               {currentResume?.ats_score != null && (
                 <div className="d-flex align-items-center gap-3 mt-1">
                   <div className="ats-score-display d-flex align-items-center gap-2">
@@ -1567,6 +1617,23 @@ export default function ResumePage() {
                 );
               };
 
+              const renderFieldAction = (field) => {
+                const remaining = pendingChanges?.personalFieldRemaining;
+                if (!isReview || !remaining?.has(field)) return null;
+                return (
+                  <div className="d-flex gap-1 mt-1 justify-content-start">
+                    <button className="btn btn-sm" onClick={() => acceptPersonalField(field)}
+                      style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'rgba(34,197,94,0.12)', border: '1px solid #22c55e', color: '#16a34a', borderRadius: '3px' }}>
+                      <i className="fas fa-check me-1"></i> Accept {field === 'title' ? 'role' : field.replace('_', ' ')}
+                    </button>
+                    <button className="btn btn-sm" onClick={() => rejectPersonalField(field)}
+                      style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'rgba(239,68,68,0.08)', border: '1px solid #ef4444', color: '#dc2626', borderRadius: '3px' }}>
+                      <i className="fas fa-times me-1"></i> Reject
+                    </button>
+                  </div>
+                );
+              };
+
               const pi = displayData?.personal_info || {};
               const optPi = pendingChanges?.optimizedData?.personal_info || {};
 
@@ -1591,6 +1658,7 @@ export default function ResumePage() {
                         <div>
                           {renderOldValue(pi.full_name, optPi.full_name)}
                           {renderNewValue(optPi.full_name, 'personal_info')}
+                          {renderFieldAction('full_name')}
                         </div>
                       ) : (
                         <span contentEditable={!isReview && isEditing('personal_info', 'full_name')}
@@ -1609,6 +1677,7 @@ export default function ResumePage() {
                           <div>
                             {renderOldValue(pi.title, optPi.title)}
                             {renderNewValue(optPi.title, 'personal_info')}
+                            {renderFieldAction('title')}
                           </div>
                         ) : (
                           <span contentEditable={!isReview && isEditing('personal_info', 'title')}
@@ -1623,8 +1692,8 @@ export default function ResumePage() {
                       </div>
                       <div className="d-flex justify-content-center gap-3 flex-wrap mt-1" style={{ fontSize: '9pt' }}>
                         {['email', 'phone', 'linkedin', 'github', 'website'].filter(f => pi[f] || f === 'email').map(f => (
-                          <span key={f}>{changedFields.has(f) ? (
-                            <span><span style={{ textDecoration: 'line-through', color: '#dc2626', marginRight: '0.25rem' }}>{pi[f]}</span><span style={{ color: '#15803d', fontWeight: 600 }}>{optPi[f] || ''}</span></span>
+                          <span key={f} style={{ display: 'inline-block' }}>{changedFields.has(f) ? (
+                            <span><span style={{ textDecoration: 'line-through', color: '#dc2626', marginRight: '0.25rem' }}>{pi[f]}</span><span style={{ color: '#15803d', fontWeight: 600 }}>{optPi[f] || ''}</span>{renderFieldAction(f)}</span>
                           ) : (
                             <span contentEditable={!isReview && isEditing('personal_info', f)}
                                   suppressContentEditableWarning
@@ -1647,6 +1716,7 @@ export default function ResumePage() {
                         <div>
                           {renderOldValue(pi.summary, optPi.summary)}
                           {renderNewValue(optPi.summary, 'personal_info')}
+                          {renderFieldAction('summary')}
                         </div>
                       ) : (
                         <p contentEditable={!isReview && isEditing('personal_info', 'summary')}
@@ -1659,7 +1729,6 @@ export default function ResumePage() {
                       )}
                     </div>
                   )}
-                  {renderDiffActions('personal_info')}
                 </div>
 
                 {/* Education */}
@@ -2096,40 +2165,25 @@ export default function ResumePage() {
                     {renderDiffActions('achievements')}
                   </div>
                 )}
+                {isReview && (
+                  <div className="d-flex align-items-center justify-content-center gap-3 mt-2 pt-2" style={{ borderTop: '1px dashed #fbbf24' }}>
+                    <span style={{ color: '#fbbf24', fontSize: '0.7rem', fontWeight: 600 }}>
+                      <i className="fas fa-code-branch me-1"></i>Reviewing Changes
+                    </span>
+                    <button className="btn btn-sm btn-success" onClick={acceptAllChanges} disabled={loading}
+                      style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem' }}>
+                      <i className="fas fa-check me-1"></i> Accept All
+                    </button>
+                    <button className="btn btn-sm" onClick={rejectAllChanges} disabled={loading}
+                      style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: 'none', border: '1px solid #ef4444', color: '#dc2626', borderRadius: '3px' }}>
+                      <i className="fas fa-times me-1"></i> Reject All
+                    </button>
+                  </div>
+                )}
                 </div>
               );
             })()}
-          </div>  {/* close viewer-lhs */}
-
-          {/* Diff Review Bar */}
-          {pendingChanges && (
-            <div className="diff-review-bar mb-3 p-2 d-flex align-items-center justify-content-between flex-wrap gap-2" style={{
-              background: 'rgba(251,191,36,0.08)',
-              border: '1px solid #fbbf24',
-              borderRadius: '6px',
-              width: '100%',
-            }}>
-              <div className="d-flex align-items-center gap-2">
-                <i className="fas fa-code-branch" style={{ color: '#fbbf24', fontSize: '0.85rem' }}></i>
-                <span style={{ color: '#fbbf24', fontSize: '0.8rem', fontWeight: 600 }}>
-                  Reviewing AI Changes
-                </span>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                  {Array.from(remainingSections || []).length} section(s) modified
-                </span>
-              </div>
-              <div className="d-flex gap-2">
-                <button className="btn btn-sm btn-success" onClick={acceptAllChanges} disabled={loading}
-                  style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem' }}>
-                  <i className="fas fa-check me-1"></i> Accept All
-                </button>
-                <button className="btn btn-sm btn-outline-danger" onClick={rejectAllChanges} disabled={loading}
-                  style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem' }}>
-                  <i className="fas fa-times me-1"></i> Reject All
-                </button>
-              </div>
-            </div>
-          )}
+          </div>  {/* close viewer-lhs */} 
 
           {/* RHS: Chat + ATS Suggestions */}
           <div className="viewer-rhs" style={{ width: isMobile ? '100%' : '360px', minWidth: isMobile ? '100%' : '300px' }}>
@@ -2199,9 +2253,12 @@ export default function ResumePage() {
             <button className="btn btn-sm btn-outline-secondary" onClick={() => { setView('list'); setCurrentResume(null); }}>
               <i className="fas fa-arrow-left me-1"></i> Back
             </button>
-            <h5 style={{ margin: 0, color: 'var(--primary-color)' }}>
-              <i className="fas fa-file-edit me-2"></i>{currentResume?.title || 'Resume Editor'}
-            </h5>
+            <div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}><i className="fas fa-file-alt me-1"></i>Resume Optimizer</span>
+              <h5 style={{ margin: 0, color: 'var(--primary-color)' }}>
+                <i className="fas fa-file-edit me-2"></i>{currentResume?.title || 'Resume Editor'}
+              </h5>
+            </div>
           </div>
           <div className="d-flex gap-2">
             {currentResume?.ats_score != null && (

@@ -574,14 +574,15 @@ A full-featured resume builder with AI-powered ATS optimization, document upload
 ### Features
 | Feature | Description |
 |---------|-------------|
-| **3-View Layout** | List (card grid with ATS scores), Editor (form + templates + live preview), Viewer (NOVA-style document with inline edit) |
-| **Document Upload** | PDF, DOCX, TXT — text extraction + AI parsing to structured JSON |
+| **3-View Layout** | List (card grid with ATS scores), Editor (form + templates + live preview), Viewer (NOVA-style document with inline edit, add/delete controls) |
+| **Document Upload** | PDF, DOCX, TXT — text extraction + AI parsing to structured JSON; Claude-native document content blocks (no local extraction needed) |
 | **AI Optimization** | Tailor resume to a job description, improve ATS score above 90, score breakdown |
 | **Chat Modifications** | Type instructions like "Add more Python keywords" → AI updates resume + auto-saves |
 | **Template System** | 5 built-in templates across categories (Professional, Academic, Technical, Creative, General) |
 | **Section Management** | Enable/disable any of 12 section types per resume |
 | **Multi-Page Support** | Templates can define multiple pages (e.g., Academic has 2 pages) |
 | **Template Accumulation** | Every unique template used is auto-saved to DB and globally available |
+| **Inline Diff Review** | Per-field accept/reject for personal_info fields, per-section accept/reject for array sections, red/green OLD vs AI PROPOSED display, compact Accept All/Reject All bar in document |
 | **Responsive** | Desktop two-column layout, stacks vertically on mobile (<768px) |
 
 ### Built-in Templates
@@ -602,6 +603,7 @@ A full-featured resume builder with AI-powered ATS optimization, document upload
 | PUT | `/resumes/{id}` | Update resume |
 | DELETE | `/resumes/{id}` | Delete resume |
 | POST | `/resumes/{id}/optimize` | AI-optimize with optional JD |
+| POST | `/resumes/{id}/compact-chat` | Compact chat history when > 8K chars |
 | POST | `/resumes/parse` | Parse raw text to structured JSON |
 | POST | `/resumes/upload` | Upload PDF/DOCX/TXT file |
 | GET | `/resumes/templates` | List templates (optional `?category=` filter) |
