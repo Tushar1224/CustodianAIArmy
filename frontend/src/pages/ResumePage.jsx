@@ -238,6 +238,11 @@ export default function ResumePage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Auto-expand JD section when JD text is loaded
+  useEffect(() => {
+    if (jdText?.trim()) setShowJdInput(true);
+  }, [jdText]);
+
   const loadResumes = useCallback(async () => {
     setLoading(true);
     try {
@@ -809,19 +814,27 @@ export default function ResumePage() {
 
           {/* Job Description (Optional) — persists across uploads */}
           <div className="jd-section-list mb-4" style={{ background: 'var(--secondary-bg)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '0.75rem 1rem' }}>
-            <div className="d-flex justify-content-between align-items-center mb-1">
-              <h6 style={{ margin: 0, color: 'var(--primary-color)', fontSize: '0.85rem', cursor: 'pointer' }}
-                  onClick={() => setShowJdInput(!showJdInput)}>
-                <i className="fas fa-briefcase me-2"></i>Job Description (Optional)
-                <i className={`fas fa-chevron-${showJdInput ? 'up' : 'down'} ms-2`} style={{ fontSize: '0.65rem', opacity: 0.6 }}></i>
-              </h6>
-              {jdText && <span className="badge bg-success" style={{ fontSize: '0.65rem' }}>{jdText.length} chars loaded</span>}
+            <div className="d-flex justify-content-between align-items-start mb-1">
+              <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => setShowJdInput(!showJdInput)}>
+                <h6 style={{ margin: 0, color: 'var(--primary-color)', fontSize: '0.85rem' }}>
+                  <i className="fas fa-briefcase me-2"></i>Job Description
+                  <i className={`fas fa-chevron-${showJdInput ? 'up' : 'down'} ms-2`} style={{ fontSize: '0.65rem', opacity: 0.6 }}></i>
+                </h6>
+                {jdText && !showJdInput && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem', lineHeight: 1.3, maxHeight: '2.6em', overflow: 'hidden' }}>
+                    {jdText.slice(0, 180)}{jdText.length > 180 ? '...' : ''}
+                  </div>
+                )}
+              </div>
+              {jdText && (
+                <span className="badge bg-success ms-2" style={{ fontSize: '0.65rem', whiteSpace: 'nowrap' }}>{jdText.length} chars</span>
+              )}
             </div>
-            {showJdInput && (
+            {(showJdInput || jdText) && (
               <div>
-                <textarea className="form-control" rows="3" value={jdText}
+                <textarea className="form-control" rows={jdText ? 6 : 3} value={jdText}
                   onChange={e => setJdText(e.target.value)}
-                  placeholder="Paste a job description here, or upload a JD document below. The JD will be used when optimizing or chatting about your resume."
+                  placeholder="Paste a job description here, or upload a JD document below. The JD will tailor your resume during optimization and chat."
                   style={{ background: 'var(--tertiary-bg)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.85rem' }} />
                 <div className="d-flex align-items-center gap-2 mt-2">
                   <label className={`btn btn-sm ${jdLoading ? 'btn-info disabled' : 'btn-outline-secondary'}`} style={{ fontSize: '0.75rem', cursor: jdLoading ? 'not-allowed' : 'pointer' }}>
@@ -1368,18 +1381,38 @@ export default function ResumePage() {
       <div className="editor-preview-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem', overflow: isMobile ? 'visible' : 'hidden' }}>
         {/* JD Input */}
         <div className="jd-section" style={{ background: 'var(--secondary-bg)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '1rem' }}>
-          <div className="d-flex justify-content-between align-items-center mb-2">
-            <h6 style={{ margin: 0, color: 'var(--primary-color)', fontSize: '0.9rem' }}>
-              <i className="fas fa-briefcase me-2"></i>Job Description (Optional)
-            </h6>
-            <button className="btn btn-sm btn-outline-info" onClick={() => setShowJdInput(!showJdInput)}>
-              <i className={`fas fa-${showJdInput ? 'chevron-up' : 'chevron-down'}`}></i>
-            </button>
+          <div className="d-flex justify-content-between align-items-start mb-2">
+            <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => setShowJdInput(!showJdInput)}>
+              <h6 style={{ margin: 0, color: 'var(--primary-color)', fontSize: '0.9rem' }}>
+                <i className="fas fa-briefcase me-2"></i>Job Description
+                <i className={`fas fa-chevron-${showJdInput ? 'up' : 'down'} ms-2`} style={{ fontSize: '0.65rem', opacity: 0.6 }}></i>
+              </h6>
+              {jdText && !showJdInput && (
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem', lineHeight: 1.3, maxHeight: '2.6em', overflow: 'hidden' }}>
+                  {jdText.slice(0, 180)}{jdText.length > 180 ? '...' : ''}
+                </div>
+              )}
+            </div>
+            {jdText && <span className="badge bg-success ms-2" style={{ fontSize: '0.65rem', whiteSpace: 'nowrap', alignSelf: 'flex-start' }}>{jdText.length} chars</span>}
           </div>
-          {showJdInput && (
-            <textarea className="form-control" rows="4" value={jdText}
-              onChange={e => setJdText(e.target.value)} placeholder="Paste the job description here to tailor your resume..."
-              style={{ background: 'var(--tertiary-bg)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.85rem' }} />
+          {(showJdInput || jdText) && (
+            <div>
+              <textarea className="form-control" rows={jdText ? 6 : 4} value={jdText}
+                onChange={e => setJdText(e.target.value)} placeholder="Paste a job description here to tailor your resume..."
+                style={{ background: 'var(--tertiary-bg)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.85rem' }} />
+              <div className="d-flex align-items-center gap-2 mt-2">
+                <label className={`btn btn-sm ${jdLoading ? 'btn-info disabled' : 'btn-outline-secondary'}`} style={{ fontSize: '0.75rem', cursor: jdLoading ? 'not-allowed' : 'pointer' }}>
+                  {jdLoading ? <><span className="spinner-border spinner-border-sm me-1" role="status"></span>Extracting...</> : <><i className="fas fa-upload me-1"></i>Upload JD Document</>}
+                  <input type="file" accept=".pdf,.doc,.docx,.txt" style={{ display: 'none' }} onChange={handleJdFileUpload} disabled={jdLoading} />
+                </label>
+                {jdText && (
+                  <button className="btn btn-sm btn-outline-danger" style={{ fontSize: '0.75rem' }} onClick={() => setJdText('')}>
+                    <i className="fas fa-times me-1"></i> Clear
+                  </button>
+                )}
+                {jdUploadStatus && <span className="text-warning" style={{ fontSize: '0.75rem' }}>{jdUploadStatus}</span>}
+              </div>
+            </div>
           )}
         </div>
 
@@ -1607,23 +1640,29 @@ export default function ResumePage() {
 
           {/* Viewer: JD Section */}
           <div className="jd-section-viewer mb-3" style={{ background: 'var(--secondary-bg)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '0.75rem 1rem' }}>
-            <div className="d-flex justify-content-between align-items-center mb-1">
-              <h6 style={{ margin: 0, color: 'var(--primary-color)', fontSize: '0.85rem', cursor: 'pointer' }}
-                  onClick={() => setShowJdInput(!showJdInput)}>
-                <i className="fas fa-briefcase me-2"></i>Job Description
-                <i className={`fas fa-chevron-${showJdInput ? 'up' : 'down'} ms-2`} style={{ fontSize: '0.65rem', opacity: 0.6 }}></i>
-              </h6>
+            <div className="d-flex justify-content-between align-items-start mb-1">
+              <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => setShowJdInput(!showJdInput)}>
+                <h6 style={{ margin: 0, color: 'var(--primary-color)', fontSize: '0.85rem' }}>
+                  <i className="fas fa-briefcase me-2"></i>Job Description
+                  <i className={`fas fa-chevron-${showJdInput ? 'up' : 'down'} ms-2`} style={{ fontSize: '0.65rem', opacity: 0.6 }}></i>
+                </h6>
+                {jdText && !showJdInput && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem', lineHeight: 1.3, maxHeight: '2.6em', overflow: 'hidden' }}>
+                    {jdText.slice(0, 180)}{jdText.length > 180 ? '...' : ''}
+                  </div>
+                )}
+              </div>
               {jdText ? (
-                <span className="badge bg-success" style={{ fontSize: '0.65rem' }}>{jdText.length} chars</span>
+                <span className="badge bg-success ms-2" style={{ fontSize: '0.65rem', whiteSpace: 'nowrap' }}>{jdText.length} chars</span>
               ) : (
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Optional — paste or upload a JD</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Optional</span>
               )}
             </div>
-            {showJdInput && (
+            {(showJdInput || jdText) && (
               <div>
-                <textarea className="form-control" rows="3" value={jdText}
+                <textarea className="form-control" rows={jdText ? 6 : 3} value={jdText}
                   onChange={e => setJdText(e.target.value)}
-                  placeholder="Paste a job description here, or upload one below. The JD will be used when optimizing or chatting about your resume."
+                  placeholder="Paste a job description here, or upload one below. The JD will tailor your resume during optimization and chat."
                   style={{ background: 'var(--tertiary-bg)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.85rem' }} />
                 <div className="d-flex align-items-center gap-2 mt-2">
                   <label className={`btn btn-sm ${jdLoading ? 'btn-info disabled' : 'btn-outline-secondary'}`} style={{ fontSize: '0.75rem', cursor: jdLoading ? 'not-allowed' : 'pointer' }}>
