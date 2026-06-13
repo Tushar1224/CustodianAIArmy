@@ -47,42 +47,9 @@ app.include_router(auth_router)
 # Mount legacy static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ── Explicit routes for legacy static pages (always available) ─────────────
+# ── React SPA or legacy static pages ────────────────────────────────────────
 from fastapi.responses import FileResponse
 
-@app.get("/app")
-async def legacy_app():
-    return FileResponse("static/index.html")
-
-@app.get("/dashboard")
-async def dashboard_page():
-    return FileResponse("static/pages/dashboard.html")
-
-@app.get("/learn")
-async def learn_page():
-    return FileResponse("static/pages/learn.html")
-
-@app.get("/portfolio")
-async def portfolio_page():
-    return FileResponse("static/pages/portfolio.html")
-
-@app.get("/build")
-async def build_page():
-    return FileResponse("static/pages/build.html")
-
-@app.get("/payment.html")
-async def payment_page():
-    return FileResponse("static/payment.html")
-
-@app.get("/finance")
-async def finance_page():
-    return FileResponse("static/pages/finance.html")
-
-@app.get("/agents")
-async def agents_page():
-    return FileResponse("static/pages/customagents.html")
-
-# ── Root: React SPA if available, else legacy home ────────────────────────
 frontend_dist = "frontend/dist"
 if os.path.isdir(frontend_dist):
     # Serve Vite's built JS/CSS assets
@@ -91,8 +58,7 @@ if os.path.isdir(frontend_dist):
         app.mount("/assets", StaticFiles(directory=assets_dir), name="frontend_assets")
 
     # SPA catch-all: serves existing files or falls back to index.html
-    # Must be the LAST route so API routes, /static mount, and explicit
-    # routes above take priority.
+    # Must be the LAST route so API routes and /static mount take priority.
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
         if not full_path:
@@ -102,6 +68,39 @@ if os.path.isdir(frontend_dist):
             return FileResponse(file_path)
         return FileResponse(os.path.join(frontend_dist, "index.html"))
 else:
+    # Legacy fallback when SPA is not built
+    @app.get("/app")
+    async def legacy_app():
+        return FileResponse("static/index.html")
+
+    @app.get("/dashboard")
+    async def dashboard_page():
+        return FileResponse("static/pages/dashboard.html")
+
+    @app.get("/learn")
+    async def learn_page():
+        return FileResponse("static/pages/learn.html")
+
+    @app.get("/portfolio")
+    async def portfolio_page():
+        return FileResponse("static/pages/portfolio.html")
+
+    @app.get("/build")
+    async def build_page():
+        return FileResponse("static/pages/build.html")
+
+    @app.get("/payment.html")
+    async def payment_page():
+        return FileResponse("static/payment.html")
+
+    @app.get("/finance")
+    async def finance_page():
+        return FileResponse("static/pages/finance.html")
+
+    @app.get("/agents")
+    async def agents_page():
+        return FileResponse("static/pages/customagents.html")
+
     @app.get("/")
     async def homepage():
         return FileResponse("static/home.html")

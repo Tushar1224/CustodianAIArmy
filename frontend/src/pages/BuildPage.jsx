@@ -89,7 +89,7 @@ export default function BuildPage() {
           const filesData = await filesRes.json();
           setFileTree(filesData.files || []);
         }
-        if (data.session.current_phase_index >= 5) {
+        if (data.session.current_phase_index >= 4) {
           loadPreview(id);
         }
       }
@@ -120,8 +120,9 @@ export default function BuildPage() {
       if (res.ok) {
         const data = await res.json();
         setCurrentSession(data.session);
-        setChatHistory([]);
-        setMode('plan');
+        setChatHistory(data.session.chat_history || []);
+        const phaseModes = (PHASES[data.session.current_phase_index] || PHASES[0]).modes;
+        setMode(phaseModes[0]);
         setView('session');
         setShowCreateForm(false);
         setNewIdea('');
@@ -186,10 +187,11 @@ export default function BuildPage() {
       if (res.ok) {
         const data = await res.json();
         setCurrentSession(data.session);
+        setChatHistory(data.session.chat_history || []);
         const newPhaseModes = (PHASES[data.session.current_phase_index] || PHASES[0]).modes;
         setMode(newPhaseModes[0]);
         addToast(`Advanced to ${PHASES[data.session.current_phase_index]?.name || 'next phase'}`, 'success');
-        if (data.session.current_phase_index >= 5) {
+        if (data.session.current_phase_index >= 4) {
           loadPreview(currentSession.session_id);
         }
         await loadSessions();

@@ -230,6 +230,13 @@ class MVPBuilder:
         session.workspace_path = workspace_path
 
         # Seed initial AI response so the chat is not empty on first load
+        user_msg = {
+            "role": "user",
+            "content": f"I want to build: {product_idea}",
+            "timestamp": datetime.utcnow().isoformat(),
+            "mode": "plan",
+        }
+        session.chat_history.append(user_msg)
         try:
             agent = self._get_agent_for_specialization("coordinator")
             if not agent:
@@ -252,12 +259,6 @@ class MVPBuilder:
                 )
                 response = await self.agent_manager.send_message(msg)
                 session.chat_history.append({
-                    "role": "user",
-                    "content": f"I want to build: {product_idea}",
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "mode": "plan",
-                })
-                session.chat_history.append({
                     "role": "assistant",
                     "content": response.content,
                     "timestamp": datetime.utcnow().isoformat(),
@@ -267,6 +268,21 @@ class MVPBuilder:
                 session.add_log(f"Initial AI response generated via {agent.name}")
         except Exception as e:
             logger.warning(f"Failed to generate initial AI response: {e}")
+            session.chat_history.append({
+                "role": "assistant",
+                "content": (
+                    f"Great, let's refine your idea: **{product_idea}**\n\n"
+                    f"Here are some questions to get us started:\n"
+                    f"1. Who is the target audience for this product?\n"
+                    f"2. What core problem does it solve?\n"
+                    f"3. What are the top 3 features you want to prioritize?\n\n"
+                    f"Tell me your thoughts on any of these and we'll build from there."
+                ),
+                "timestamp": datetime.utcnow().isoformat(),
+                "agent_name": "MVP Builder",
+                "phase": "Ideation",
+                "fallback": True,
+            })
 
         session.add_log(f"Session created for product: {product_idea[:50]}...", "info")
         self.sessions[session_id] = session
@@ -441,6 +457,13 @@ class MVPBuilder:
                 f"Mode: {mode.upper()}\n\n"
                 f"Write clean, well-documented code. Use MCP filesystem tools to create files."
             ),
+            "Virtual Deploy": (
+                f"You are reviewing the final product for deployment.\n"
+                f"Product: {session.product_idea}\n"
+                f"User message: {user_message}\n"
+                f"Mode: {mode.upper()}\n\n"
+                f"Review the generated files, suggest any final tweaks, and guide the user through accepting or requesting changes."
+            ),
         }
 
         base_prompt = phase_prompts.get(current_phase.name, user_message)
@@ -481,6 +504,42 @@ class MVPBuilder:
             session.current_phase_index += 1
             next_phase = session.current_phase
             next_phase.status = "active"
+
+            # Generate a transition AI message introducing the new phase
+            try:
+                agent = self._get_agent_for_specialization(next_phase.agent_specialization)
+                if not agent:
+                    agent = self.agent_manager.get_agent_by_name("CustodianAI")
+                if agent:
+                    from src.agents.base_agent import AgentMessage
+                    transition_prompt = (
+                        f"The user has just advanced to the {next_phase.name} phase for their product: {session.product_idea}\n\n"
+                        f"{next_phase.description}\n\n"
+                        f"Your role: {next_phase.agent_specialization}\n\n"
+                        f"Greet the user in this new phase. Explain what this phase focuses on, "
+                        f"what they should expect, and ask a single open-ended question to start the conversation. "
+                        f"Keep it concise — 3-4 sentences max."
+                    )
+                    msg = AgentMessage(
+                        sender_id="mvp_builder",
+                        receiver_id=agent.agent_id,
+                        content=transition_prompt,
+                        message_type="chat",
+                        metadata={"phase": next_phase.name, "mode": "plan", "transition": True},
+                    )
+                    response = await self.agent_manager.send_message(msg)
+                    session.chat_history.append({
+                        "role": "assistant",
+                        "content": response.content,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "agent_name": agent.name,
+                        "phase": next_phase.name,
+                        "transition": True,
+                    })
+                    session.add_log(f"Transition message generated for {next_phase.name} via {agent.name}")
+            except Exception as e:
+                logger.warning(f"Failed to generate transition message: {e}")
+
             session.add_log(f"Advanced to {next_phase.name} phase")
             self._persist_to_db(session)
 
