@@ -229,6 +229,45 @@ class MVPBuilder:
         workspace_path.mkdir(parents=True, exist_ok=True)
         session.workspace_path = workspace_path
 
+        # Seed initial AI response so the chat is not empty on first load
+        try:
+            agent = self._get_agent_for_specialization("coordinator")
+            if not agent:
+                agent = self.agent_manager.get_agent_by_name("CustodianAI")
+            if agent:
+                from src.agents.base_agent import AgentMessage
+                seed_prompt = (
+                    f"The user wants to build: {product_idea}\n\n"
+                    f"Phase: Ideation — Refine your product concept.\n"
+                    f"Your role is to help the user brainstorm and refine their product idea. "
+                    f"Start by acknowledging their idea and asking thought-provoking questions "
+                    f"about target audience, core features, and value proposition."
+                )
+                msg = AgentMessage(
+                    sender_id="mvp_builder",
+                    receiver_id=agent.agent_id,
+                    content=seed_prompt,
+                    message_type="chat",
+                    metadata={"phase": "Ideation", "mode": "plan", "initial_seed": True},
+                )
+                response = await self.agent_manager.send_message(msg)
+                session.chat_history.append({
+                    "role": "user",
+                    "content": f"I want to build: {product_idea}",
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "mode": "plan",
+                })
+                session.chat_history.append({
+                    "role": "assistant",
+                    "content": response.content,
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "agent_name": agent.name,
+                    "phase": "Ideation",
+                })
+                session.add_log(f"Initial AI response generated via {agent.name}")
+        except Exception as e:
+            logger.warning(f"Failed to generate initial AI response: {e}")
+
         session.add_log(f"Session created for product: {product_idea[:50]}...", "info")
         self.sessions[session_id] = session
         self._persist_to_db(session)
