@@ -76,7 +76,14 @@ export default function DashboardPage() {
       }
     };
     window.addEventListener('load-chat', handleLoadChat);
-    return () => window.removeEventListener('load-chat', handleLoadChat);
+    const handleProviderChanged = (e) => {
+      setProvider(e.detail);
+    };
+    window.addEventListener('provider-changed', handleProviderChanged);
+    return () => {
+      window.removeEventListener('load-chat', handleLoadChat);
+      window.removeEventListener('provider-changed', handleProviderChanged);
+    };
   }, []);
 
   const loadInitialData = async () => {

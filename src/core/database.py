@@ -159,7 +159,13 @@ def init_db():
         try:
             cursor.execute("ALTER TABLE user_resumes ADD COLUMN template_name TEXT")
         except sqlite3.OperationalError:
-            pass  # column already exists
+            pass
+
+        # Add chat_history column if missing
+        try:
+            cursor.execute("ALTER TABLE user_resumes ADD COLUMN chat_history TEXT DEFAULT '[]'")
+        except sqlite3.OperationalError:
+            pass
 
         # User templates table (globally shared templates with categories)
         cursor.execute('''
@@ -830,16 +836,19 @@ def save_resume(resume_data: Dict[str, Any]) -> str:
     data_str = json.dumps(resume_data.get("data", {}))
     now = datetime.utcnow().isoformat()
 
+    chat_history_str = json.dumps(resume_data.get("chat_history", []))
+
     cursor.execute('''
-        INSERT INTO user_resumes (id, user_email, title, data, jd, ats_score, created_at, updated_at, template_name)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO user_resumes (id, user_email, title, data, jd, ats_score, created_at, updated_at, template_name, chat_history)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             title=excluded.title,
             data=excluded.data,
             jd=excluded.jd,
             ats_score=excluded.ats_score,
             updated_at=excluded.updated_at,
-            template_name=excluded.template_name
+            template_name=excluded.template_name,
+            chat_history=excluded.chat_history
     ''', (
         resume_id,
         resume_data.get("user_email"),
@@ -850,6 +859,7 @@ def save_resume(resume_data: Dict[str, Any]) -> str:
         resume_data.get("created_at", now),
         now,
         resume_data.get("template_name"),
+        chat_history_str,
     ))
 
     conn.commit()
@@ -862,7 +872,7 @@ def get_user_resumes(user_email: str) -> List[Dict[str, Any]]:
     conn = sqlite3.connect(DB_PATH, timeout=20)
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT id, user_email, title, data, jd, ats_score, created_at, updated_at, template_name
+        SELECT id, user_email, title, data, jd, ats_score, created_at, updated_at, template_name, chat_history
         FROM user_resumes
         WHERE user_email = ?
         ORDER BY updated_at DESC
@@ -882,6 +892,7 @@ def get_user_resumes(user_email: str) -> List[Dict[str, Any]]:
             "created_at": row[6],
             "updated_at": row[7],
             "template_name": row[8],
+            "chat_history": json.loads(row[9]) if row[9] else [],
         })
     return results
 
@@ -891,7 +902,7 @@ def get_resume(resume_id: str, user_email: str) -> Optional[Dict[str, Any]]:
     conn = sqlite3.connect(DB_PATH, timeout=20)
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT id, user_email, title, data, jd, ats_score, created_at, updated_at, template_name
+        SELECT id, user_email, title, data, jd, ats_score, created_at, updated_at, template_name, chat_history
         FROM user_resumes WHERE id = ? AND user_email = ?
     ''', (resume_id, user_email))
     row = cursor.fetchone()
@@ -910,6 +921,7 @@ def get_resume(resume_id: str, user_email: str) -> Optional[Dict[str, Any]]:
         "created_at": row[6],
         "updated_at": row[7],
         "template_name": row[8],
+        "chat_history": json.loads(row[9]) if row[9] else [],
     }
 
 
@@ -921,6 +933,24 @@ def get_resume_count(user_email: str) -> int:
     count = cursor.fetchone()[0]
     conn.close()
     return count
+
+
+def save_resume_chat_history(resume_id: str, user_email: str, chat_history: list) -> bool:
+    """Save chat history for a resume."""
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=20)
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE user_resumes SET chat_history = ?, updated_at = ?
+            WHERE id = ? AND user_email = ?
+        ''', (json.dumps(chat_history), datetime.utcnow().isoformat(), resume_id, user_email))
+        saved = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return saved
+    except Exception as e:
+        print(f"Error saving resume chat history: {e}")
+        return False
 
 
 def delete_resume(resume_id: str, user_email: str) -> bool:

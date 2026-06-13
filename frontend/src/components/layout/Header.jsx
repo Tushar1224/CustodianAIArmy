@@ -1,4 +1,5 @@
 import { useAuth } from '../../hooks/useAuth';
+import ProviderSwitcher from '../shared/ProviderSwitcher';
 
 export default function Header({ showSubHeader, subHeaderContent, style: customStyle, onOpenProfile }) {
   const { user, logout, plan } = useAuth();
@@ -34,6 +35,11 @@ export default function Header({ showSubHeader, subHeaderContent, style: customS
                 Custodian AI
               </span>
             </a>
+          </div>
+
+          {/* Center: Provider Switcher */}
+          <div className="d-flex align-items-center ms-auto me-2">
+            <ProviderSwitcher compact={true} />
           </div>
 
           {/* Right: Profile Dropdown */}

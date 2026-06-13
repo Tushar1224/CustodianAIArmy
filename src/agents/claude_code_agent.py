@@ -17,6 +17,8 @@ import shutil
 from typing import Dict, Any, List
 from datetime import datetime
 
+import anthropic
+
 from src.agents.base_agent import BaseAgent, AgentMessage, AgentStatus, AgentType, AgentCapability
 from src.core.config import settings
 from src.core.logging_config import get_logger
@@ -265,7 +267,7 @@ class ClaudeCodeAgent(BaseAgent):
 
     async def _fallback_to_api(self, prompt: str) -> str:
         """Fallback to direct Anthropic API call when CLI is not available"""
-        import httpx
+        import anthropic
 
         api_key = self._get_api_key()
         if not api_key:
@@ -275,29 +277,28 @@ class ClaudeCodeAgent(BaseAgent):
                 "Or add your Anthropic API key in Profile → API Keys."
             )
 
-        payload = {
-            "model": "claude-sonnet-4-5",
-            "max_tokens": 2048,
-            "messages": [{"role": "user", "content": prompt}]
-        }
-        headers = {
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json"
-        }
-
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                response = await client.post(
-                    "https://api.anthropic.com/v1/messages",
-                    json=payload,
-                    headers=headers
-                )
-                response.raise_for_status()
-                data = response.json()
-                if "content" in data and len(data["content"]) > 0:
-                    return data["content"][0].get("text", "")
-                return "No response from Claude API."
+            client = anthropic.AsyncAnthropic(
+                api_key=api_key,
+                max_retries=2,
+            )
+            response = await client.messages.create(
+                model="claude-sonnet-4-5",
+                max_tokens=2048,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            for block in response.content:
+                if block.type == "text":
+                    return block.text
+            return "No response from Claude API."
+        except anthropic.RateLimitError:
+            return "Claude API Error: Rate limit exceeded. Please wait a moment and try again."
+        except anthropic.APIStatusError as e:
+            if e.status_code == 401:
+                return "Claude API Error: Invalid API key. Please check your Anthropic API key in your profile settings."
+            return f"Claude API Error (Status: {e.status_code}): {e.body}"
+        except anthropic.APIConnectionError:
+            return "Claude API Error: Could not connect. Please check your network and try again."
         except Exception as e:
             return f"Claude API fallback error: {str(e)}"
 

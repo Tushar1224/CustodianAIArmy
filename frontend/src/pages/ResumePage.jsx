@@ -27,6 +27,8 @@ const ALL_SECTION_DEFS = [
   { id: 'references', name: 'References', icon: 'fa-address-card', required: false, type: 'array' },
 ];
 
+const EMPTY_RESUME = {};
+
 const BUILTIN_TEMPLATES = [
   {
     name: 'Modern Professional',
@@ -92,7 +94,49 @@ const BUILTIN_TEMPLATES = [
     styling: { font: "'Inter', sans-serif", size: '10pt', primary_color: '#2d3436', accent_color: '#e17055', spacing: 'compact' },
     data: {},
   },
+  {
+    name: 'Student Internship',
+    category: 'academic',
+    description: 'Internship-focused layout highlighting education, projects, and technical skills for students and entry-level candidates.',
+    section_defs: ALL_SECTION_DEFS.filter(s => ['personal_info','summary','education','skills','projects','achievements','certifications','languages','volunteering'].includes(s.id)),
+    default_enabled_sections: ['personal_info','summary','education','skills','projects','achievements','certifications','languages'],
+    pages: [{ page_number: 1, layout: 'single', sections: ['personal_info','summary','education','skills','projects','achievements','certifications','languages'] }],
+    styling: { font: "'Inter', sans-serif", size: '10.5pt', primary_color: '#0f172a', accent_color: '#06b6d4', spacing: 'compact' },
+    data: {},
+  },
 ];
+
+function computeDiffSections(optimizedData, originalData) {
+  const sections = new Set();
+  if (!optimizedData) return sections;
+  for (const [section, val] of Object.entries(optimizedData)) {
+    if (section === 'personal_info') {
+      for (const [key, newVal] of Object.entries(val)) {
+        const oldVal = originalData?.personal_info?.[key];
+        if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+          sections.add('personal_info');
+          break;
+        }
+      }
+    } else if (Array.isArray(val)) {
+      const oldArr = originalData?.[section] || [];
+      if (JSON.stringify(oldArr) !== JSON.stringify(val)) { sections.add(section); }
+    }
+  }
+  return sections;
+}
+
+function getChangedFields(optimizedData, originalData) {
+  const fields = new Set();
+  const optPi = optimizedData?.personal_info;
+  const origPi = originalData?.personal_info || {};
+  if (optPi) {
+    for (const [key, newVal] of Object.entries(optPi)) {
+      if (JSON.stringify(origPi[key]) !== JSON.stringify(newVal)) { fields.add(key); }
+    }
+  }
+  return fields;
+}
 
 export default function ResumePage() {
   const [loading, setLoading] = useState(false);
@@ -106,6 +150,75 @@ export default function ResumePage() {
   const [chatMessage, setChatMessage] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [editField, setEditField] = useState(null);
+  const CHAT_COMPACTION_CHAR_THRESHOLD = 8000;
+
+  const handleFieldSave = (value, section, field, index = null) => {
+    setCurrentResume(prev => {
+      if (!prev) return prev;
+      const newData = JSON.parse(JSON.stringify(prev.data));
+      if (index !== null) {
+        if (!newData[section]) newData[section] = [];
+        if (!newData[section][index]) newData[section][index] = {};
+        newData[section][index][field] = value;
+      } else if (section === 'personal_info') {
+        if (!newData.personal_info) newData.personal_info = {};
+        newData.personal_info[field] = value;
+      } else {
+        newData[section] = value;
+      }
+      return { ...prev, data: newData };
+    });
+    setEditField(null);
+  };
+
+  const isEditing = (section, field, index = null) => {
+    if (!editField) return false;
+    return editField.section === section && editField.field === field && editField.index === index;
+  };
+
+  const getBlankItem = (section) => {
+    const id = Date.now();
+    switch (section) {
+      case 'education': return { id, degree: '', institution: '', field_of_study: '', start_date: '', end_date: '', cgpa: '', achievements: '' };
+      case 'experience': return { id, company: '', role: '', location: '', start_date: '', end_date: '', current: false, description: '', tech_stack: [], achievements: [] };
+      case 'skills': return { id, value: '' };
+      case 'certifications': return { id, name: '', issuer: '', date: '', url: '' };
+      case 'projects': return { id, name: '', description: '', tech_stack: [], url: '' };
+      case 'achievements': return { id, value: '' };
+      default: return { id };
+    }
+  };
+
+  const addSectionItem = (section) => {
+    const newItem = getBlankItem(section);
+    setCurrentResume(prev => {
+      if (!prev) return prev;
+      const newData = JSON.parse(JSON.stringify(prev.data));
+      if (!newData[section]) newData[section] = [];
+      newData[section].push(newItem);
+      return { ...prev, data: newData };
+    });
+    const idx = (currentResume?.data?.[section] || []).length;
+    if (section === 'skills') {
+      setEditField({ section, field: '_section', index: null });
+    } else {
+      setEditField({ section, field: section === 'achievements' ? 'value' : 'name', index: idx });
+    }
+  };
+
+  const removeSectionItem = (section, index, e) => {
+    if (e) e.stopPropagation();
+    setCurrentResume(prev => {
+      if (!prev) return prev;
+      const newData = JSON.parse(JSON.stringify(prev.data));
+      if (newData[section]) {
+        newData[section] = newData[section].filter((_, i) => i !== index);
+      }
+      return { ...prev, data: newData };
+    });
+    setEditField(null);
+  };
+
   const [userTemplates, setUserTemplates] = useState([]);
   const [uploadStatus, setUploadStatus] = useState('');
   const [renamingId, setRenamingId] = useState(null);
@@ -114,6 +227,8 @@ export default function ResumePage() {
   const [selectedCategory, setSelectedCategory] = useState('professional');
   const [availableCategories, setAvailableCategories] = useState(CATEGORIES);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pendingChanges, setPendingChanges] = useState(null);
+  const [remainingSections, setRemainingSections] = useState(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -160,6 +275,18 @@ export default function ResumePage() {
   }, []);
 
   useEffect(() => { loadResumes(); loadTemplates(selectedCategory); loadCategories(); }, [loadResumes, loadTemplates, loadCategories, selectedCategory]);
+
+  // Load chat history when entering viewer
+  useEffect(() => {
+    if (view === 'viewer' && currentResume?.id) {
+      fetch(`${API_BASE}/resumes/${currentResume.id}/chat`, { credentials: 'include' })
+        .then(r => r.json())
+        .then(data => {
+          if (data.chat_history) setChatHistory(data.chat_history);
+        })
+        .catch(() => {});
+    }
+  }, [view, currentResume?.id]);
 
   // Auto-expand templates panel when entering editor
   useEffect(() => {
@@ -253,6 +380,60 @@ export default function ResumePage() {
     setLoading(false);
   };
 
+  const acceptSection = (section) => {
+    setPendingChanges(prev => {
+      if (!prev) return prev;
+      const newOriginal = { ...prev.originalData };
+      if (section === 'personal_info') {
+        newOriginal.personal_info = { ...(newOriginal.personal_info || {}), ...(prev.optimizedData.personal_info || {}) };
+      } else {
+        newOriginal[section] = prev.optimizedData[section];
+      }
+      setCurrentResume(cr => ({ ...cr, data: newOriginal }));
+      const newRemaining = new Set(prev.remainingSections);
+      newRemaining.delete(section);
+      if (newRemaining.size === 0) {
+        setRemainingSections(null);
+        return null;
+      }
+      setRemainingSections(newRemaining);
+      return { ...prev, originalData: newOriginal, remainingSections: newRemaining };
+    });
+  };
+
+  const rejectSection = (section) => {
+    setPendingChanges(prev => {
+      if (!prev) return prev;
+      const newRemaining = new Set(prev.remainingSections);
+      newRemaining.delete(section);
+      if (newRemaining.size === 0) {
+        setPendingChanges(null);
+        setRemainingSections(null);
+        return null;
+      }
+      setRemainingSections(newRemaining);
+      return { ...prev, remainingSections: newRemaining };
+    });
+  };
+
+  const saveAcceptedData = async (data, optimization) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/resumes/${currentResume.id}`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data, title: currentResume.title, template_name: currentResume.template_name || null }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        setCurrentResume(result.resume);
+        setOptimizationResult(optimization);
+        await loadResumes();
+      }
+    } catch (e) { console.error('Failed to save accepted data', e); }
+    setLoading(false);
+  };
+
   const optimizeResume = async () => {
     if (!currentResume) return;
     setLoading(true);
@@ -268,24 +449,19 @@ export default function ResumePage() {
         const data = await res.json();
         setOptimizationResult(data.optimization);
         if (data.optimization?.optimized_data) {
-          const mergedData = {
-            ...currentResume.data,
-            ...data.optimization.optimized_data,
-            personal_info: { ...(currentResume.data?.personal_info || {}), ...(data.optimization.optimized_data.personal_info || {}) },
-            education: data.optimization.optimized_data.education || currentResume.data?.education || [],
-            experience: data.optimization.optimized_data.experience || currentResume.data?.experience || [],
-            skills: data.optimization.optimized_data.skills || currentResume.data?.skills || [],
-            certifications: data.optimization.optimized_data.certifications || currentResume.data?.certifications || [],
-            projects: data.optimization.optimized_data.projects || currentResume.data?.projects || [],
-            achievements: data.optimization.optimized_data.achievements || currentResume.data?.achievements || [],
-          };
-          setCurrentResume(prev => ({ ...prev, data: mergedData, ats_score: data.optimization.ats_score }));
-          await fetch(`${API_BASE}/resumes/${currentResume.id}`, {
-            method: 'PUT', credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: mergedData, title: currentResume.title, template_name: currentResume.template_name || null }),
+          const originalData = JSON.parse(JSON.stringify(currentResume.data));
+          const diffSections = computeDiffSections(data.optimization.optimized_data, originalData);
+          setRemainingSections(diffSections);
+          setPendingChanges({
+            originalData,
+            optimizedData: data.optimization.optimized_data,
+            remainingSections: diffSections,
+            optimization: data.optimization,
+            changes: data.optimization.changes || [],
           });
-          await loadResumes();
+          if (data.optimization.ats_score) {
+            setCurrentResume(prev => ({ ...prev, ats_score: data.optimization.ats_score }));
+          }
         }
         setView('viewer');
       }
@@ -422,6 +598,51 @@ export default function ResumePage() {
     input.value = '';
   };
 
+  const saveChatHistory = async (history) => {
+    if (!currentResume?.id) return;
+    try {
+      await fetch(`${API_BASE}/resumes/${currentResume.id}/chat`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_history: history }),
+      });
+      // Auto-compact if chat exceeds threshold
+      const totalChars = (history || []).reduce((sum, m) => sum + (m.content || '').length, 0);
+      if (totalChars > CHAT_COMPACTION_CHAR_THRESHOLD) {
+        const compRes = await fetch(`${API_BASE}/resumes/${currentResume.id}/compact-chat`, {
+          method: 'POST', credentials: 'include',
+        });
+        if (compRes.ok) {
+          const compData = await compRes.json();
+          if (compData.compacted && compData.chat_history) {
+            setChatHistory(compData.chat_history);
+          }
+        }
+      }
+    } catch (e) { console.error('Failed to save chat history', e); }
+  };
+
+  const acceptAllChanges = async () => {
+    if (!pendingChanges) return;
+    const mergedData = {
+      ...pendingChanges.originalData,
+      ...pendingChanges.optimizedData,
+      personal_info: { ...(pendingChanges.originalData?.personal_info || {}), ...(pendingChanges.optimizedData?.personal_info || {}) },
+      education: pendingChanges.optimizedData.education || pendingChanges.originalData?.education || [],
+      experience: pendingChanges.optimizedData.experience || pendingChanges.originalData?.experience || [],
+      skills: pendingChanges.optimizedData.skills || pendingChanges.originalData?.skills || [],
+      certifications: pendingChanges.optimizedData.certifications || pendingChanges.originalData?.certifications || [],
+      projects: pendingChanges.optimizedData.projects || pendingChanges.originalData?.projects || [],
+      achievements: pendingChanges.optimizedData.achievements || pendingChanges.originalData?.achievements || [],
+    };
+    await saveAcceptedData(mergedData, pendingChanges.optimization);
+  };
+
+  const rejectAllChanges = () => {
+    setPendingChanges(null);
+    setRemainingSections(null);
+  };
+
   const handleChatSend = async () => {
     if (!chatMessage.trim() || !currentResume) return;
     const msg = chatMessage;
@@ -439,43 +660,35 @@ export default function ResumePage() {
         const data = await res.json();
         setOptimizationResult(data.optimization);
         if (data.optimization?.optimized_data) {
-          const mergedData = {
-            ...currentResume.data,
-            ...data.optimization.optimized_data,
-            personal_info: { ...(currentResume.data?.personal_info || {}), ...(data.optimization.optimized_data.personal_info || {}) },
-            education: data.optimization.optimized_data.education || currentResume.data?.education || [],
-            experience: data.optimization.optimized_data.experience || currentResume.data?.experience || [],
-            skills: data.optimization.optimized_data.skills || currentResume.data?.skills || [],
-            certifications: data.optimization.optimized_data.certifications || currentResume.data?.certifications || [],
-            projects: data.optimization.optimized_data.projects || currentResume.data?.projects || [],
-            achievements: data.optimization.optimized_data.achievements || currentResume.data?.achievements || [],
-          };
-          setCurrentResume(prev => ({ ...prev, data: mergedData, ats_score: data.optimization.ats_score }));
-          await fetch(`${API_BASE}/resumes/${currentResume.id}`, {
-            method: 'PUT', credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: mergedData, title: currentResume.title, template_name: currentResume.template_name || null }),
+          const originalData = JSON.parse(JSON.stringify(currentResume.data));
+          const diffSections = computeDiffSections(data.optimization.optimized_data, originalData);
+          setRemainingSections(diffSections);
+          setPendingChanges({
+            originalData,
+            optimizedData: data.optimization.optimized_data,
+            remainingSections: diffSections,
+            optimization: data.optimization,
+            changes: data.optimization.changes || [],
           });
-          await loadResumes();
+          if (data.optimization.ats_score) {
+            setCurrentResume(prev => ({ ...prev, ats_score: data.optimization.ats_score }));
+          }
         }
         const summary = data.optimization?.suggestions?.join('\n') || data.optimization?.changes?.join('\n') || '';
-        setChatHistory(prev => {
-          const updated = prev.filter(m => !m._temp);
-          return [...updated, { role: 'assistant', content: summary || (data.optimization?.optimized_data ? 'Resume updated. You can now edit further in the editor.' : 'Resume optimized successfully!') }];
-        });
+        const newHistory = [...chatHistory.filter(m => !m._temp), { role: 'user', content: msg }, { role: 'assistant', content: summary || (data.optimization?.optimized_data ? 'Review changes inline below, accept or reject each section.' : 'Resume optimized successfully!') }];
+        setChatHistory(newHistory);
+        saveChatHistory(newHistory);
       } else {
         const err = await res.json().catch(() => ({}));
-        setChatHistory(prev => {
-          const updated = prev.filter(m => !m._temp);
-          return [...updated, { role: 'assistant', content: `Error: ${err.detail || 'Optimization failed'}` }];
-        });
+        const newHistory = [...chatHistory.filter(m => !m._temp), { role: 'user', content: msg }, { role: 'assistant', content: `Error: ${err.detail || 'Optimization failed'}` }];
+        setChatHistory(newHistory);
+        saveChatHistory(newHistory);
       }
     } catch (e) {
       console.error('Chat failed', e);
-      setChatHistory(prev => {
-        const updated = prev.filter(m => !m._temp);
-        return [...updated, { role: 'assistant', content: 'Network error — is the backend running?' }];
-      });
+      const newHistory = [...chatHistory.filter(m => !m._temp), { role: 'user', content: msg }, { role: 'assistant', content: 'Network error — is the backend running?' }];
+      setChatHistory(newHistory);
+      saveChatHistory(newHistory);
     }
     setLoading(false);
   };
@@ -1248,9 +1461,6 @@ export default function ResumePage() {
                   <i className="fas fa-magic me-1"></i> Re-optimize
                 </button>
               )}
-              <button className="btn btn-sm btn-outline-primary" onClick={() => { setView('editor'); setEditField(null); }}>
-                <i className="fas fa-edit me-1"></i> Edit
-              </button>
               <button className="btn btn-sm btn-outline-info" onClick={() => {
                 const win = window.open('', '_blank');
                 const doc = document.querySelector('.resume-preview-doc');
@@ -1302,161 +1512,624 @@ export default function ResumePage() {
             })()}
 
             {/* NOVA-style Viewable Resume (click to edit inline) */}
-            <div className="resume-preview-doc nova-style" style={{ background: '#fff', color: '#222', borderRadius: '8px', padding: '2.5rem 2rem', boxShadow: '0 8px 40px rgba(0,0,0,0.15)', fontSize: '11pt', lineHeight: 1.5, fontFamily: "'Times New Roman', serif", position: 'relative' }}>
-            {/* Edit toggle hint */}
-            <div className="edit-hint text-center mb-3" style={{ fontSize: '0.75rem', color: '#999' }}>
-              <i className="fas fa-mouse-pointer me-1"></i> Click any field to edit inline
-            </div>
+            {(() => {
+              // Determine which data source and whether in review mode
+              const displayData = pendingChanges?.originalData ?? currentResume?.data;
+              const isReview = !!pendingChanges;
+              const changedSections = pendingChanges?.remainingSections ?? new Set();
+              const changedFields = pendingChanges ? getChangedFields(pendingChanges.optimizedData, pendingChanges.originalData) : new Set();
 
-            {/* Header */}
-            <div style={{ textAlign: 'center', marginBottom: '1.25rem', borderBottom: '2px solid #222', paddingBottom: '0.75rem' }}>
-              <h2 style={{ margin: 0, fontSize: '20pt', fontWeight: 700, color: '#000' }}
-                onClick={() => setEditField(editField === 'name' ? null : 'name')}
-                className={editField === 'name' ? 'editing' : ''}
-                style={{ cursor: 'pointer', margin: 0, fontSize: '20pt', fontWeight: 700, color: '#000', outline: editField === 'name' ? '2px dashed #4dabf7' : 'none', padding: editField === 'name' ? '0.25rem' : '0' }}>
-                {editField === 'name' ? (
-                  <input className="form-control form-control-sm text-center"
-                    value={currentResume?.data?.personal_info?.full_name || ''}
-                    onChange={e => updateField('personal_info', 'full_name', e.target.value)}
-                    onBlur={() => setEditField(null)}
-                    autoFocus style={{ fontSize: '18pt', fontWeight: 700, textAlign: 'center', background: '#f0f7ff', border: '2px solid #4dabf7' }} />
-                ) : (currentResume?.data?.personal_info?.full_name || 'Your Name')}
-              </h2>
-              <div style={{ fontSize: '10pt', color: '#444', marginTop: '0.25rem' }}>
-                <div onClick={() => setEditField(editField === 'title' ? null : 'title')}
-                  style={{ cursor: 'pointer', outline: editField === 'title' ? '2px dashed #4dabf7' : 'none', padding: editField === 'title' ? '0.15rem' : '0', display: 'inline-block' }}>
-                  {editField === 'title' ? (
-                    <input className="form-control form-control-sm text-center"
-                      value={currentResume?.data?.personal_info?.title || ''}
-                      onChange={e => updateField('personal_info', 'title', e.target.value)}
-                      onBlur={() => setEditField(null)}
-                      autoFocus placeholder="Professional Title" />
-                  ) : (currentResume?.data?.personal_info?.title || 'Professional Title')}
+              const sectionDiffStyle = (sectionId) => {
+                if (!changedSections.has(sectionId)) return {};
+                return {
+                  borderLeft: '4px solid #fbbf24',
+                  paddingLeft: '0.75rem',
+                  background: 'rgba(251,191,36,0.04)',
+                  borderRadius: '4px',
+                  marginBottom: '1.25rem',
+                  position: 'relative',
+                };
+              };
+
+              const renderOldValue = (oldVal, newVal) => {
+                if (!isReview || oldVal === newVal) return null;
+                return (
+                  <div style={{ background: 'rgba(239,68,68,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px', marginBottom: '0.15rem' }}>
+                    <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600, display: 'block' }}>OLD</span>
+                    <span style={{ textDecoration: 'line-through', color: '#dc2626', fontSize: '10pt' }}>{oldVal}</span>
+                  </div>
+                );
+              };
+
+              const renderNewValue = (newVal, section) => {
+                if (!isReview) return null;
+                return (
+                  <div style={{ background: 'rgba(34,197,94,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px' }}>
+                    <span style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 600, display: 'block' }}>AI PROPOSED</span>
+                    <span style={{ color: '#15803d', fontSize: '10pt', fontWeight: 600 }}>{newVal}</span>
+                  </div>
+                );
+              };
+
+              const renderDiffActions = (sectionId) => {
+                if (!changedSections.has(sectionId)) return null;
+                return (
+                  <div className="d-flex gap-1 mt-1 justify-content-end" style={{ borderTop: '1px dashed rgba(251,191,36,0.3)', paddingTop: '0.35rem' }}>
+                    <button className="btn btn-sm" onClick={() => acceptSection(sectionId)}
+                      style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: 'rgba(34,197,94,0.12)', border: '1px solid #22c55e', color: '#16a34a', borderRadius: '3px' }}>
+                      <i className="fas fa-check me-1"></i> Accept
+                    </button>
+                    <button className="btn btn-sm" onClick={() => rejectSection(sectionId)}
+                      style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: 'rgba(239,68,68,0.08)', border: '1px solid #ef4444', color: '#dc2626', borderRadius: '3px' }}>
+                      <i className="fas fa-times me-1"></i> Reject
+                    </button>
+                  </div>
+                );
+              };
+
+              const pi = displayData?.personal_info || {};
+              const optPi = pendingChanges?.optimizedData?.personal_info || {};
+
+              return (
+                <div className="resume-preview-doc nova-style" style={{
+                  background: '#fff', color: '#222', borderRadius: '8px', padding: '2.5rem 2rem',
+                  boxShadow: '0 8px 40px rgba(0,0,0,0.15)', fontSize: '11pt', lineHeight: 1.5,
+                  fontFamily: "'Times New Roman', serif", position: 'relative',
+                  outline: isReview ? '2px solid #fbbf24' : 'none',
+                }}>
+                {!isReview && (
+                  <div className="edit-hint text-center mb-3" style={{ fontSize: '0.75rem', color: '#999' }}>
+                    <i className="fas fa-mouse-pointer me-1"></i> Click any field to edit inline
+                  </div>
+                )}
+
+                {/* Header / Personal Info */}
+                <div style={sectionDiffStyle('personal_info')}>
+                  <div style={{ textAlign: 'center', marginBottom: '0.75rem', borderBottom: '2px solid #222', paddingBottom: '0.75rem' }}>
+                    <div style={{ margin: 0, fontSize: '20pt', fontWeight: 700, color: '#000' }}>
+                      {changedFields.has('full_name') ? (
+                        <div>
+                          {renderOldValue(pi.full_name, optPi.full_name)}
+                          {renderNewValue(optPi.full_name, 'personal_info')}
+                        </div>
+                      ) : (
+                        <span contentEditable={!isReview && isEditing('personal_info', 'full_name')}
+                              suppressContentEditableWarning
+                              onClick={(e) => { if (!isReview) { e.stopPropagation(); setEditField({ section: 'personal_info', field: 'full_name', index: null }); setTimeout(() => e.target.focus(), 0); } }}
+                              onBlur={(e) => handleFieldSave(e.target.innerText.trim() || 'Your Name', 'personal_info', 'full_name')}
+                              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+                              style={{ cursor: !isReview ? 'pointer' : 'default', outline: 'none', borderBottom: isEditing('personal_info', 'full_name') ? '1px dashed #4dabf7' : 'none', minWidth: '100px', display: 'inline-block' }}>
+                          {pi.full_name || 'Your Name'}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '10pt', color: '#444', marginTop: '0.25rem' }}>
+                      <div style={{ display: 'inline-block' }}>
+                        {changedFields.has('title') ? (
+                          <div>
+                            {renderOldValue(pi.title, optPi.title)}
+                            {renderNewValue(optPi.title, 'personal_info')}
+                          </div>
+                        ) : (
+                          <span contentEditable={!isReview && isEditing('personal_info', 'title')}
+                                suppressContentEditableWarning
+                                onClick={(e) => { if (!isReview) { e.stopPropagation(); setEditField({ section: 'personal_info', field: 'title', index: null }); setTimeout(() => e.target.focus(), 0); } }}
+                                onBlur={(e) => handleFieldSave(e.target.innerText.trim() || 'Professional Title', 'personal_info', 'title')}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+                                style={{ cursor: !isReview ? 'pointer' : 'default', outline: 'none', borderBottom: isEditing('personal_info', 'title') ? '1px dashed #4dabf7' : 'none', minWidth: '60px', display: 'inline-block' }}>
+                            {pi.title || 'Professional Title'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="d-flex justify-content-center gap-3 flex-wrap mt-1" style={{ fontSize: '9pt' }}>
+                        {['email', 'phone', 'linkedin', 'github', 'website'].filter(f => pi[f] || f === 'email').map(f => (
+                          <span key={f}>{changedFields.has(f) ? (
+                            <span><span style={{ textDecoration: 'line-through', color: '#dc2626', marginRight: '0.25rem' }}>{pi[f]}</span><span style={{ color: '#15803d', fontWeight: 600 }}>{optPi[f] || ''}</span></span>
+                          ) : (
+                            <span contentEditable={!isReview && isEditing('personal_info', f)}
+                                  suppressContentEditableWarning
+                                  onClick={(e) => { if (!isReview) { e.stopPropagation(); setEditField({ section: 'personal_info', field: f, index: null }); setTimeout(() => e.target.focus(), 0); } }}
+                                  onBlur={(e) => handleFieldSave(e.target.innerText.trim(), 'personal_info', f)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+                                  style={{ cursor: !isReview ? 'pointer' : 'default', outline: 'none', borderBottom: isEditing('personal_info', f) ? '1px dashed #4dabf7' : 'none', display: 'inline-block' }}>
+                              {pi[f] || (f === 'email' ? 'email@example.com' : '')}
+                            </span>
+                          )}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Summary under personal_info */}
+                  {(pi.summary || isEditing('personal_info', 'summary')) && (
+                    <div style={{ marginBottom: '0.5rem' }}>
+                      <div style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>Professional Summary</div>
+                      {changedFields.has('summary') ? (
+                        <div>
+                          {renderOldValue(pi.summary, optPi.summary)}
+                          {renderNewValue(optPi.summary, 'personal_info')}
+                        </div>
+                      ) : (
+                        <p contentEditable={!isReview && isEditing('personal_info', 'summary')}
+                           suppressContentEditableWarning
+                           onClick={(e) => { if (!isReview) { e.stopPropagation(); setEditField({ section: 'personal_info', field: 'summary', index: null }); setTimeout(() => e.target.focus(), 0); } }}
+                           onBlur={(e) => handleFieldSave(e.target.innerText.trim(), 'personal_info', 'summary')}
+                           style={{ margin: 0, fontSize: '10pt', cursor: !isReview ? 'pointer' : 'default', outline: 'none', borderBottom: isEditing('personal_info', 'summary') ? '1px dashed #4dabf7' : 'none' }}>
+                          {pi.summary || 'Click to add professional summary'}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {renderDiffActions('personal_info')}
                 </div>
-                <div className="d-flex justify-content-center gap-3 flex-wrap mt-1" style={{ fontSize: '9pt' }}>
-                  {['email', 'phone', 'linkedin', 'github', 'website'].filter(f => currentResume?.data?.personal_info?.[f]).map(f => (
-                    <span key={f}>{currentResume.data.personal_info[f]}</span>
-                  ))}
-                </div>
-              </div>
-            </div>
 
-            {/* Summary */}
-            {currentResume?.data?.personal_info?.summary && (
-              <div style={{ marginBottom: '1rem' }}>
-                <div style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>Professional Summary</div>
-                <p style={{ margin: 0, fontSize: '10pt', cursor: 'pointer' }}
-                  onClick={() => setEditField(editField === 'summary' ? null : 'summary')}>
-                  {editField === 'summary' ? (
-                    <textarea className="form-control form-control-sm" value={currentResume.data.personal_info.summary}
-                      onChange={e => updateField('personal_info', 'summary', e.target.value)}
-                      onBlur={() => setEditField(null)}
-                      autoFocus rows="3" style={{ fontSize: '10pt', background: '#f0f7ff', border: '2px solid #4dabf7' }} />
-                  ) : currentResume.data.personal_info.summary}
-                </p>
-              </div>
-            )}
-
-            {/* Education */}
-            {(currentResume?.data?.education || []).length > 0 && (
-              <div style={{ marginBottom: '1rem' }}>
-                <div style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>Education</div>
-                {(currentResume.data.education || []).map((edu, i) => (
-                  <div key={edu.id} style={{ marginBottom: '0.35rem', fontSize: '10pt', cursor: 'pointer' }}
-                    onClick={() => setEditField(editField === `edu-${edu.id}` ? null : `edu-${edu.id}`)}>
-                    {editField === `edu-${edu.id}` ? (
-                      <div className="p-2" style={{ background: '#f0f7ff', border: '2px dashed #4dabf7', borderRadius: '4px' }}>
-                        <input className="form-control form-control-sm mb-1" value={edu.degree || ''}
-                          onChange={e => updateArrayItem('education', edu.id, 'degree', e.target.value)} placeholder="Degree" />
-                        <input className="form-control form-control-sm mb-1" value={edu.institution || ''}
-                          onChange={e => updateArrayItem('education', edu.id, 'institution', e.target.value)} placeholder="Institution" />
-                        <div className="d-flex gap-2">
-                          <input className="form-control form-control-sm" value={edu.cgpa || ''}
-                            onChange={e => updateArrayItem('education', edu.id, 'cgpa', e.target.value)} placeholder="CGPA" />
-                          <input className="form-control form-control-sm" value={edu.start_date || ''}
-                            onChange={e => updateArrayItem('education', edu.id, 'start_date', e.target.value)} placeholder="Start" />
-                          <input className="form-control form-control-sm" value={edu.end_date || ''}
-                            onChange={e => updateArrayItem('education', edu.id, 'end_date', e.target.value)} placeholder="End" />
+                {/* Education */}
+                {(displayData?.education || []).length > 0 && (
+                  <div style={{ ...sectionDiffStyle('education'), ...(changedSections.has('education') ? { marginTop: '0' } : { marginBottom: '1rem' }) }}>
+                    <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>
+                      <span>Education</span>
+                      {!isReview && <i className="fas fa-pen fa-xs" style={{ color: '#999', cursor: 'pointer' }} onClick={() => setEditField(editField?.section === 'education' ? null : { section: 'education', field: '_section', index: null })}></i>}
+                    </div>
+                    {changedSections.has('education') ? (
+                      <div>
+                        <div style={{ background: 'rgba(239,68,68,0.08)', padding: '0.35rem 0.5rem', borderRadius: '3px', marginBottom: '0.25rem' }}>
+                          <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600 }}>OLD</span>
+                          {(displayData.education || []).map((edu, i) => (
+                            <div key={edu.id || i} style={{ fontSize: '10pt', textDecoration: 'line-through', color: '#dc2626', marginBottom: '0.2rem' }}>
+                              <strong>{edu.degree}</strong> — {edu.institution}{edu.cgpa && <span> | CGPA: {edu.cgpa}</span>}
+                              <div style={{ color: '#999' }}>{edu.start_date} - {edu.end_date}</div>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ background: 'rgba(34,197,94,0.08)', padding: '0.35rem 0.5rem', borderRadius: '3px' }}>
+                          <span style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 600 }}>AI PROPOSED</span>
+                          {(pendingChanges.optimizedData.education || []).map((edu, i) => (
+                            <div key={edu.id || i} style={{ fontSize: '10pt', color: '#15803d', fontWeight: 600, marginBottom: '0.2rem' }}>
+                              <strong>{edu.degree}</strong> — {edu.institution}{edu.cgpa && <span> | CGPA: {edu.cgpa}</span>}
+                              <div style={{ color: '#166534' }}>{edu.start_date} - {edu.end_date}</div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     ) : (
-                      <><strong>{edu.degree}</strong> — {edu.institution}{edu.cgpa && <span> | CGPA: {edu.cgpa}</span>}
-                        <div style={{ color: '#555' }}>{edu.start_date} - {edu.end_date}</div></>
+                      (displayData.education || []).map((edu, i) => (
+                        <div key={edu.id || i} style={{ marginBottom: '0.35rem', fontSize: '10pt' }}>
+                          {(!isReview && isEditing('education', 'degree', i)) ? (
+                            <div className="inline-edit-form" style={{ background: '#f8f9fa', padding: '0.35rem', borderRadius: '4px', border: '1px solid #dee2e6', marginBottom: '0.25rem' }}>
+                              <div className="d-flex justify-content-between mb-1">
+                                <span style={{ fontSize: '0.7rem', color: '#666' }}><i className="fas fa-pen me-1"></i>Editing</span>
+                                <button className="btn btn-sm" onClick={(e) => removeSectionItem('education', i, e)}
+                                  style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '3px' }}>
+                                  <i className="fas fa-trash"></i>
+                                </button>
+                              </div>
+                              <input className="form-control form-control-sm mb-1" defaultValue={edu.degree} placeholder="Degree"
+                                onBlur={(e) => handleFieldSave(e.target.value, 'education', 'degree', i)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} autoFocus />
+                              <input className="form-control form-control-sm mb-1" defaultValue={edu.institution} placeholder="Institution"
+                                onBlur={(e) => handleFieldSave(e.target.value, 'education', 'institution', i)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} />
+                              <input className="form-control form-control-sm mb-1" defaultValue={edu.field_of_study} placeholder="Field of study"
+                                onBlur={(e) => handleFieldSave(e.target.value, 'education', 'field_of_study', i)} />
+                              <div className="d-flex gap-2">
+                                <input className="form-control form-control-sm" defaultValue={edu.start_date} placeholder="Start"
+                                  onBlur={(e) => handleFieldSave(e.target.value, 'education', 'start_date', i)} style={{ width: '40%' }} />
+                                <input className="form-control form-control-sm" defaultValue={edu.end_date} placeholder="End"
+                                  onBlur={(e) => handleFieldSave(e.target.value, 'education', 'end_date', i)} style={{ width: '40%' }} />
+                              </div>
+                              <input className="form-control form-control-sm mb-1" defaultValue={edu.cgpa} placeholder="CGPA"
+                                onBlur={(e) => handleFieldSave(e.target.value, 'education', 'cgpa', i)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} />
+                              <textarea className="form-control form-control-sm" rows={2} defaultValue={edu.achievements} placeholder="Achievements / honors"
+                                onBlur={(e) => handleFieldSave(e.target.value, 'education', 'achievements', i)} />
+                              <button className="btn btn-sm btn-outline-success mt-1" style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem' }}
+                                onClick={() => setEditField(null)}>
+                                <i className="fas fa-check me-1"></i> Done
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ cursor: !isReview ? 'pointer' : 'default' }}
+                                 onClick={() => { if (!isReview) setEditField({ section: 'education', field: 'degree', index: i }); }}>
+                              <strong>{edu.degree}</strong> — {edu.institution}{edu.cgpa && <span> | CGPA: {edu.cgpa}</span>}
+                              <div style={{ color: '#555' }}>{edu.start_date} - {edu.end_date}</div>
+                            </div>
+                          )}
+                        </div>
+                      ))
                     )}
+                    {!isReview && (
+                      <div className="text-center mt-1">
+                        <button className="btn btn-sm" style={{ fontSize: '0.7rem', padding: '0', color: '#4dabf7', background: 'none', border: 'none', cursor: 'pointer' }}
+                          onClick={() => addSectionItem('education')}>
+                          <i className="fas fa-plus me-1"></i>Add Education
+                        </button>
+                      </div>
+                    )}
+                    {renderDiffActions('education')}
                   </div>
-                ))}
-              </div>
-            )}
+                )}
 
-            {/* Experience */}
-            {(currentResume?.data?.experience || []).length > 0 && (
-              <div style={{ marginBottom: '1rem' }}>
-                <div style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>Experience</div>
-                {(currentResume.data.experience || []).map((exp, i) => (
-                  <div key={exp.id} style={{ marginBottom: '0.5rem', fontSize: '10pt', cursor: 'pointer' }}
-                    onClick={() => setEditField(editField === `exp-${exp.id}` ? null : `exp-${exp.id}`)}>
-                    {editField === `exp-${exp.id}` ? (
-                      <div className="p-2" style={{ background: '#f0f7ff', border: '2px dashed #4dabf7', borderRadius: '4px' }}>
-                        <input className="form-control form-control-sm mb-1" value={exp.role || ''}
-                          onChange={e => updateArrayItem('experience', exp.id, 'role', e.target.value)} placeholder="Role" />
-                        <input className="form-control form-control-sm mb-1" value={exp.company || ''}
-                          onChange={e => updateArrayItem('experience', exp.id, 'company', e.target.value)} placeholder="Company" />
-                        <textarea className="form-control form-control-sm mb-1" rows="3" value={exp.description || ''}
-                          onChange={e => updateArrayItem('experience', exp.id, 'description', e.target.value)} placeholder="Description" />
+                {/* Experience */}
+                {(displayData?.experience || []).length > 0 && (
+                  <div style={sectionDiffStyle('experience')}>
+                    <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>
+                      <span>Experience</span>
+                      {!isReview && <i className="fas fa-pen fa-xs" style={{ color: '#999', cursor: 'pointer' }} onClick={() => setEditField(editField?.section === 'experience' ? null : { section: 'experience', field: '_section', index: null })}></i>}
+                    </div>
+                    {changedSections.has('experience') ? (
+                      <div>
+                        <div style={{ background: 'rgba(239,68,68,0.08)', padding: '0.35rem 0.5rem', borderRadius: '3px', marginBottom: '0.25rem' }}>
+                          <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600 }}>OLD</span>
+                          {(displayData.experience || []).map((exp, i) => (
+                            <div key={exp.id || i} style={{ fontSize: '10pt', textDecoration: 'line-through', color: '#dc2626', marginBottom: '0.3rem' }}>
+                              <strong>{exp.role}</strong> at <strong>{exp.company}</strong>
+                              <div style={{ color: '#999' }}>{exp.start_date} - {exp.current ? 'Present' : exp.end_date}</div>
+                              {exp.description && <p style={{ margin: '0.1rem 0', fontSize: '9pt' }}>{exp.description}</p>}
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ background: 'rgba(34,197,94,0.08)', padding: '0.35rem 0.5rem', borderRadius: '3px' }}>
+                          <span style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 600 }}>AI PROPOSED</span>
+                          {(pendingChanges.optimizedData.experience || []).map((exp, i) => (
+                            <div key={exp.id || i} style={{ fontSize: '10pt', color: '#15803d', fontWeight: 600, marginBottom: '0.3rem' }}>
+                              <strong>{exp.role}</strong> at <strong>{exp.company}</strong>
+                              <div style={{ color: '#166534' }}>{exp.start_date} - {exp.current ? 'Present' : exp.end_date}</div>
+                              {exp.description && <p style={{ margin: '0.1rem 0', fontSize: '9pt' }}>{exp.description}</p>}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ) : (
-                      <><strong>{exp.role}</strong> at <strong>{exp.company}</strong>
-                        <div style={{ color: '#555' }}>{exp.start_date} - {exp.current ? 'Present' : exp.end_date}</div>
-                        {exp.description && <p style={{ margin: '0.15rem 0', fontSize: '9pt' }}>{exp.description}</p>}
-                      </>
+                      (displayData.experience || []).map((exp, i) => (
+                        <div key={exp.id || i} style={{ marginBottom: '0.5rem', fontSize: '10pt' }}>
+                          {(!isReview && isEditing('experience', 'role', i)) ? (
+                            <div className="inline-edit-form" style={{ background: '#f8f9fa', padding: '0.35rem', borderRadius: '4px', border: '1px solid #dee2e6', marginBottom: '0.25rem' }}>
+                              <div className="d-flex justify-content-between mb-1">
+                                <span style={{ fontSize: '0.7rem', color: '#666' }}><i className="fas fa-pen me-1"></i>Editing</span>
+                                <button className="btn btn-sm" onClick={(e) => removeSectionItem('experience', i, e)}
+                                  style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '3px' }}>
+                                  <i className="fas fa-trash"></i>
+                                </button>
+                              </div>
+                              <input className="form-control form-control-sm mb-1" defaultValue={exp.role} placeholder="Role"
+                                onBlur={(e) => handleFieldSave(e.target.value, 'experience', 'role', i)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} autoFocus />
+                              <input className="form-control form-control-sm mb-1" defaultValue={exp.company} placeholder="Company"
+                                onBlur={(e) => handleFieldSave(e.target.value, 'experience', 'company', i)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} />
+                              <input className="form-control form-control-sm mb-1" defaultValue={exp.location} placeholder="Location"
+                                onBlur={(e) => handleFieldSave(e.target.value, 'experience', 'location', i)} />
+                              <div className="d-flex gap-2 mb-1">
+                                <input className="form-control form-control-sm" defaultValue={exp.start_date} placeholder="Start"
+                                  onBlur={(e) => handleFieldSave(e.target.value, 'experience', 'start_date', i)} style={{ width: '40%' }} />
+                                <input className="form-control form-control-sm" defaultValue={exp.end_date} placeholder="End"
+                                  onBlur={(e) => handleFieldSave(e.target.value, 'experience', 'end_date', i)} style={{ width: '40%' }} />
+                              </div>
+                              <input className="form-control form-control-sm mb-1" defaultValue={(exp.tech_stack || []).join(', ')} placeholder="Tech stack (comma-separated)"
+                                onBlur={(e) => handleFieldSave(e.target.value.split(',').map(s => s.trim()).filter(Boolean), 'experience', 'tech_stack', i)} />
+                              <textarea className="form-control form-control-sm mb-1" rows={2} defaultValue={exp.description} placeholder="Description"
+                                onBlur={(e) => handleFieldSave(e.target.value, 'experience', 'description', i)} />
+                              <textarea className="form-control form-control-sm mb-1" rows={1} defaultValue={(exp.achievements || []).join('\n')} placeholder="Achievements (one per line)"
+                                onBlur={(e) => handleFieldSave(e.target.value.split('\n').map(s => s.trim()).filter(Boolean), 'experience', 'achievements', i)} />
+                              <button className="btn btn-sm btn-outline-success mt-1" style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem' }}
+                                onClick={() => setEditField(null)}>
+                                <i className="fas fa-check me-1"></i> Done
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ cursor: !isReview ? 'pointer' : 'default' }}
+                                 onClick={() => { if (!isReview) setEditField({ section: 'experience', field: 'role', index: i }); }}>
+                              <strong>{exp.role}</strong> at <strong>{exp.company}</strong>
+                              <div style={{ color: '#555' }}>{exp.start_date} - {exp.current ? 'Present' : exp.end_date}</div>
+                              {exp.description && <p style={{ margin: '0.15rem 0', fontSize: '9pt' }}>{exp.description}</p>}
+                            </div>
+                          )}
+                        </div>
+                      ))
                     )}
+                    {!isReview && (
+                      <div className="text-center mt-1">
+                        <button className="btn btn-sm" style={{ fontSize: '0.7rem', padding: '0', color: '#4dabf7', background: 'none', border: 'none', cursor: 'pointer' }}
+                          onClick={() => addSectionItem('experience')}>
+                          <i className="fas fa-plus me-1"></i>Add Experience
+                        </button>
+                      </div>
+                    )}
+                    {renderDiffActions('experience')}
                   </div>
-                ))}
-              </div>
-            )}
+                )}
 
-            {/* Skills */}
-            {(currentResume?.data?.skills || []).length > 0 && (
-              <div style={{ marginBottom: '1rem' }}>
-                <div style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>Skills</div>
-                <div style={{ fontSize: '10pt' }}>{(currentResume.data.skills || []).map(s => s.value).join(', ')}</div>
-              </div>
-            )}
-
-            {/* Certifications */}
-            {(currentResume?.data?.certifications || []).length > 0 && (
-              <div style={{ marginBottom: '1rem' }}>
-                <div style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>Certifications</div>
-                {(currentResume.data.certifications || []).map((cert, i) => (
-                  <div key={i} style={{ fontSize: '10pt' }}><strong>{cert.name}</strong> — {cert.issuer}</div>
-                ))}
-              </div>
-            )}
-
-            {/* Projects */}
-            {(currentResume?.data?.projects || []).length > 0 && (
-              <div style={{ marginBottom: '1rem' }}>
-                <div style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>Projects</div>
-                {(currentResume.data.projects || []).map((proj, i) => (
-                  <div key={i} style={{ marginBottom: '0.35rem', fontSize: '10pt' }}>
-                    <strong>{proj.name}</strong> — {proj.description}
-                    {(proj.tech_stack || []).length > 0 && <div style={{ color: '#555', fontSize: '9pt' }}>{proj.tech_stack.join(', ')}</div>}
+                {/* Skills */}
+                {(displayData?.skills || []).length > 0 && (
+                  <div style={sectionDiffStyle('skills')}>
+                    <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>
+                      <span>Skills</span>
+                      {!isReview && <i className="fas fa-pen fa-xs" style={{ color: '#999', cursor: 'pointer' }} onClick={() => setEditField(editField?.section === 'skills' ? null : { section: 'skills', field: '_section', index: null })}></i>}
+                    </div>
+                    {changedSections.has('skills') ? (
+                      <div>
+                        <div style={{ background: 'rgba(239,68,68,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px', marginBottom: '0.25rem' }}>
+                          <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600 }}>OLD</span>
+                          <span style={{ fontSize: '10pt', textDecoration: 'line-through', color: '#dc2626' }}>
+                            {(displayData.skills || []).map(s => s.value).join(', ')}
+                          </span>
+                        </div>
+                        <div style={{ background: 'rgba(34,197,94,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px' }}>
+                          <span style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 600 }}>AI PROPOSED</span>
+                          <span style={{ fontSize: '10pt', color: '#15803d', fontWeight: 600 }}>
+                            {(pendingChanges.optimizedData.skills || []).map(s => s.value).join(', ')}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        {isEditing('skills', '_section') ? (
+                          <div style={{ background: '#f8f9fa', padding: '0.35rem', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <input className="form-control form-control-sm mb-1" defaultValue={(displayData.skills || []).map(s => s.value).join(', ')} placeholder="Comma-separated skills"
+                              onBlur={(e) => {
+                                const vals = e.target.value.split(',').map(v => v.trim()).filter(Boolean);
+                                setCurrentResume(prev => ({ ...prev, data: { ...prev.data, skills: vals.map((v, i) => ({ id: i + 1, value: v })) } }));
+                                setEditField(null);
+                              }}
+                              onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} autoFocus />
+                            <div style={{ fontSize: '0.7rem', color: '#999' }}>Type skills separated by commas, then press Enter</div>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '10pt', cursor: !isReview ? 'pointer' : 'default' }}
+                                onClick={() => { if (!isReview) setEditField({ section: 'skills', field: '_section', index: null }); }}>
+                            {(displayData.skills || []).map(s => s.value).join(', ')}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {!isReview && (
+                      <div className="text-center mt-1">
+                        <button className="btn btn-sm" style={{ fontSize: '0.7rem', padding: '0', color: '#4dabf7', background: 'none', border: 'none', cursor: 'pointer' }}
+                          onClick={() => addSectionItem('skills')}>
+                          <i className="fas fa-plus me-1"></i>Add Skill
+                        </button>
+                      </div>
+                    )}
+                    {renderDiffActions('skills')}
                   </div>
-                ))}
-              </div>
-            )}
+                )}
 
-            {/* Achievements */}
-            {(currentResume?.data?.achievements || []).length > 0 && (
-              <div style={{ marginBottom: '1rem' }}>
-                <div style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>Achievements</div>
-                {(currentResume.data.achievements || []).map((ach, i) => (
-                  <div key={i} style={{ fontSize: '10pt' }}>• {ach.value}</div>
-                ))}
-              </div>
-            )}
-            </div>  {/* close resume-preview-doc */}
+                {/* Certifications */}
+                {(displayData?.certifications || []).length > 0 && (
+                  <div style={sectionDiffStyle('certifications')}>
+                    <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>
+                      <span>Certifications</span>
+                      {!isReview && <i className="fas fa-pen fa-xs" style={{ color: '#999', cursor: 'pointer' }} onClick={() => setEditField(editField?.section === 'certifications' ? null : { section: 'certifications', field: '_section', index: null })}></i>}
+                    </div>
+                    {changedSections.has('certifications') ? (
+                      <div>
+                        <div style={{ background: 'rgba(239,68,68,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px', marginBottom: '0.25rem' }}>
+                          <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600 }}>OLD</span>
+                          {(displayData.certifications || []).map((cert, i) => (
+                            <div key={i} style={{ fontSize: '10pt', textDecoration: 'line-through', color: '#dc2626', marginBottom: '0.15rem' }}>
+                              <strong>{cert.name}</strong> — {cert.issuer}
+                              {cert.date && <span style={{ display: 'block', fontSize: '9pt', color: '#b91c1c' }}>{cert.date}</span>}
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ background: 'rgba(34,197,94,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px' }}>
+                          <span style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 600 }}>AI PROPOSED</span>
+                          {(pendingChanges.optimizedData.certifications || []).map((cert, i) => (
+                            <div key={i} style={{ fontSize: '10pt', color: '#15803d', fontWeight: 600, marginBottom: '0.15rem' }}>
+                              <strong>{cert.name}</strong> — {cert.issuer}
+                              {cert.date && <span style={{ display: 'block', fontSize: '9pt', color: '#166534' }}>{cert.date}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      (displayData.certifications || []).map((cert, i) => (
+                        <div key={i} style={{ marginBottom: '0.35rem', fontSize: '10pt' }}>
+                          {(!isReview && isEditing('certifications', 'name', i)) ? (
+                            <div className="inline-edit-form" style={{ background: '#f8f9fa', padding: '0.35rem', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                              <div className="d-flex justify-content-between mb-1">
+                                <span style={{ fontSize: '0.7rem', color: '#666' }}><i className="fas fa-pen me-1"></i>Editing</span>
+                                <button className="btn btn-sm" onClick={(e) => removeSectionItem('certifications', i, e)}
+                                  style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '3px' }}>
+                                  <i className="fas fa-trash"></i>
+                                </button>
+                              </div>
+                              <input className="form-control form-control-sm mb-1" defaultValue={cert.name} placeholder="Certification name"
+                                onBlur={(e) => handleFieldSave(e.target.value, 'certifications', 'name', i)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} autoFocus />
+                              <input className="form-control form-control-sm mb-1" defaultValue={cert.issuer} placeholder="Issuing organization"
+                                onBlur={(e) => handleFieldSave(e.target.value, 'certifications', 'issuer', i)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} />
+                              <input className="form-control form-control-sm mb-1" defaultValue={cert.date} placeholder="Date (e.g. 2023)"
+                                onBlur={(e) => handleFieldSave(e.target.value, 'certifications', 'date', i)} />
+                              <button className="btn btn-sm btn-outline-success mt-1" style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem' }}
+                                onClick={() => setEditField(null)}>
+                                <i className="fas fa-check me-1"></i> Done
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ cursor: !isReview ? 'pointer' : 'default' }}
+                                 onClick={() => { if (!isReview) setEditField({ section: 'certifications', field: 'name', index: i }); }}>
+                              <strong>{cert.name}</strong> — {cert.issuer}
+                              {cert.date && <span style={{ display: 'block', fontSize: '9pt', color: '#666' }}>{cert.date}</span>}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                    {!isReview && (
+                      <div className="text-center mt-1">
+                        <button className="btn btn-sm" style={{ fontSize: '0.7rem', padding: '0', color: '#4dabf7', background: 'none', border: 'none', cursor: 'pointer' }}
+                          onClick={() => addSectionItem('certifications')}>
+                          <i className="fas fa-plus me-1"></i>Add Certification
+                        </button>
+                      </div>
+                    )}
+                    {renderDiffActions('certifications')}
+                  </div>
+                )}
+
+                {/* Projects */}
+                {(displayData?.projects || []).length > 0 && (
+                  <div style={sectionDiffStyle('projects')}>
+                    <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>
+                      <span>Projects</span>
+                      {!isReview && <i className="fas fa-pen fa-xs" style={{ color: '#999', cursor: 'pointer' }} onClick={() => setEditField(editField?.section === 'projects' ? null : { section: 'projects', field: '_section', index: null })}></i>}
+                    </div>
+                    {changedSections.has('projects') ? (
+                      <div>
+                        <div style={{ background: 'rgba(239,68,68,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px', marginBottom: '0.25rem' }}>
+                          <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600 }}>OLD</span>
+                          {(displayData.projects || []).map((proj, i) => (
+                            <div key={i} style={{ fontSize: '10pt', textDecoration: 'line-through', color: '#dc2626', marginBottom: '0.2rem' }}>
+                              <strong>{proj.name}</strong> — {proj.description}
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ background: 'rgba(34,197,94,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px' }}>
+                          <span style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 600 }}>AI PROPOSED</span>
+                          {(pendingChanges.optimizedData.projects || []).map((proj, i) => (
+                            <div key={i} style={{ fontSize: '10pt', color: '#15803d', fontWeight: 600, marginBottom: '0.2rem' }}>
+                              <strong>{proj.name}</strong> — {proj.description}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      (displayData.projects || []).map((proj, i) => (
+                        <div key={i} style={{ marginBottom: '0.35rem', fontSize: '10pt' }}>
+                          {(!isReview && isEditing('projects', 'name', i)) ? (
+                            <div className="inline-edit-form" style={{ background: '#f8f9fa', padding: '0.35rem', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                              <div className="d-flex justify-content-between mb-1">
+                                <span style={{ fontSize: '0.7rem', color: '#666' }}><i className="fas fa-pen me-1"></i>Editing</span>
+                                <button className="btn btn-sm" onClick={(e) => removeSectionItem('projects', i, e)}
+                                  style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '3px' }}>
+                                  <i className="fas fa-trash"></i>
+                                </button>
+                              </div>
+                              <input className="form-control form-control-sm mb-1" defaultValue={proj.name} placeholder="Project name"
+                                onBlur={(e) => handleFieldSave(e.target.value, 'projects', 'name', i)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} autoFocus />
+                              <textarea className="form-control form-control-sm mb-1" rows={2} defaultValue={proj.description} placeholder="Description"
+                                onBlur={(e) => handleFieldSave(e.target.value, 'projects', 'description', i)} />
+                              <input className="form-control form-control-sm mb-1" defaultValue={(proj.tech_stack || []).join(', ')} placeholder="Tech stack (comma-separated)"
+                                onBlur={(e) => handleFieldSave(e.target.value.split(',').map(s => s.trim()).filter(Boolean), 'projects', 'tech_stack', i)} />
+                              <button className="btn btn-sm btn-outline-success mt-1" style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem' }}
+                                onClick={() => setEditField(null)}>
+                                <i className="fas fa-check me-1"></i> Done
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ cursor: !isReview ? 'pointer' : 'default' }}
+                                 onClick={() => { if (!isReview) setEditField({ section: 'projects', field: 'name', index: i }); }}>
+                              <strong>{proj.name}</strong> — {proj.description}
+                              {(proj.tech_stack || []).length > 0 && <div style={{ color: '#555', fontSize: '9pt' }}>{proj.tech_stack.join(', ')}</div>}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                    {!isReview && (
+                      <div className="text-center mt-1">
+                        <button className="btn btn-sm" style={{ fontSize: '0.7rem', padding: '0', color: '#4dabf7', background: 'none', border: 'none', cursor: 'pointer' }}
+                          onClick={() => addSectionItem('projects')}>
+                          <i className="fas fa-plus me-1"></i>Add Project
+                        </button>
+                      </div>
+                    )}
+                    {renderDiffActions('projects')}
+                  </div>
+                )}
+
+                {/* Achievements */}
+                {(displayData?.achievements || []).length > 0 && (
+                  <div style={sectionDiffStyle('achievements')}>
+                    <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>
+                      <span>Achievements</span>
+                      {!isReview && <i className="fas fa-pen fa-xs" style={{ color: '#999', cursor: 'pointer' }} onClick={() => setEditField(editField?.section === 'achievements' ? null : { section: 'achievements', field: '_section', index: null })}></i>}
+                    </div>
+                    {changedSections.has('achievements') ? (
+                      <div>
+                        <div style={{ background: 'rgba(239,68,68,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px', marginBottom: '0.25rem' }}>
+                          <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600 }}>OLD</span>
+                          {(displayData.achievements || []).map((ach, i) => (
+                            <div key={i} style={{ fontSize: '10pt', textDecoration: 'line-through', color: '#dc2626' }}>• {ach.value}</div>
+                          ))}
+                        </div>
+                        <div style={{ background: 'rgba(34,197,94,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px' }}>
+                          <span style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 600 }}>AI PROPOSED</span>
+                          {(pendingChanges.optimizedData.achievements || []).map((ach, i) => (
+                            <div key={i} style={{ fontSize: '10pt', color: '#15803d', fontWeight: 600 }}>• {ach.value}</div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      (displayData.achievements || []).map((ach, i) => (
+                        <div key={i} style={{ fontSize: '10pt' }}>
+                          {(!isReview && isEditing('achievements', 'value', i)) ? (
+                            <span className="d-flex align-items-center gap-1">
+                              <input className="form-control form-control-sm" style={{ width: '75%' }}
+                                defaultValue={ach.value} placeholder="Achievement"
+                                onBlur={(e) => handleFieldSave(e.target.value.trim(), 'achievements', 'value', i)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} autoFocus />
+                              <button className="btn btn-sm" onClick={(e) => removeSectionItem('achievements', i, e)}
+                                style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '3px' }}>
+                                <i className="fas fa-trash"></i>
+                              </button>
+                            </span>
+                          ) : (
+                            <span style={{ cursor: !isReview ? 'pointer' : 'default' }}
+                                  onClick={() => { if (!isReview) setEditField({ section: 'achievements', field: 'value', index: i }); }}>
+                              • {ach.value}
+                            </span>
+                          )}
+                        </div>
+                      ))
+                    )}
+                    {!isReview && (
+                      <div className="text-center mt-1">
+                        <button className="btn btn-sm" style={{ fontSize: '0.7rem', padding: '0', color: '#4dabf7', background: 'none', border: 'none', cursor: 'pointer' }}
+                          onClick={() => addSectionItem('achievements')}>
+                          <i className="fas fa-plus me-1"></i>Add Achievement
+                        </button>
+                      </div>
+                    )}
+                    {renderDiffActions('achievements')}
+                  </div>
+                )}
+                </div>
+              );
+            })()}
           </div>  {/* close viewer-lhs */}
+
+          {/* Diff Review Bar */}
+          {pendingChanges && (
+            <div className="diff-review-bar mb-3 p-2 d-flex align-items-center justify-content-between flex-wrap gap-2" style={{
+              background: 'rgba(251,191,36,0.08)',
+              border: '1px solid #fbbf24',
+              borderRadius: '6px',
+              width: '100%',
+            }}>
+              <div className="d-flex align-items-center gap-2">
+                <i className="fas fa-code-branch" style={{ color: '#fbbf24', fontSize: '0.85rem' }}></i>
+                <span style={{ color: '#fbbf24', fontSize: '0.8rem', fontWeight: 600 }}>
+                  Reviewing AI Changes
+                </span>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                  {Array.from(remainingSections || []).length} section(s) modified
+                </span>
+              </div>
+              <div className="d-flex gap-2">
+                <button className="btn btn-sm btn-success" onClick={acceptAllChanges} disabled={loading}
+                  style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem' }}>
+                  <i className="fas fa-check me-1"></i> Accept All
+                </button>
+                <button className="btn btn-sm btn-outline-danger" onClick={rejectAllChanges} disabled={loading}
+                  style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem' }}>
+                  <i className="fas fa-times me-1"></i> Reject All
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* RHS: Chat + ATS Suggestions */}
           <div className="viewer-rhs" style={{ width: isMobile ? '100%' : '360px', minWidth: isMobile ? '100%' : '300px' }}>

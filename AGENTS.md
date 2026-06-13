@@ -555,3 +555,197 @@ Templates used on resumes are now automatically saved to the database, building 
 
 ### Fixes
 - **Sidebar**: Replaced email display with user name (or "Guest" if not logged in); consolidated plan badge into the user info row; removed duplicate badge from offcanvas header
+- **Payment redirect**: Changed `navigate('/')` → `window.location.href = '/'` (full page reload) so `useAuth` re-fetches auth/plan state after payment; SPA client-side navigation was leaving stale auth data
+
+## Session: 2026-06-13 — Anthropic Python SDK Integration
+
+### What was done
+
+#### Refactored `ClaudeAgent` (`src/agents/claude_agent.py`)
+| Change | Detail |
+|--------|--------|
+| Replaced raw `httpx` POST calls with `anthropic.AsyncAnthropic().messages.create()` | SDK handles connection pooling, automatic retries (2× with exponential backoff), and proper timeout management |
+| Added shared `_get_client()` singleton | Single `AsyncAnthropic` instance per agent, reused across all calls for TCP connection reuse |
+| Added typed error handling | Catches `RateLimitError`, `APIStatusError` (401→invalid key), `APIConnectionError`, `APITimeoutError` with clear user-facing messages |
+| Upgraded streaming to non-blocking async | `stream_response` now uses `AsyncAnthropic` (`async with client.messages.stream()` + `async for text in stream.__stream_text__()`) instead of sync `Anthropic` inside an async function — no event loop blocking |
+| Added `count_tokens()` method | Uses SDK's `client.beta.messages.count_tokens()` for future token accounting |
+| Removed custom retry logic | SDK's built-in retry (2 attempts with exponential backoff) replaces the old 3-attempt custom loop with manual sleep/backoff |
+| Removed unused imports | `httpx`, `asyncio`, `random` no longer imported |
+
+#### Refactored `ClaudeCodeAgent` (`src/agents/claude_code_agent.py`)
+| Change | Detail |
+|--------|--------|
+| `_fallback_to_api()` uses `anthropic.AsyncAnthropic` | Replaced raw httpx POST with SDK, same typed error handling as `ClaudeAgent` |
+| Added `import anthropic` at module level | No more local imports |
+
+#### Requirements
+- `anthropic>=0.40.0` already in `requirements.txt`, freshly installed v0.109.1
+
+### Key Design Decisions
+- `_get_client()` lazily creates and caches `AsyncAnthropic` per agent instance — avoids creating a new `httpx.AsyncClient` per API call
+- Used `AsyncAnthropic` (not sync `Anthropic`) for both non-streaming and streaming to keep the event loop non-blocking
+- SDK's internal retry policy replaces manual `for attempt in range(max_retries)` with `sleep(2**attempt)` — cleaner code, same behavior
+- `count_tokens()` gracefully returns 0 on failure rather than propagating errors
+- Both `ClaudeAgent` and `ClaudeCodeAgent` share the same SDK patterns but have separate client instances
+
+### Known Issues
+- Only 1 built-in resume template available (Modern Professional) — user noted templates need expansion
+- Gemini agent still uses raw `httpx` (not in scope for this session)
+
+## Session: 2026-06-13 — Inline Diff Review with Per-Section Accept/Reject
+
+### What was done
+
+#### Shared utilities (`ResumePage.jsx`)
+| Function | Purpose |
+|----------|---------|
+| `computeDiffSections(optimizedData, originalData)` | Compares AI-proposed data vs original to identify which sections changed (personal_info field-by-field, arrays via JSON.stringify) |
+| `getChangedFields(optimizedData, originalData)` | Returns Set of personal_info field names that differ |
+
+#### State changes (`ResumePage.jsx`)
+- `pendingChanges` restructured: now stores `{ originalData, optimizedData, remainingSections (Set), optimization, changes }` instead of merged `{ data, previousData }`
+- Added `remainingSections` state (Set) — tracks which sections still need review
+- `optimizeResume` and `handleChatSend` no longer merge AI data into `currentResume.data` immediately — instead store original + optimized separately for diff review
+
+#### Actions (`ResumePage.jsx`)
+| Function | Behavior |
+|----------|----------|
+| `acceptAllChanges()` | Merges all optimized data → saves to backend via PUT → clears review mode |
+| `rejectAllChanges()` | Discards all pending changes, clears review mode, keeps original data intact |
+| `acceptSection(section)` | Merges that single section's optimized data into original → removes from remaining → if all resolved, exits review mode |
+| `rejectSection(section)` | Removes section from remaining without applying changes → if all resolved, exits review mode |
+| `saveAcceptedData(data, optimization)` | PUTs merged data to backend, updates `currentResume`, stores optimization result |
+
+#### Viewer diff UI (`ResumePage.jsx`)
+| Element | What changed |
+|---------|--------------|
+| **Review bar** | Replaced old yellow "Pending Changes" banner with compact "Reviewing AI Changes — X section(s) modified" bar with Accept All / Reject All buttons |
+| **NOVA document** | When `pendingChanges` exists, renders from `originalData` with a yellow outline |
+| **Per-section diff** | Each changed section shows **OLD** (red bg, strikethrough) and **AI PROPOSED** (green bg, bold) side by side |
+| **Personal info fields** | Individual field diffs (name, title, summary, email, etc.) — each changed field shows old → new inline |
+| **Per-section actions** | Each section with changes gets Accept / Reject mini buttons at the bottom |
+| **Unchanged sections** | Render normally with no diff styling |
+
+### How the flow works
+1. User clicks "Optimize with AI" or sends chat message
+2. Backend returns `optimized_data` (changed fields only)
+3. Frontend computes which sections/fields changed via `computeDiffSections`
+4. Resume stays on original data; viewer enters "review mode" with yellow outline
+5. Each changed section shows old (red) → new (green) diff with Accept/Reject buttons
+6. Accepting a section merges that section into local data and removes from review list
+7. Rejecting a section removes it from review list without applying changes
+8. When all sections resolved, review mode exits automatically
+9. User can click "Accept All" at any time to save all changes to backend
+10. "Reject All" discards all pending changes
+
+### Key Design Decisions
+- `remainingSections` Set tracks un-reviewed sections; when empty, `pendingChanges` auto-clears
+- Accepted sections are applied to `currentResume.data` immediately (visible in UI) but NOT saved to backend until "Accept All"
+- `computeDiffSections` uses `JSON.stringify` for array comparison — detects order/content changes reliably
+- Personal info uses field-level diff detection but section-level accept/reject (all personal_info fields are one unit)
+- Using functional `setState(prev => ...)` ensures correct pendingChanges reference in callbacks
+- No CSS classes needed — all diff styling via inline styles (red/green backgrounds, strikethrough, yellow left border)
+
+## Session: 2026-06-13 — Anthropic Document Content Blocks for Resume Parsing + Gemini Fallback
+
+### What was done
+
+#### New `parse_document()` method on `ClaudeAgent` (`src/agents/claude_agent.py`)
+| Change | Detail |
+|--------|--------|
+| Added `async parse_document(file_bytes, filename, prompt)` | Sends PDF/DOCX file to Claude as a base64-encoded `document` content block — no local text extraction needed |
+| Uses `anthropic.AsyncAnthropic().messages.create()` with `type: "document"` content block | Same SDK client, same typed error handling (`RateLimitError`, `APIStatusError`, `APIConnectionError`, `APITimeoutError`) |
+| Maps file extension to media type | `.pdf` → `application/pdf`, `.docx` → `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `.txt` → `text/plain` |
+| Exists only on `ClaudeAgent` | Callers should check `hasattr(agent, 'parse_document')` before calling — `GeminiAgent` does not have this |
+
+#### Updated upload endpoint (`src/api/routes.py`)
+| Change | Detail |
+|--------|--------|
+| `/resumes/upload` now uses `parse_document` for PDF/DOCX when agent is Claude | Falls back to `extract_text` (PyPDF2/python-docx) + text prompt for Gemini or non-Claude providers |
+| Duplicate `ext = Path(...)` line removed | Cleaned up redundant line 2145 |
+
+#### Gemini provider fallback
+- User set Gemini API key HTTP referrers to "None" in Google Cloud Console — Gemini calls no longer blocked
+- Backend `agent_manager.switch_provider()` in optimize endpoint already retries primary provider twice, then falls back to the other provider
+- Upload/parse endpoints use the fallback automatically: if `hasattr(agent, 'parse_document')` is False (Gemini provider), they fall through to `extract_text + process_message()` — the same flow that worked before
+
+### Key Design Decisions
+- `parse_document` is on `ClaudeAgent` only — not added to `GeminiAgent` since document content blocks are an Anthropic-specific API feature
+- Fallback path unchanged: `extract_text()` produces raw text, then `agent.process_message()` sends it with a parsing prompt — works for both Claude and Gemini
+- Upload endpoint (with document content blocks) replaces the old "extract locally, then send text to AI" pattern for Claude users, giving better accuracy on PDFs with complex layouts
+- All 13 existing tests still pass, frontend builds clean
+
+## Session: 2026-06-13 — Chat Compaction + NOVA Viewer Inline Editing + Certifications Fix
+
+### What was done
+
+#### Chat compaction (`src/api/routes.py` + `frontend/src/pages/ResumePage.jsx`)
+| Change | Detail |
+|--------|--------|
+| `POST /resumes/{resume_id}/compact-chat` endpoint | Compacts old chat messages by summarizing via AI when total chars > 8000; keeps last 4 messages as-is; stores `[{role:"system", content:"[Compacted]..."}, ...recent]` |
+| `CHAT_COMPACTION_CHAR_THRESHOLD = 8000` | Constant at top of routes.py; threshold triggers compaction |
+| Chat history included in optimize prompt | Last 10 messages from `resume.chat_history` added as "Previous conversation context" so AI knows what was discussed |
+| `saveChatHistory()` auto-compacts on frontend | After each save, checks total char count; if > 8000, calls compact endpoint and replaces local state with compacted version |
+
+#### NOVA viewer inline editing (`frontend/src/pages/ResumePage.jsx`)
+| Change | Detail |
+|--------|--------|
+| `handleFieldSave(value, section, field, index)` | New function that saves any field edit into `currentResume.data` and clears `editField` state |
+| `isEditing(section, field, index)` | New helper to check if a given field is currently being edited |
+| **full_name** | Now `contentEditable` on click — blur saves, Enter key blurs |
+| **title** | Same `contentEditable` pattern |
+| **email, phone, linkedin, github, website** | All now clickable `contentEditable` fields — previously not interactive at all |
+| **summary** | Now clickable `contentEditable` paragraph — previously read-only |
+| **Education section** | Pencil icon next to header; clicking an item opens inline form (degree, institution, dates, cgpa fields) |
+| **Experience section** | Same pattern — inline form with role, company, dates, description |
+| **Skills section** | Click to edit as comma-separated list in inline input; saves as array of `{id, value}` objects |
+| **Certifications section** | Inline form with name, issuer, date fields |
+| **Projects section** | Inline form with name, description, tech stack fields |
+| **Achievements section** | Each item clickable to inline edit |
+
+#### Certifications display fix (`frontend/src/pages/ResumePage.jsx`)
+| Change | Detail |
+|--------|--------|
+| Added `cert.date` display | Date now shows in a smaller sub-line below certification name/issuer (was missing entirely) |
+| Better spacing | Added `marginBottom` to each cert item for readability |
+| Inline editing | Pencil icon + per-item inline form |
+
+#### Edit button removed (`frontend/src/pages/ResumePage.jsx`)
+| Change | Detail |
+|--------|--------|
+| Removed "Edit" button from viewer action bar | Template switching (which navigates to editor) + inline preview editing + chat are the intended editing flows |
+
+### Key Design Decisions
+- `contentEditable` for simple text fields (personal_info) — minimal state overhead, no extra inputs
+- Inline multi-field forms for array sections (education, experience, etc.) — clicking an item opens editable inputs for all its fields, with a Done button to confirm
+- Compaction is async (fires after chat save) so it doesn't block the user's flow
+- Chat history context in optimize prompt uses last 10 messages (enough for continuity without blowing token budget)
+- Edit button removed because: (a) clicking template cards navigates to editor, (b) inline editing on preview, (c) chat modifications — all provide edit paths
+
+## Session: 2026-06-13 — NOVA Viewer Inline Add/Delete Controls
+
+### What was done
+
+| File | Change |
+|------|--------|
+| `frontend/src/pages/ResumePage.jsx` | Added `getBlankItem()` helper — returns empty item template per section type (education, experience, skills, certifications, projects, achievements) |
+| | Added `addSectionItem(section)` — creates blank item via `getBlankItem`, pushes into `currentResume.data[section]`, opens inline edit for the new item |
+| | Added `removeSectionItem(section, index, e)` — filters out item at index from `currentResume.data[section]`, clears edit state |
+| | **Education inline form**: Added "Editing" header bar with Delete (trash) button |
+| | **Education section**: Added "+ Add Education" link below items list, before diff actions |
+| | **Experience inline form**: Added "Editing" header bar with Delete button |
+| | **Experience section**: Added "+ Add Experience" link below items list |
+| | **Skills section**: Added "+ Add Skill" link below items list |
+| | **Certifications inline form**: Added "Editing" header bar with Delete button |
+| | **Certifications section**: Added "+ Add Certification" link below items list |
+| | **Projects inline form**: Added "Editing" header bar with Delete button |
+| | **Projects section**: Added "+ Add Project" link below items list |
+| | **Achievements inline form**: Added Delete (trash) button next to input |
+| | **Achievements section**: Added "+ Add Achievement" link below items list |
+
+### Key Design Decisions
+- Each array section now has a consistent add/delete pattern: "+ Add" link at the bottom of the section, Delete (trash) button inside each inline edit form
+- Delete is only available inside the edit form (not on hover of the display text) to keep the viewer clean
+- Skills uses a special case: clicking "+ Add Skill" opens the comma-separated input with a blank field
+- All add/delete operations update `currentResume.data` in state immediately but do NOT auto-save to backend (user must trigger save elsewhere, or Accept All in review mode)
+- Build passes clean (Vite, chunk size warning is cosmetic)

@@ -339,7 +339,7 @@ Users can switch between Google and Anthropic:
 2. Card form (demo sandbox) → validation → 1.8s simulated processing
 3. `POST /api/v1/user/upgrade-plan` sets `plan='pro'` + `plan_expiry = now + 365 days`
 4. A `payments` record is saved (id, user_email, amount, plan, valid_until)
-5. User is redirected to `/` — Header now shows **PRO** badge, Profile shows "Valid until" date
+5. User is redirected to `/` via full page reload (`window.location.href = '/'`) — ensures `useAuth` re-fetches fresh plan data; Header shows **PRO** badge, Profile shows "Valid until" date
 6. Stripe integration planned (will replace demo sandbox)
 
 ### 7.4 Database Tables — Plans & Payments
