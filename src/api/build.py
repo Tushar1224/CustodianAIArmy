@@ -70,14 +70,17 @@ class MVPSession:
         self.files: Dict[str, str] = {}
         self.chat_history: List[Dict[str, Any]] = []
         self.logs: List[Dict[str, Any]] = []
+        self.deploy_accepted: bool = False
+        self.deploy_github_url: Optional[str] = None
 
-        # Initialize 5 phases
+        # Initialize 6 phases (5 original + Virtual Deploy)
         self.phases: List[MVPPhase] = [
             MVPPhase("Ideation", "Refine your product concept", "coordinator"),
             MVPPhase("Planning", "Architecture & tech stack", "architect"),
             MVPPhase("Review", "Validate the approach", "technical"),
             MVPPhase("Polish", "UX improvements", "designer"),
             MVPPhase("Build", "Generate production code", "coder"),
+            MVPPhase("Virtual Deploy", "Preview and accept the final product", "technical"),
         ]
 
     @property
@@ -119,8 +122,11 @@ class MVPSession:
             "overall_progress": self.overall_progress,
             "phases": [p.to_dict() for p in self.phases],
             "files": list(self.files.keys()),
+            "file_data": self.files,  # Full file content dict
             "chat_history": self.chat_history[-20:],  # Last 20 messages
             "logs": self.logs[-50:],  # Last 50 logs
+            "deploy_accepted": self.deploy_accepted,
+            "deploy_github_url": self.deploy_github_url,
         }
 
 
@@ -141,6 +147,78 @@ class MVPBuilder:
         self.workspace_base.mkdir(parents=True, exist_ok=True)
         logger.info("MVP Builder initialized")
 
+    def _persist_to_db(self, session: MVPSession) -> bool:
+        """Persist the session state to the database."""
+        try:
+            from src.core.database import save_mvp_session
+            data = {
+                "id": session.session_id,
+                "user_email": session.user_email,
+                "product_idea": session.product_idea,
+                "current_phase_index": session.current_phase_index,
+                "mode": session.mode,
+                "phases": [p.to_dict() for p in session.phases],
+                "chat_history": session.chat_history,
+                "files": session.files,
+                "github_connected": session.github_connected,
+                "github_repo_name": session.github_repo_name,
+                "github_username": session.github_username,
+                "logs": session.logs,
+                "created_at": session.created_at.isoformat(),
+            }
+            return save_mvp_session(data)
+        except Exception as e:
+            logger.warning(f"Failed to persist session to DB: {e}")
+            return False
+
+    def _reconstruct_session(self, data: dict) -> MVPSession:
+        """Reconstruct an MVPSession from a DB dict."""
+        session = MVPSession(data["id"], data["user_email"], data["product_idea"])
+        session.current_phase_index = data.get("current_phase_index", 0)
+        session.mode = data.get("mode", "plan")
+        session.github_connected = data.get("github_connected", False)
+        session.github_repo_name = data.get("github_repo_name")
+        session.github_username = data.get("github_username")
+
+        # Restore chat history
+        for msg in data.get("chat_history", []):
+            session.chat_history.append(msg)
+
+        # Restore files
+        for path, content in data.get("files", {}).items():
+            session.files[path] = content
+
+        # Restore logs
+        for log in data.get("logs", []):
+            session.logs.append(log)
+
+        # Restore phases
+        phase_data_list = data.get("phases", [])
+        if phase_data_list:
+            session.phases = []
+            for pd in phase_data_list:
+                phase = MVPPhase(pd["name"], pd["description"], pd["agent_specialization"])
+                phase.tasks = pd.get("tasks", [])
+                phase.progress = pd.get("progress", 0)
+                phase.status = pd.get("status", "pending")
+                phase.output = pd.get("output", {})
+                session.phases.append(phase)
+
+        # Restore timestamps
+        if data.get("created_at"):
+            try:
+                session.created_at = datetime.fromisoformat(data["created_at"])
+            except (ValueError, TypeError):
+                pass
+        if data.get("updated_at"):
+            try:
+                session.updated_at = datetime.fromisoformat(data["updated_at"])
+            except (ValueError, TypeError):
+                pass
+
+        session.updated_at = datetime.utcnow()
+        return session
+
     async def create_session(self, user_email: str, product_idea: str) -> MVPSession:
         """Create a new MVP building session."""
         session_id = str(uuid.uuid4())
@@ -153,12 +231,32 @@ class MVPBuilder:
 
         session.add_log(f"Session created for product: {product_idea[:50]}...", "info")
         self.sessions[session_id] = session
+        self._persist_to_db(session)
 
         return session
 
     def get_session(self, session_id: str) -> Optional[MVPSession]:
-        """Get an existing session by ID."""
-        return self.sessions.get(session_id)
+        """Get an existing session by ID. Loads from DB if not in memory."""
+        session = self.sessions.get(session_id)
+        if session:
+            return session
+
+        # Try loading from database
+        try:
+            from src.core.database import get_mvp_session as _get_mvp_session
+            data = _get_mvp_session(session_id)
+            if data:
+                session = self._reconstruct_session(data)
+                # Restore workspace path
+                workspace_path = self.workspace_base / session_id
+                workspace_path.mkdir(parents=True, exist_ok=True)
+                session.workspace_path = workspace_path
+                self.sessions[session_id] = session
+                return session
+        except Exception as e:
+            logger.warning(f"Failed to load session from DB: {e}")
+
+        return None
 
     async def send_message(
         self, session_id: str, message: str, mode: str = "plan", agent_name: Optional[str] = None
@@ -232,6 +330,7 @@ class MVPBuilder:
                 current_phase.progress = min(100, current_phase.progress + 20)
 
             session.updated_at = datetime.utcnow()
+            self._persist_to_db(session)
 
             return {
                 "response": response.content,
@@ -344,6 +443,7 @@ class MVPBuilder:
             next_phase = session.current_phase
             next_phase.status = "active"
             session.add_log(f"Advanced to {next_phase.name} phase")
+            self._persist_to_db(session)
 
             return {
                 "success": True,
@@ -352,6 +452,70 @@ class MVPBuilder:
             }
 
         return {"success": False, "message": "Already at final phase"}
+
+    async def accept_deploy(self, session_id: str, publish_to_github: bool = False, repo_name: Optional[str] = None) -> Dict[str, Any]:
+        """Accept the virtual deployment and finalize the MVP."""
+        session = self.get_session(session_id)
+        if not session:
+            raise ValueError(f"Session {session_id} not found")
+
+        if session.current_phase_index < len(session.phases) - 1:
+            return {"success": False, "message": "Must be in Virtual Deploy phase to accept deployment"}
+
+        session.deploy_accepted = True
+        session.current_phase.status = "completed"
+        session.current_phase.progress = 100
+        overall_progress = 100
+
+        deploy_url = None
+        if publish_to_github and session.github_connected:
+            try:
+                result = await self.publish_to_github(session_id, repo_name)
+                if result.get("success"):
+                    deploy_url = result.get("repo_url")
+                    session.deploy_github_url = deploy_url
+                    session.add_log(f"Deployment accepted and published to GitHub: {deploy_url}")
+            except Exception as e:
+                session.add_log(f"GitHub publish failed (deploy still accepted): {e}", "error")
+
+        session.add_log("Virtual deployment accepted — project finalized")
+        self._persist_to_db(session)
+
+        return {
+            "success": True,
+            "message": "Deployment accepted and project finalized",
+            "overall_progress": overall_progress,
+            "deploy_url": deploy_url or session.deploy_github_url,
+        }
+
+    async def request_changes(self, session_id: str, feedback: str) -> Dict[str, Any]:
+        """Request changes by going back to the Build phase."""
+        session = self.get_session(session_id)
+        if not session:
+            raise ValueError(f"Session {session_id} not found")
+
+        # Go back to Build phase (index 4)
+        session.current_phase_index = 4
+        session.current_phase.status = "active"
+        session.current_phase.progress = 50
+
+        # Add feedback as a user message in chat history
+        session.chat_history.append({
+            "role": "user",
+            "content": f"[Change Request] {feedback}",
+            "timestamp": datetime.utcnow().isoformat(),
+            "mode": "plan",
+        })
+
+        session.add_log(f"Changes requested: back to Build phase. Feedback: {feedback[:100]}...")
+        self._persist_to_db(session)
+
+        return {
+            "success": True,
+            "message": "Returned to Build phase for changes",
+            "new_phase": "Build",
+            "feedback": feedback,
+        }
 
     async def connect_github(self, session_id: str, github_token: str, repo_name: Optional[str] = None) -> Dict[str, Any]:
         """Connect GitHub account, get user info, and optionally clone a repo."""

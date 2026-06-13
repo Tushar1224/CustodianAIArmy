@@ -200,6 +200,26 @@ def init_db():
             )
         ''')
 
+        # MVP Builder sessions table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS mvp_sessions (
+                id TEXT PRIMARY KEY,
+                user_email TEXT NOT NULL,
+                product_idea TEXT NOT NULL,
+                current_phase_index INTEGER NOT NULL DEFAULT 0,
+                mode TEXT NOT NULL DEFAULT 'plan',
+                phases TEXT NOT NULL DEFAULT '[]',
+                chat_history TEXT NOT NULL DEFAULT '[]',
+                files TEXT NOT NULL DEFAULT '{}',
+                github_connected INTEGER NOT NULL DEFAULT 0,
+                github_repo_name TEXT,
+                github_username TEXT,
+                logs TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        ''')
+
         conn.commit()
         conn.close()
         print(f"Database initialized at {DB_PATH}")
@@ -965,6 +985,137 @@ def delete_resume(resume_id: str, user_email: str) -> bool:
         return deleted
     except Exception as e:
         print(f"Error deleting resume: {e}")
+        return False
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MVP SESSION FUNCTIONS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def save_mvp_session(session_data: dict) -> bool:
+    """Save or update an MVP session to the database."""
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=20)
+        cursor = conn.cursor()
+        now = datetime.utcnow().isoformat()
+        cursor.execute('''
+            INSERT INTO mvp_sessions (id, user_email, product_idea, current_phase_index, mode,
+                phases, chat_history, files, github_connected, github_repo_name, github_username,
+                logs, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                current_phase_index=excluded.current_phase_index,
+                mode=excluded.mode,
+                phases=excluded.phases,
+                chat_history=excluded.chat_history,
+                files=excluded.files,
+                github_connected=excluded.github_connected,
+                github_repo_name=excluded.github_repo_name,
+                github_username=excluded.github_username,
+                logs=excluded.logs,
+                updated_at=excluded.updated_at
+        ''', (
+            session_data["id"],
+            session_data["user_email"],
+            session_data.get("product_idea", ""),
+            session_data.get("current_phase_index", 0),
+            session_data.get("mode", "plan"),
+            json.dumps(session_data.get("phases", [])),
+            json.dumps(session_data.get("chat_history", [])),
+            json.dumps(session_data.get("files", {})),
+            1 if session_data.get("github_connected") else 0,
+            session_data.get("github_repo_name"),
+            session_data.get("github_username"),
+            json.dumps(session_data.get("logs", [])),
+            session_data.get("created_at", now),
+            now,
+        ))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Error saving MVP session: {e}")
+        return False
+
+
+def get_mvp_session(session_id: str) -> Optional[Dict[str, Any]]:
+    """Get a single MVP session by ID."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, user_email, product_idea, current_phase_index, mode,
+            phases, chat_history, files, github_connected, github_repo_name,
+            github_username, logs, created_at, updated_at
+        FROM mvp_sessions WHERE id = ?
+    ''', (session_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {
+        "id": row[0],
+        "user_email": row[1],
+        "product_idea": row[2],
+        "current_phase_index": row[3],
+        "mode": row[4],
+        "phases": json.loads(row[5]) if row[5] else [],
+        "chat_history": json.loads(row[6]) if row[6] else [],
+        "files": json.loads(row[7]) if row[7] else {},
+        "github_connected": bool(row[8]),
+        "github_repo_name": row[9],
+        "github_username": row[10],
+        "logs": json.loads(row[11]) if row[11] else [],
+        "created_at": row[12],
+        "updated_at": row[13],
+    }
+
+
+def list_mvp_sessions(user_email: str) -> List[Dict[str, Any]]:
+    """List all MVP sessions for a user."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, user_email, product_idea, current_phase_index, mode,
+            phases, chat_history, files, github_connected, github_repo_name,
+            github_username, logs, created_at, updated_at
+        FROM mvp_sessions WHERE user_email = ?
+        ORDER BY updated_at DESC
+    ''', (user_email,))
+    rows = cursor.fetchall()
+    conn.close()
+    results = []
+    for row in rows:
+        results.append({
+            "id": row[0],
+            "user_email": row[1],
+            "product_idea": row[2],
+            "current_phase_index": row[3],
+            "mode": row[4],
+            "phases": json.loads(row[5]) if row[5] else [],
+            "chat_history": json.loads(row[6]) if row[6] else [],
+            "files": json.loads(row[7]) if row[7] else {},
+            "github_connected": bool(row[8]),
+            "github_repo_name": row[9],
+            "github_username": row[10],
+            "logs": json.loads(row[11]) if row[11] else [],
+            "created_at": row[12],
+            "updated_at": row[13],
+        })
+    return results
+
+
+def delete_mvp_session(session_id: str, user_email: str) -> bool:
+    """Delete an MVP session by ID with ownership verification."""
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=20)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM mvp_sessions WHERE id = ? AND user_email = ?', (session_id, user_email))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return deleted
+    except Exception as e:
+        print(f"Error deleting MVP session: {e}")
         return False
 
 

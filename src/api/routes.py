@@ -21,7 +21,8 @@ from src.core.database import (
     get_user_api_keys, get_user_api_keys_raw, save_user_api_keys, delete_user_api_key, get_user_github_token, save_custom_agent_config, get_custom_agent_config,
     get_user_plan, check_and_increment_rate_limit, upgrade_user_plan, save_payment,
     save_resume, get_user_resumes, get_resume, get_resume_count, delete_resume, save_resume_chat_history,
-    save_template, list_templates, get_template_by_name
+    save_template, list_templates, get_template_by_name,
+    delete_mvp_session, list_mvp_sessions
 )
 from src.agents.astro_agent import AstroAgent # Import AstroAgent
 from src.agents.base_agent import AgentMessage, AgentCapability, BaseAgent
@@ -118,6 +119,15 @@ class MVPCreateRepoRequest(BaseModel):
 
 class MVPSelectGitHubRepoRequest(BaseModel):
     session_id: str
+
+class MVPRequestChangesRequest(BaseModel):
+    session_id: str
+    feedback: str
+
+class MVPAcceptDeployRequest(BaseModel):
+    session_id: str
+    publish_to_github: bool = False
+    repo_name: Optional[str] = None
 
 class CustomAgentConfigRequest(BaseModel):
     agent_id: Optional[str] = None
@@ -1785,6 +1795,81 @@ async def mvp_preview(
         raise
     except Exception as e:
         logger.error(f"Error serving preview: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/mvp/virtual-deploy")
+async def mvp_virtual_deploy(
+    request: MVPAcceptDeployRequest,
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """Accept the virtual deployment and finalize the MVP."""
+    try:
+        mvp_builder = get_mvp_builder_instance()
+        result = await mvp_builder.accept_deploy(
+            request.session_id,
+            publish_to_github=request.publish_to_github,
+            repo_name=request.repo_name,
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error accepting virtual deploy: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/mvp/request-changes")
+async def mvp_request_changes(
+    request: MVPRequestChangesRequest,
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """Request changes to go back to Build phase."""
+    try:
+        mvp_builder = get_mvp_builder_instance()
+        result = await mvp_builder.request_changes(
+            request.session_id,
+            request.feedback,
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error requesting changes: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/mvp/session/{mvp_session_id}")
+async def mvp_delete_session(
+    mvp_session_id: str,
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """Delete an MVP session."""
+    try:
+        deleted = delete_mvp_session(mvp_session_id, current_user.email)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Session not found")
+        # Also remove from in-memory builder
+        mvp_builder = get_mvp_builder_instance()
+        mvp_builder.sessions.pop(mvp_session_id, None)
+        return {"success": True, "message": "Session deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting MVP session: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/mvp/sessions/db")
+async def mvp_get_db_sessions(
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """Get all MVP sessions from the database for the current user."""
+    try:
+        sessions = list_mvp_sessions(current_user.email)
+        return {"success": True, "sessions": sessions, "count": len(sessions)}
+    except Exception as e:
+        logger.error(f"Error listing DB sessions: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
