@@ -1,8 +1,10 @@
 import { useAuth } from '../../hooks/useAuth';
 import ProviderSwitcher from '../shared/ProviderSwitcher';
+import { useTheme } from '../../hooks/useTheme';
 
 export default function Header({ showSubHeader, subHeaderContent, style: customStyle, onOpenProfile }) {
   const { user, logout, plan } = useAuth();
+  const { isDark, toggle } = useTheme();
   const firstName = user ? (user.name || 'User').split(' ')[0] : 'Guest';
   const planLabel = { guest: 'GUEST', free: 'FREE', pro: 'PRO' }[plan] || 'FREE';
   const planColor = plan === 'pro' ? 'var(--warning-color)' : 'var(--primary-color)';
@@ -42,7 +44,12 @@ export default function Header({ showSubHeader, subHeaderContent, style: customS
             <ProviderSwitcher compact={true} />
           </div>
 
-          {/* Right: Profile Dropdown */}
+          {/* Right: Theme Toggle + Profile Dropdown */}
+          <button className="btn-icon-only me-1" type="button" onClick={toggle}
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            style={{ background: 'none', border: 'none', color: 'var(--primary-color)', cursor: 'pointer', padding: '0.4rem 0.5rem', fontSize: '1.1rem', lineHeight: 1 }}>
+            <i className={`fas ${isDark ? 'fa-sun' : 'fa-moon'}`}></i>
+          </button>
           <div className="dropdown">
             <button className="btn-icon-only dropdown-toggle" type="button"
               id="userProfileDropdown" data-bs-toggle="dropdown" aria-expanded="false"

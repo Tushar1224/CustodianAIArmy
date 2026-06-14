@@ -1061,9 +1061,10 @@ class MVPBuilder:
                     reviewed = all_content
                 # If plan.md exists, merge
                 existing_plan = session.files.get("plan.md", "")
+                plan_header = f"## Original Plan\n{existing_plan}\n\n" if existing_plan else ""
                 session.files["reviewed-plan.md"] = (
                     f"# {session.product_idea} — Reviewed Plan\n\n"
-                    f"{'## Original Plan\n' + existing_plan + '\n\n' if existing_plan else ''}"
+                    f"{plan_header}"
                     f"## Review Notes\n{reviewed}"
                 )
                 session.add_log("Saved reviewed-plan.md artifact")
@@ -1074,9 +1075,10 @@ class MVPBuilder:
                 else:
                     ux_changes = all_content
                 reviewed = session.files.get("reviewed-plan.md", "")
+                arch_header = f"## Reviewed Architecture\n{reviewed}\n\n" if reviewed else ""
                 session.files["prd.md"] = (
                     f"# {session.product_idea} — Product Requirements Document\n\n"
-                    f"{'## Reviewed Architecture\n' + reviewed + '\n\n' if reviewed else ''}"
+                    f"{arch_header}"
                     f"## UX & UI Design Decisions\n{ux_changes}"
                 )
                 session.add_log("Saved prd.md artifact")

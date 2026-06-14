@@ -4,8 +4,6 @@
   height: 100%;
   min-height: 400px;
   overflow: hidden;
-  background: #06060e;
-  box-shadow: 0 0 60px rgba(77, 171, 247, 0.04), inset 0 0 80px rgba(10, 5, 30, 0.6);
 }
 
 .neuron-brain-container canvas {
@@ -15,201 +13,14 @@
   height: 100%;
 }
 
-/* Legend */
-.neuron-brain-legend {
-  position: absolute;
-  bottom: 0.75rem;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 1.5rem;
-  font-size: 0.7rem;
-  color: rgba(144, 144, 180, 0.5);
-  pointer-events: none;
-  z-index: 2;
-}
-
-.neuron-brain-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.neuron-brain-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-}
-
-.neuron-brain-dot.working {
-  background: #4dabf7;
-  box-shadow: 0 0 6px rgba(77, 171, 247, 0.5);
-}
-
-.neuron-brain-dot.coming {
-  background: #f59e0b;
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
-}
-
-/* Right-side detail panel */
-.neuron-right-panel {
-  position: absolute;
-  right: 0;
-  top: 0;
-  width: 280px;
-  height: 100%;
-  background: rgba(8, 8, 18, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-left: 1px solid rgba(77, 171, 247, 0.1);
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transform: translateX(20px);
-  transition: opacity 0.35s ease, transform 0.35s ease;
-  pointer-events: none;
-}
-
-.neuron-right-panel.visible {
-  opacity: 1;
-  transform: translateX(0);
-  pointer-events: auto;
-}
-
-.neuron-panel-inner {
-  text-align: center;
-  padding: 2rem 1.5rem;
-  animation: panelFadeIn 0.3s ease;
-}
-
-.neuron-panel-icon {
-  width: 72px;
-  height: 72px;
-  border-radius: 18px;
-  border: 1px solid;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2rem;
-  margin: 0 auto 1.25rem;
-}
-
-.neuron-panel-name {
-  font-family: 'Orbitron', monospace;
-  font-size: 1.05rem;
-  font-weight: 700;
-  margin: 0 0 0.75rem;
-  letter-spacing: 0.5px;
-}
-
-.neuron-panel-badge {
-  display: inline-block;
-  font-size: 0.65rem;
-  font-weight: 600;
-  padding: 0.2rem 0.6rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  letter-spacing: 0.3px;
-}
-
-.neuron-panel-desc {
-  color: #9090b0;
-  font-size: 0.82rem;
-  line-height: 1.55;
-  margin: 0 0 1.5rem;
-}
-
-.neuron-panel-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  border: none;
-  padding: 0.55rem 1.2rem;
-  border-radius: 6px;
-  font-weight: 700;
-  font-size: 0.82rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.neuron-panel-btn:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.15);
-}
-
-.neuron-panel-empty {
-  text-align: center;
-  color: rgba(144, 144, 180, 0.35);
-  padding: 2rem;
-}
-
-.neuron-panel-empty i {
-  font-size: 2.5rem;
-  display: block;
-  margin-bottom: 1rem;
-  opacity: 0.4;
-}
-
-.neuron-panel-empty p {
-  font-size: 0.8rem;
-  line-height: 1.5;
-  margin: 0;
-}
-
-@keyframes panelFadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 @media (max-width: 768px) {
   .neuron-brain-container {
     min-height: 320px;
-    border-radius: 8px;
-  }
-
-  .neuron-right-panel {
-    width: 200px;
-  }
-
-  .neuron-panel-icon {
-    width: 52px;
-    height: 52px;
-    font-size: 1.4rem;
-    border-radius: 14px;
-  }
-
-  .neuron-panel-name {
-    font-size: 0.9rem;
-  }
-
-  .neuron-panel-desc {
-    font-size: 0.75rem;
   }
 }
 
 @media (max-width: 480px) {
   .neuron-brain-container {
     min-height: 260px;
-  }
-
-  .neuron-right-panel {
-    width: 160px;
-  }
-
-  .neuron-panel-icon {
-    width: 40px;
-    height: 40px;
-    font-size: 1.1rem;
-    border-radius: 10px;
-  }
-
-  .neuron-panel-name {
-    font-size: 0.8rem;
-  }
-
-  .neuron-panel-desc {
-    display: none;
   }
 }

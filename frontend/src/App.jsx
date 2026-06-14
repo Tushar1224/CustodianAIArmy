@@ -7,6 +7,7 @@ import BuildPage from './pages/BuildPage';
 import CustomAgentsPage from './pages/CustomAgentsPage';
 import PaymentPage from './pages/PaymentPage';
 import ResumePage from './pages/ResumePage';
+import JobsPage from './pages/JobsPage';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route path="/agents" element={<CustomAgentsPage />} />
         <Route path="/payment" element={<PaymentPage />} />
         <Route path="/resume" element={<ResumePage />} />
+        <Route path="/jobs" element={<JobsPage />} />
       </Routes>
     </BrowserRouter>
   );

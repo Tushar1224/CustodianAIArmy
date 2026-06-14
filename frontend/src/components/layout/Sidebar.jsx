@@ -8,6 +8,7 @@ const navItems = [
   { path: '/resume', label: 'Resume Optimizer', icon: 'fas fa-file-alt' },
   { path: '/portfolio', label: 'Build Your Portfolio', icon: 'fab fa-github' },
   { path: '/build', label: 'Build Your Product', icon: 'fas fa-cubes' },
+  { path: '/jobs', label: 'Apply for Jobs', icon: 'fas fa-briefcase' },
   { path: '/agents', label: 'Custom Agents', icon: 'fas fa-users-cog' },
 ];
 

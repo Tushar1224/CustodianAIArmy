@@ -64,31 +64,31 @@ export default function PaymentPage() {
   }, []);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #e8f4ff 0%, #f0f5ff 50%, #e0ecfe 100%)', display: 'flex', flexDirection: 'column' }}>
       <AdSenseAd />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
-        <div className="payment-card" style={{ background: 'rgba(26, 26, 46, 0.95)', border: '1px solid rgba(0, 229, 255, 0.3)', borderRadius: '16px', padding: '2rem', maxWidth: '460px', width: '100%', boxShadow: '0 0 40px rgba(0, 229, 255, 0.1)' }}>
+        <div className="payment-card" style={{ background: '#ffffff', border: '1px solid #d0e1f7', borderRadius: '16px', padding: '2rem', maxWidth: '460px', width: '100%', boxShadow: '0 2px 20px rgba(77,171,247,0.12)' }}>
           <div className="brand-header" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-            <div style={{ fontSize: '2.5rem', color: '#00e5ff', marginBottom: '0.5rem' }}><i className="fas fa-robot"></i></div>
-            <h1 style={{ fontSize: '1.4rem', color: '#00e5ff', margin: 0 }}>Custodian AI</h1>
-            <div style={{ background: 'rgba(255, 193, 7, 0.15)', border: '1px solid rgba(255, 193, 7, 0.4)', color: '#ffc107', fontSize: '0.7rem', padding: '0.2rem 0.6rem', borderRadius: '20px', display: 'inline-block', marginTop: '0.5rem' }}>
+            <div style={{ fontSize: '2.5rem', color: '#4dabf7', marginBottom: '0.5rem' }}><i className="fas fa-robot"></i></div>
+            <h1 style={{ fontSize: '1.4rem', color: '#1a2332', margin: 0 }}>Custodian AI</h1>
+            <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#b8860b', fontSize: '0.7rem', padding: '0.2rem 0.6rem', borderRadius: '20px', display: 'inline-block', marginTop: '0.5rem' }}>
               <i className="fas fa-flask me-1"></i>Demo / Sandbox Mode
             </div>
           </div>
 
           <div id="payment-form-section">
-            <div className="plan-summary" style={{ background: 'rgba(0, 229, 255, 0.05)', border: '1px solid rgba(0, 229, 255, 0.2)', borderRadius: '10px', padding: '1.25rem', marginBottom: '1.5rem' }}>
+            <div className="plan-summary" style={{ background: '#f0f7ff', border: '1px solid #d0e1f7', borderRadius: '10px', padding: '1.25rem', marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffc107' }}><i className="fas fa-crown me-2" style={{ color: '#ffc107' }}></i>Pro Plan</div>
-                  <div style={{ fontSize: '2rem', fontWeight: 900, color: '#00e5ff' }}>$9.99 <span style={{ fontSize: '1rem', color: '#aaa', fontWeight: 400 }}>/ month</span></div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#b8860b' }}><i className="fas fa-crown me-2" style={{ color: '#b8860b' }}></i>Pro Plan</div>
+                  <div style={{ fontSize: '2rem', fontWeight: 900, color: '#4dabf7' }}>$9.99 <span style={{ fontSize: '1rem', color: '#666', fontWeight: 400 }}>/ month</span></div>
                 </div>
-                <span className="badge bg-warning text-dark">Most Popular</span>
+                <span className="badge" style={{ background: '#4dabf7', color: '#fff' }}>Most Popular</span>
               </div>
-              <hr style={{ borderColor: 'rgba(255,255,255,0.08)', margin: '1.25rem 0' }} />
+              <hr style={{ borderColor: '#d0e1f7', margin: '1.25rem 0' }} />
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {['50 requests per day', 'Access to Gemini, Claude & Claude', 'Chat history saved', 'Course progress tracking', 'Priority support'].map((f, i) => (
-                  <li key={i} style={{ color: '#b0b0b0', fontSize: '0.875rem', marginBottom: '0.3rem' }}>
+                  <li key={i} style={{ color: '#444', fontSize: '0.875rem', marginBottom: '0.3rem' }}>
                     <i className="fas fa-check-circle" style={{ color: '#28a745', marginRight: '0.5rem' }}></i>{f}
                   </li>
                 ))}
@@ -96,37 +96,37 @@ export default function PaymentPage() {
             </div>
 
             <div style={{ marginBottom: '1rem' }}>
-              <label style={{ color: '#aaa', fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Card Number</label>
+              <label style={{ color: '#444', fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Card Number</label>
               <input type="text" className="form-control" id="card-number" placeholder="4242 4242 4242 4242" maxLength="19"
                 onInput={(e) => formatCardNumber(e.target)}
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(0, 229, 255, 0.25)', color: '#e8e8e8', borderRadius: '8px', padding: '0.5rem 0.75rem', width: '100%' }} />
+                style={{ background: '#f7faff', border: '1px solid #d0e1f7', color: '#1a2332', borderRadius: '8px', padding: '0.5rem 0.75rem', width: '100%' }} />
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
               <div style={{ flex: 1 }}>
-                <label style={{ color: '#aaa', fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Expiry</label>
+                <label style={{ color: '#444', fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Expiry</label>
                 <input type="text" className="form-control" id="card-expiry" placeholder="MM / YY" maxLength="7"
                   onInput={(e) => formatExpiry(e.target)}
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(0, 229, 255, 0.25)', color: '#e8e8e8', borderRadius: '8px', padding: '0.5rem 0.75rem', width: '100%' }} />
+                  style={{ background: '#f7faff', border: '1px solid #d0e1f7', color: '#1a2332', borderRadius: '8px', padding: '0.5rem 0.75rem', width: '100%' }} />
               </div>
               <div style={{ flex: 1 }}>
-                <label style={{ color: '#aaa', fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>CVC</label>
+                <label style={{ color: '#444', fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>CVC</label>
                 <input type="text" className="form-control" id="card-cvc" placeholder="123" maxLength="3"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(0, 229, 255, 0.25)', color: '#e8e8e8', borderRadius: '8px', padding: '0.5rem 0.75rem', width: '100%' }} />
+                  style={{ background: '#f7faff', border: '1px solid #d0e1f7', color: '#1a2332', borderRadius: '8px', padding: '0.5rem 0.75rem', width: '100%' }} />
               </div>
             </div>
             <div style={{ marginBottom: '1rem' }}>
-              <label style={{ color: '#aaa', fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Name on Card</label>
+              <label style={{ color: '#444', fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Name on Card</label>
               <input type="text" className="form-control" id="card-name" placeholder="John Doe"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(0, 229, 255, 0.25)', color: '#e8e8e8', borderRadius: '8px', padding: '0.5rem 0.75rem', width: '100%' }} />
+                style={{ background: '#f7faff', border: '1px solid #d0e1f7', color: '#1a2332', borderRadius: '8px', padding: '0.5rem 0.75rem', width: '100%' }} />
             </div>
 
             <div id="payment-error" className="alert alert-danger d-none" role="alert" style={{ display: 'none' }}></div>
 
             <button className="btn-pay" id="pay-btn" onClick={processPayment}
-              style={{ background: 'linear-gradient(135deg, #00b4d8, #00e5ff)', border: 'none', color: '#0a0a1a', fontWeight: 700, fontSize: '1rem', padding: '0.75rem', borderRadius: '10px', width: '100%', cursor: 'pointer' }}>
+              style={{ background: 'linear-gradient(135deg, #4dabf7, #3b8fd4)', border: 'none', color: '#fff', fontWeight: 700, fontSize: '1rem', padding: '0.75rem', borderRadius: '10px', width: '100%', cursor: 'pointer' }}>
               <i className="fas fa-lock me-2"></i>Pay $9.99 & Upgrade to Pro
             </button>
-            <div style={{ textAlign: 'center', color: '#666', fontSize: '0.75rem', marginTop: '0.75rem' }}>
+            <div style={{ textAlign: 'center', color: '#888', fontSize: '0.75rem', marginTop: '0.75rem' }}>
               <i className="fas fa-shield-alt me-1"></i>Secured by 256-bit SSL encryption
             </div>
           </div>
@@ -134,8 +134,8 @@ export default function PaymentPage() {
           <div className="success-overlay" id="success-section" style={{ display: 'none', textAlign: 'center', padding: '2rem 1rem' }}>
             <div style={{ fontSize: '4rem', color: '#28a745', marginBottom: '1rem' }}><i className="fas fa-check-circle"></i></div>
             <h2 style={{ color: '#28a745', margin: '0 0 0.5rem 0' }}>Payment Successful!</h2>
-            <p style={{ color: '#aaa', marginBottom: '0.25rem' }}>You've been upgraded to <strong className="text-warning">Pro</strong>.</p>
-            <p style={{ color: '#666', fontSize: '0.875rem' }}>Redirecting to home page...</p>
+            <p style={{ color: '#555', marginBottom: '0.25rem' }}>You've been upgraded to <strong style={{ color: '#b8860b' }}>Pro</strong>.</p>
+            <p style={{ color: '#888', fontSize: '0.875rem' }}>Redirecting to home page...</p>
           </div>
         </div>
       </div>

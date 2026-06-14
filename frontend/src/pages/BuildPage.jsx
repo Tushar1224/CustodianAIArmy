@@ -965,7 +965,7 @@ export default function BuildPage() {
             {/* Phase detail / instructions + artifacts */}
             {currentPhaseIndex === 1 && currentSession?.files?.['plan.md'] && !previewHtml && (
               <div className="bp-phase-card">
-                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: '#aaa', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: '#555', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <i className="fas fa-file-alt" style={{ color: '#4dabf7' }}></i> plan.md
                 </h4>
                 <pre className="bp-artifact-preview">{currentSession.files['plan.md']}</pre>
@@ -973,7 +973,7 @@ export default function BuildPage() {
             )}
             {currentPhaseIndex === 2 && currentSession?.files?.['reviewed-plan.md'] && !previewHtml && (
               <div className="bp-phase-card">
-                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: '#aaa', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: '#555', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <i className="fas fa-check-circle" style={{ color: '#f59e0b' }}></i> reviewed-plan.md
                 </h4>
                 <pre className="bp-artifact-preview">{currentSession.files['reviewed-plan.md']}</pre>
@@ -981,7 +981,7 @@ export default function BuildPage() {
             )}
             {(currentPhaseIndex === 3) && currentSession?.files?.['prd.md'] && !previewHtml && (
               <div className="bp-phase-card">
-                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: '#aaa', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: '#555', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <i className="fas fa-paint-brush" style={{ color: '#22c55e' }}></i> prd.md
                 </h4>
                 <pre className="bp-artifact-preview">{currentSession.files['prd.md']}</pre>
@@ -989,7 +989,7 @@ export default function BuildPage() {
             )}
             {currentPhaseIndex === 3 && !previewHtml && (
               <div className="bp-phase-card" style={{ borderLeft: '3px solid #22c55e' }}>
-                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: '#aaa', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: '#555', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <i className="fas fa-palette" style={{ color: '#22c55e' }}></i> UX Improvement Suggestions
                 </h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
