@@ -417,9 +417,35 @@ class MVPBuilder:
         agent_name = fallback_map.get(specialization, "CustodianAI")
         return self.agent_manager.get_agent_by_name(agent_name)
 
+    def _get_full_chat_as_text(self, session: MVPSession) -> str:
+        """Get full chat history as readable text for inclusion in prompts."""
+        parts = []
+        for msg in session.chat_history:
+            role = msg.get("role", "unknown")
+            content = msg.get("content", "")
+            if role == "system" and content.startswith("[Compacted]"):
+                parts.append(f"[Previous conversation summary]\n{content}")
+            elif role == "user":
+                parts.append(f"User: {content}")
+            elif role == "assistant":
+                agent = msg.get("agent_name", "AI")
+                phase = msg.get("phase", "")
+                header = f"AI ({agent}){' [' + phase + ']' if phase else ''}:"
+                parts.append(f"{header} {content[:2000]}")
+        return "\n\n".join(parts)
+
+    def _get_plan_artifacts(self, session: MVPSession) -> str:
+        """Extract plan artifacts saved as session files."""
+        artifacts = []
+        for fname in ["plan.md", "reviewed-plan.md", "prd.md"]:
+            if fname in session.files:
+                artifacts.append(f"--- {fname} ---\n{session.files[fname]}")
+        return "\n\n".join(artifacts)
+
     def _build_phase_prompt(self, session: MVPSession, user_message: str, mode: str) -> str:
         """Build a context-aware prompt for the current phase."""
         current_phase = session.current_phase
+        plan_artifacts = self._get_plan_artifacts(session)
 
         phase_prompts = {
             "Ideation": (
@@ -434,42 +460,61 @@ class MVPBuilder:
                 f"Product: {session.product_idea}\n"
                 f"User message: {user_message}\n"
                 f"Mode: {mode.upper()}\n\n"
-                f"Design the architecture, suggest tech stack, and outline the implementation plan."
+                f"Design the architecture, suggest tech stack, and outline the implementation plan.\n"
+                f"At the end of each response, include a section '---PLAN DOC---' with the updated plan in markdown."
             ),
             "Review": (
                 f"You are reviewing the planned approach.\n"
                 f"Product: {session.product_idea}\n"
                 f"User message: {user_message}\n"
                 f"Mode: {mode.upper()}\n\n"
-                f"Validate the architecture, identify potential issues, and suggest improvements."
+                f"Review and validate the architecture plan. Identify potential issues, edge cases, "
+                f"and suggest improvements. At the end of each response, include a section "
+                f"'---REVIEWED PLAN---' with the updated review notes in markdown."
             ),
             "Polish": (
                 f"You are improving the UX and design.\n"
                 f"Product: {session.product_idea}\n"
                 f"User message: {user_message}\n"
                 f"Mode: {mode.upper()}\n\n"
-                f"Suggest UX improvements, accessibility enhancements, and polish details."
+                f"Suggest UX improvements, layout changes, visual design refinements, and accessibility "
+                f"enhancements. Be specific — mention exact UI elements, spacing, colors, components, "
+                f"and user flows to change. At the end of each response, include a section "
+                f"'---UX CHANGES---' listing each change as a bullet."
             ),
             "Build": (
                 f"You are generating production-ready code.\n"
                 f"Product: {session.product_idea}\n"
                 f"User message: {user_message}\n"
                 f"Mode: {mode.upper()}\n\n"
-                f"Write clean, well-documented code. Use MCP filesystem tools to create files."
+                f"Write clean, well-documented code that implements the EXACT product described in "
+                f"the plans below. Use MCP filesystem tools to create files in the workspace. "
+                f"Create a complete, working application. Generate an index.html as the entry point."
             ),
             "Virtual Deploy": (
                 f"You are reviewing the final product for deployment.\n"
                 f"Product: {session.product_idea}\n"
                 f"User message: {user_message}\n"
                 f"Mode: {mode.upper()}\n\n"
-                f"Review the generated files, suggest any final tweaks, and guide the user through accepting or requesting changes."
+                f"Review the generated files, suggest any final tweaks, and guide the user through "
+                f"accepting or requesting changes."
             ),
         }
 
         base_prompt = phase_prompts.get(current_phase.name, user_message)
 
-        # Add conversation history context (last 6 messages), excluding the most recent user message which is already in the prompt
-        recent_history = session.chat_history[-7:-1]  # Get up to 6 previous messages
+        # For Review, Polish, Build — inject the full plan artifacts
+        if plan_artifacts and current_phase.name in ("Review", "Polish", "Build"):
+            base_prompt += f"\n\n=== PLAN AND PREVIOUS WORK ===\n{plan_artifacts}\n=== END PLAN ==="
+
+        # For Build and Virtual Deploy — inject full chat history as context
+        if current_phase.name in ("Build", "Virtual Deploy"):
+            full_history = self._get_full_chat_as_text(session)
+            if full_history:
+                base_prompt += f"\n\n=== FULL CONVERSATION HISTORY ===\n{full_history}\n=== END HISTORY ==="
+
+        # Add recent conversation history context (last 6 messages)
+        recent_history = session.chat_history[-7:-1]
         if recent_history:
             history_context = "\n\nHere is the recent conversation history for context:\n"
             for msg in recent_history:
@@ -505,21 +550,78 @@ class MVPBuilder:
             next_phase = session.current_phase
             next_phase.status = "active"
 
-            # Generate a transition AI message introducing the new phase
+            # Save plan artifacts from completed phase chat
+            await self._save_phase_artifacts(session)
+
+            # Generate a phase-specific transition AI message
             try:
                 agent = self._get_agent_for_specialization(next_phase.agent_specialization)
                 if not agent:
                     agent = self.agent_manager.get_agent_by_name("CustodianAI")
                 if agent:
                     from src.agents.base_agent import AgentMessage
-                    transition_prompt = (
-                        f"The user has just advanced to the {next_phase.name} phase for their product: {session.product_idea}\n\n"
-                        f"{next_phase.description}\n\n"
-                        f"Your role: {next_phase.agent_specialization}\n\n"
-                        f"Greet the user in this new phase. Explain what this phase focuses on, "
-                        f"what they should expect, and ask a single open-ended question to start the conversation. "
-                        f"Keep it concise — 3-4 sentences max."
-                    )
+
+                    full_chat = self._get_full_chat_as_text(session)
+                    plan_artifacts = self._get_plan_artifacts(session)
+
+                    if next_phase.name == "Review":
+                        transition_prompt = (
+                            f"The user has advanced to the Review phase for their product: {session.product_idea}\n\n"
+                            f"Your role: Review the complete architecture plan created in the Planning phase.\n\n"
+                            f"=== PLAN FROM PLANNING PHASE ===\n"
+                            f"{plan_artifacts or full_chat}\n"
+                            f"=== END PLAN ===\n\n"
+                            f"Start reviewing the plan immediately. Do NOT ask what was planned or designed — "
+                            f"it is provided above. Validate the architecture, identify potential issues, "
+                            f"edge cases, and suggest concrete improvements. Be thorough and specific. "
+                            f"At the end, include a section '---REVIEWED PLAN---' with your review summary in markdown."
+                        )
+                    elif next_phase.name == "Polish":
+                        transition_prompt = (
+                            f"The user has advanced to the Polish phase for their product: {session.product_idea}\n\n"
+                            f"Your role: Suggest UX and design improvements for the reviewed plan.\n\n"
+                            f"=== REVIEWED PLAN ===\n"
+                            f"{plan_artifacts or full_chat}\n"
+                            f"=== END PLAN ===\n\n"
+                            f"Start by summarizing the product vision, then immediately suggest specific UX "
+                            f"improvements: layout changes, color schemes, component placement, user flows, "
+                            f"and visual design details. Be specific — mention exact elements. "
+                            f"At the end, include a section '---UX CHANGES---' listing each change as a bullet."
+                        )
+                    elif next_phase.name == "Build":
+                        transition_prompt = (
+                            f"The user has advanced to the Build phase for their product: {session.product_idea}\n\n"
+                            f"Your role: Generate production-ready code based on the complete plan below.\n\n"
+                            f"=== COMPLETE PLAN AND REVIEW ===\n"
+                            f"{plan_artifacts or full_chat}\n"
+                            f"=== END PLAN ===\n\n"
+                            f"Start building immediately. Do NOT ask what to build — the full plan is above. "
+                            f"Generate the complete application code. Create index.html as the entry point "
+                            f"with full working functionality. Use MCP filesystem tools to create all files. "
+                            f"Include all HTML, CSS, and JavaScript inline in the first file for simplicity. "
+                            f"The user is currently in PLAN mode — explain what you're about to build, "
+                            f"then tell them to switch to ACT mode when ready."
+                        )
+                    elif next_phase.name == "Virtual Deploy":
+                        transition_prompt = (
+                            f"The user has advanced to the Virtual Deploy phase for their product: {session.product_idea}\n\n"
+                            f"Your role: Review the final generated product for deployment.\n\n"
+                            f"=== GENERATED PRODUCT ===\n"
+                            f"{plan_artifacts or full_chat}\n"
+                            f"=== END ===\n\n"
+                            f"Greet the user in the deploy phase. Summarize what was built, "
+                            f"and guide them to either accept the deployment or request changes."
+                        )
+                    else:
+                        transition_prompt = (
+                            f"The user has just advanced to the {next_phase.name} phase for their product: {session.product_idea}\n\n"
+                            f"{next_phase.description}\n\n"
+                            f"Your role: {next_phase.agent_specialization}\n\n"
+                            f"Greet the user in this new phase. Explain what this phase focuses on, "
+                            f"what they should expect, and ask a single open-ended question to start the conversation. "
+                            f"Keep it concise — 3-4 sentences max."
+                        )
+
                     msg = AgentMessage(
                         sender_id="mvp_builder",
                         receiver_id=agent.agent_id,
@@ -927,6 +1029,60 @@ class MVPBuilder:
     </div>
 </body>
 </html>"""
+
+    async def _save_phase_artifacts(self, session: MVPSession):
+        """Save plan artifacts from completed phase chat as session files."""
+        try:
+            current_phase_name = session.phases[session.current_phase_index - 1].name if session.current_phase_index > 0 else None
+            if not current_phase_name:
+                return
+
+            # Get all assistant messages from this phase
+            phase_msgs = [m for m in session.chat_history if m.get("phase") == current_phase_name and m.get("role") == "assistant"]
+            if not phase_msgs:
+                return
+
+            # Extract content after marker tags
+            all_content = "\n\n".join(m.get("content", "") for m in phase_msgs)
+
+            if current_phase_name == "Planning":
+                # Try to extract plan doc section
+                if "---PLAN DOC---" in all_content:
+                    plan_content = all_content.split("---PLAN DOC---")[-1].strip()
+                else:
+                    plan_content = all_content
+                session.files["plan.md"] = f"# {session.product_idea} — Plan\n\n{plan_content}"
+                session.add_log("Saved plan.md artifact")
+
+            elif current_phase_name == "Review":
+                if "---REVIEWED PLAN---" in all_content:
+                    reviewed = all_content.split("---REVIEWED PLAN---")[-1].strip()
+                else:
+                    reviewed = all_content
+                # If plan.md exists, merge
+                existing_plan = session.files.get("plan.md", "")
+                session.files["reviewed-plan.md"] = (
+                    f"# {session.product_idea} — Reviewed Plan\n\n"
+                    f"{'## Original Plan\n' + existing_plan + '\n\n' if existing_plan else ''}"
+                    f"## Review Notes\n{reviewed}"
+                )
+                session.add_log("Saved reviewed-plan.md artifact")
+
+            elif current_phase_name == "Polish":
+                if "---UX CHANGES---" in all_content:
+                    ux_changes = all_content.split("---UX CHANGES---")[-1].strip()
+                else:
+                    ux_changes = all_content
+                reviewed = session.files.get("reviewed-plan.md", "")
+                session.files["prd.md"] = (
+                    f"# {session.product_idea} — Product Requirements Document\n\n"
+                    f"{'## Reviewed Architecture\n' + reviewed + '\n\n' if reviewed else ''}"
+                    f"## UX & UI Design Decisions\n{ux_changes}"
+                )
+                session.add_log("Saved prd.md artifact")
+
+        except Exception as e:
+            logger.warning(f"Failed to save phase artifacts: {e}")
 
     def get_chat_total_chars(self, session_id: str) -> int:
         """Get total character count of all messages in chat history."""

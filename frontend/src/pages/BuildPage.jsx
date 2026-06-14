@@ -290,6 +290,9 @@ export default function BuildPage() {
   const [newIdea, setNewIdea] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [deployStatus, setDeployStatus] = useState('');
+  const [chatWidth, setChatWidth] = useState(420);
+  const [isResizing, setIsResizing] = useState(false);
+  const sessionBodyRef = useRef(null);
   const [publishToGithub, setPublishToGithub] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 900);
   const [typing, setTyping] = useState(false);
@@ -418,12 +421,11 @@ export default function BuildPage() {
             }
           }).catch(() => {});
         }
-        if (mode === 'act') {
-          const filesRes = await fetch(`${API_BASE}/mvp/session/${currentSession.session_id}/files`, { credentials: 'include' });
-          if (filesRes.ok) {
-            const filesData = await filesRes.json();
-            setFileTree(filesData.files || []);
-          }
+        // Refresh file tree to capture any artifacts saved by the AI
+        const filesRes = await fetch(`${API_BASE}/mvp/session/${currentSession.session_id}/files`, { credentials: 'include' });
+        if (filesRes.ok) {
+          const filesData = await filesRes.json();
+          setFileTree(filesData.files || []);
         }
       } else {
         const err = await res.json().catch(() => ({}));
@@ -465,6 +467,29 @@ export default function BuildPage() {
     } catch (e) { console.error('Failed to advance phase', e); addToast('Network error', 'error'); }
     setLoading(false);
   };
+
+  // Resizable chat panel
+  const handleResizeStart = useCallback((e) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+    const onMove = (e) => {
+      if (!sessionBodyRef.current) return;
+      const rect = sessionBodyRef.current.getBoundingClientRect();
+      const newWidth = Math.max(280, Math.min(e.clientX - rect.left, rect.width - 280));
+      setChatWidth(newWidth);
+    };
+    const onUp = () => setIsResizing(false);
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+  }, [isResizing]);
 
   const handleAcceptDeploy = async () => {
     if (!currentSession) return;
@@ -756,7 +781,13 @@ export default function BuildPage() {
         </div>
 
         {/* Main Content: Two column layout */}
-        <div className="bp-session-body">
+        <div className="bp-session-body" ref={sessionBodyRef} style={{ gridTemplateColumns: `${chatWidth}px 1fr` }}>
+          {/* Resize Handle */}
+          <div className={`bp-resize-handle ${isResizing ? 'active' : ''}`}
+            style={{ left: chatWidth }}
+            onMouseDown={handleResizeStart}>
+            <div className="bp-resize-line"></div>
+          </div>
           {/* LHS: Chat Console */}
           <div className="bp-chat">
             <div className="bp-chat-head">
@@ -829,6 +860,35 @@ export default function BuildPage() {
 
             {/* Chat Input */}
             <div className="bp-chat-input">
+              <label className="bp-attach-btn" title="Attach file">
+                <i className="fas fa-paperclip"></i>
+                <input type="file" hidden
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !currentSession) return;
+                    try {
+                      const form = new FormData();
+                      form.append('file', file);
+                      const res = await fetch(`${API_BASE}/mvp/upload-file/${currentSession.session_id}`, {
+                        method: 'POST', credentials: 'include', body: form,
+                      });
+                      if (res.ok) {
+                        addToast(`Attached: ${file.name}`, 'success');
+                        // Reload file tree
+                        const filesRes = await fetch(`${API_BASE}/mvp/session/${currentSession.session_id}/files`, { credentials: 'include' });
+                        if (filesRes.ok) {
+                          const filesData = await filesRes.json();
+                          setFileTree(filesData.files || []);
+                        }
+                      }
+                    } catch (err) {
+                      console.error('File upload failed', err);
+                      addToast('Failed to upload file', 'error');
+                    }
+                    e.target.value = '';
+                  }}
+                />
+              </label>
               <input value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
@@ -902,15 +962,64 @@ export default function BuildPage() {
               </div>
             </div>
 
-            {/* Phase detail / instructions */}
-            {!isDeployPhase && !previewHtml && (
+            {/* Phase detail / instructions + artifacts */}
+            {currentPhaseIndex === 1 && currentSession?.files?.['plan.md'] && !previewHtml && (
+              <div className="bp-phase-card">
+                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: '#aaa', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <i className="fas fa-file-alt" style={{ color: '#4dabf7' }}></i> plan.md
+                </h4>
+                <pre className="bp-artifact-preview">{currentSession.files['plan.md']}</pre>
+              </div>
+            )}
+            {currentPhaseIndex === 2 && currentSession?.files?.['reviewed-plan.md'] && !previewHtml && (
+              <div className="bp-phase-card">
+                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: '#aaa', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <i className="fas fa-check-circle" style={{ color: '#f59e0b' }}></i> reviewed-plan.md
+                </h4>
+                <pre className="bp-artifact-preview">{currentSession.files['reviewed-plan.md']}</pre>
+              </div>
+            )}
+            {(currentPhaseIndex === 3) && currentSession?.files?.['prd.md'] && !previewHtml && (
+              <div className="bp-phase-card">
+                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: '#aaa', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <i className="fas fa-paint-brush" style={{ color: '#22c55e' }}></i> prd.md
+                </h4>
+                <pre className="bp-artifact-preview">{currentSession.files['prd.md']}</pre>
+              </div>
+            )}
+            {currentPhaseIndex === 3 && !previewHtml && (
+              <div className="bp-phase-card" style={{ borderLeft: '3px solid #22c55e' }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: '#aaa', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <i className="fas fa-palette" style={{ color: '#22c55e' }}></i> UX Improvement Suggestions
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div className="bp-ux-suggestion">
+                    <span className="bp-ux-tag">Layout</span>
+                    <span>Discuss layout changes with the AI in the chat</span>
+                  </div>
+                  <div className="bp-ux-suggestion">
+                    <span className="bp-ux-tag" style={{ background: 'rgba(77,171,247,.12)', color: '#4dabf7' }}>Colors</span>
+                    <span>Refine color scheme and visual hierarchy</span>
+                  </div>
+                  <div className="bp-ux-suggestion">
+                    <span className="bp-ux-tag" style={{ background: 'rgba(245,158,11,.12)', color: '#f59e0b' }}>UX Flow</span>
+                    <span>Improve user flows and interaction patterns</span>
+                  </div>
+                  <div className="bp-ux-suggestion">
+                    <span className="bp-ux-tag" style={{ background: 'rgba(239,68,68,.12)', color: '#ef4444' }}>Accessibility</span>
+                    <span>Add ARIA labels, keyboard nav, focus states</span>
+                  </div>
+                  <div style={{ fontSize: '.76rem', color: '#777', marginTop: '4px', fontStyle: 'italic' }}>
+                    <i className="fas fa-comment-dots me-1"></i>Chat with the AI to refine these. Switch to <strong>Act</strong> mode to apply changes.
+                  </div>
+                </div>
+              </div>
+            )}
+            {!isDeployPhase && !previewHtml && currentPhaseIndex !== 1 && currentPhaseIndex !== 2 && currentPhaseIndex !== 3 && (
               <div className="bp-phase-detail">
                 <h4><i className="fas fa-info-circle me-1"></i>What to do in this phase</h4>
                 {currentPhaseIndex === 0 && <p>Discuss your product idea in the chat console. Brainstorm features, target audience, and core value proposition using <strong>Plan</strong> mode.</p>}
-                {currentPhaseIndex === 1 && <p>Plan the architecture and tech stack. Describe your preferred technologies and the AI will help design the system structure.</p>}
-                {currentPhaseIndex === 2 && <p>Review the planned approach. Validate architecture decisions and identify potential issues before moving forward.</p>}
-                {currentPhaseIndex === 3 && <p><strong>Plan</strong> first: discuss UX improvements, layout changes, and refinements. Then switch to <strong>Act</strong> to apply the changes.</p>}
-                {currentPhaseIndex === 4 && <p><strong>Plan</strong> what code to generate, then switch to <strong>Act</strong> mode to create production-ready files in the workspace.</p>}
+                {currentPhaseIndex === 4 && <p><strong>Plan</strong> what code to generate based on the reviewed and polished plan, then switch to <strong>Act</strong> mode to create production-ready files.</p>}
               </div>
             )}
             {!isDeployPhase && availableModes.length > 1 && mode === 'plan' && (

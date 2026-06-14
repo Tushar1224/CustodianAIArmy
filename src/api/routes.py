@@ -1861,6 +1861,30 @@ async def mvp_compact_chat(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/mvp/upload-file/{mvp_session_id}")
+async def mvp_upload_file(
+    mvp_session_id: str,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """Upload a file attachment to the MVP session workspace."""
+    try:
+        mvp_builder = get_mvp_builder_instance()
+        session = await get_owned_mvp_session(mvp_session_id, current_user)
+        content = await file.read()
+        try:
+            text_content = content.decode("utf-8")
+        except UnicodeDecodeError:
+            text_content = f"[Binary file: {file.filename}, {len(content)} bytes]"
+        await mvp_builder.write_file(mvp_session_id, file.filename, text_content)
+        return {"success": True, "filename": file.filename, "size": len(content)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading MVP file: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.delete("/mvp/session/{mvp_session_id}")
 async def mvp_delete_session(
     mvp_session_id: str,
