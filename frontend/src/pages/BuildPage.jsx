@@ -22,162 +22,198 @@ const MODE_DESCRIPTIONS = {
 };
 function renderMarkdown(text) {
   if (!text) return null;
-  const lines = text.split('\n');
-  const elements = [];
-  let inTable = false;
-  let tableRows = [];
-  let inCodeBlock = false;
-  let codeLines = [];
-  let inList = false;
-  let listItems = [];
+  try {
+    const lines = text.split('\n');
+    const elements = [];
+    let inTable = false;
+    let tableRows = [];
+    let inCodeBlock = false;
+    let codeLines = [];
+    let codeBlockCount = 0;
+    let inList = false;
+    let listItems = [];
+    let inPreBlock = false;
+    let preLines = [];
 
-  function flushList(li) {
-    if (li.length) {
-      const key = elements.length;
-      elements.push(<ul key={`ul-${key}`} className="md-list">{li}</ul>);
-      li.length = 0;
-    }
-  }
-  function flushTable(tr, key) {
-    if (tr.length >= 2) {
-      const header = tr[0].map((c, i) => <th key={i}>{parseInline(c)}</th>);
-      const body = tr.slice(2).map((r, ri) => <tr key={ri}>{r.map((c, ci) => <td key={ci}>{parseInline(c)}</td>)}</tr>);
-      elements.push(<table key={`tbl-${key}`} className="md-table"><thead><tr>{header}</tr></thead><tbody>{body}</tbody></table>);
-    }
-    tr.length = 0;
-  }
-  function flushCode(k) {
-    if (codeLines.length) {
-      elements.push(<pre key={`code-${k}`} className="md-code"><code>{codeLines.join('\n')}</code></pre>);
-      codeLines.length = 0;
-    }
-  }
+    const BOX_CHARS = /[┌─┐│└┘├┬┼┴┤┼╭╮╰╯╱╲╳╵╶╷╴╸╺╻╽╿▐▌▀▄█▇▆▅▄▃▂▁▔▏▕]/;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
+    function flushList(li) {
+      if (li.length) {
+        const key = elements.length;
+        elements.push(<ul key={`ul-${key}`} className="md-list">{li}</ul>);
+        li.length = 0;
+      }
+    }
+    function flushTable(tr, key) {
+      if (tr.length >= 2) {
+        const header = tr[0].map((c, i) => <th key={i}>{parseInline(c)}</th>);
+        const body = tr.slice(2).map((r, ri) => <tr key={ri}>{r.map((c, ci) => <td key={ci}>{parseInline(c)}</td>)}</tr>);
+        elements.push(<table key={`tbl-${key}`} className="md-table"><thead><tr>{header}</tr></thead><tbody>{body}</tbody></table>);
+      }
+      tr.length = 0;
+    }
+    function flushCode(k) {
+      if (codeLines.length) {
+        elements.push(<pre key={`code-${k}`} className="md-code"><code>{codeLines.join('\n')}</code></pre>);
+        codeLines.length = 0;
+      }
+    }
+    function flushPre(k) {
+      if (preLines.length) {
+        elements.push(<pre key={`pre-${k}`} className="md-pre">{preLines.join('\n')}</pre>);
+        preLines.length = 0;
+      }
+    }
 
-    if (inCodeBlock) {
-      if (trimmed.startsWith('```')) {
-        inCodeBlock = false;
-        flushCode(elements.length);
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+      const hasBoxChars = BOX_CHARS.test(line);
+
+      // Code block mode
+      if (inCodeBlock) {
+        codeBlockCount++;
+        if (trimmed.startsWith('```') || codeBlockCount > 2000) {
+          inCodeBlock = false;
+          flushCode(elements.length);
+          continue;
+        }
+        codeLines.push(line);
         continue;
       }
-      codeLines.push(line);
-      continue;
-    }
-    if (trimmed.startsWith('```')) {
-      flushList(listItems);
-      inTable = false; tableRows.length = 0;
-      inCodeBlock = true;
-      codeLines = [];
-      continue;
-    }
-
-    if (!trimmed) {
-      flushList(listItems);
-      inTable = false;
-      if (tableRows.length >= 2) {
-        flushTable(tableRows, elements.length);
-        tableRows = [];
+      if (trimmed.startsWith('```')) {
+        flushList(listItems);
+        inTable = false; tableRows.length = 0;
+        flushPre(elements.length);
+        inCodeBlock = true;
+        codeLines = [];
+        codeBlockCount = 0;
+        continue;
       }
-      elements.push(<br key={`br-${i}`} />);
-      continue;
-    }
 
-    // Tables
-    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
-      flushList(listItems);
-      const cells = trimmed.split('|').filter(c => c.trim()).map(c => c.trim());
-      if (cells.length && trimmed.includes('---')) {
-        tableRows.push(cells.map(() => '---'));
+      // ASCII/box-drawing diagram — group into <pre>
+      if (hasBoxChars) {
+        flushList(listItems);
+        inTable = false; tableRows.length = 0;
+        inPreBlock = true;
+        preLines.push(line);
+        continue;
+      }
+      if (inPreBlock) {
+        flushPre(elements.length);
+        inPreBlock = false;
+      }
+
+      // Empty line
+      if (!trimmed) {
+        flushList(listItems);
+        inTable = false;
+        if (tableRows.length >= 2) {
+          flushTable(tableRows, elements.length);
+          tableRows = [];
+        }
+        elements.push(<br key={`br-${i}`} />);
+        continue;
+      }
+
+      // Tables (only regular ASCII pipe, not box-drawing U+2502)
+      if (trimmed.startsWith('|') && trimmed.endsWith('|') && !BOX_CHARS.test(trimmed)) {
+        flushList(listItems);
+        const cells = trimmed.split('|').filter(c => c.trim()).map(c => c.trim());
+        if (cells.length && trimmed.includes('---')) {
+          tableRows.push(cells.map(() => '---'));
+          inTable = true;
+          continue;
+        }
+        tableRows.push(cells);
         inTable = true;
         continue;
       }
-      tableRows.push(cells);
-      inTable = true;
-      continue;
-    }
 
-    // If we were building a table and hit a non-table line, flush it
-    if (inTable && tableRows.length >= 2) {
-      flushTable(tableRows, elements.length);
-      tableRows = [];
-      inTable = false;
-    }
-
-    // Headers
-    if (trimmed.startsWith('#### ')) {
-      flushList(listItems);
-      elements.push(<h4 key={`h4-${i}`} className="md-h4">{parseInline(trimmed.slice(5))}</h4>);
-      continue;
-    }
-    if (trimmed.startsWith('### ')) {
-      flushList(listItems);
-      elements.push(<h3 key={`h3-${i}`} className="md-h3">{parseInline(trimmed.slice(4))}</h3>);
-      continue;
-    }
-    if (trimmed.startsWith('## ')) {
-      flushList(listItems);
-      elements.push(<h2 key={`h2-${i}`} className="md-h2">{parseInline(trimmed.slice(3))}</h2>);
-      continue;
-    }
-    if (trimmed.startsWith('# ')) {
-      flushList(listItems);
-      elements.push(<h1 key={`h1-${i}`} className="md-h1">{parseInline(trimmed.slice(2))}</h1>);
-      continue;
-    }
-
-    // Horizontal rule
-    if (/^-{3,}$/.test(trimmed) || /^\*{3,}$/.test(trimmed)) {
-      flushList(listItems);
-      elements.push(<hr key={`hr-${i}`} className="md-hr" />);
-      continue;
-    }
-
-    // Blockquote
-    if (trimmed.startsWith('> ')) {
-      flushList(listItems);
-      elements.push(<blockquote key={`bq-${i}`} className="md-blockquote">{parseInline(trimmed.slice(2))}</blockquote>);
-      continue;
-    }
-
-    // Bullet list
-    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-      inTable = false;
-      const content = trimmed.slice(2);
-      const isBoldHeader = content.includes('**');
-      if (isBoldHeader) {
-        const parts = content.split('**').filter(Boolean);
-        if (parts.length >= 2) {
-          listItems.push(<li key={`li-${i}`}><strong>{parts[0]}</strong>{parseInline(parts.slice(1).join(''))}</li>);
-          continue;
-        }
+      // If we were building a table and hit a non-table line, flush it
+      if (inTable && tableRows.length >= 2) {
+        flushTable(tableRows, elements.length);
+        tableRows = [];
+        inTable = false;
       }
-      listItems.push(<li key={`li-${i}`}>{parseInline(content)}</li>);
-      inList = true;
-      continue;
+
+      // Headers
+      if (trimmed.startsWith('#### ')) {
+        flushList(listItems);
+        elements.push(<h4 key={`h4-${i}`} className="md-h4">{parseInline(trimmed.slice(5))}</h4>);
+        continue;
+      }
+      if (trimmed.startsWith('### ')) {
+        flushList(listItems);
+        elements.push(<h3 key={`h3-${i}`} className="md-h3">{parseInline(trimmed.slice(4))}</h3>);
+        continue;
+      }
+      if (trimmed.startsWith('## ')) {
+        flushList(listItems);
+        elements.push(<h2 key={`h2-${i}`} className="md-h2">{parseInline(trimmed.slice(3))}</h2>);
+        continue;
+      }
+      if (trimmed.startsWith('# ')) {
+        flushList(listItems);
+        elements.push(<h1 key={`h1-${i}`} className="md-h1">{parseInline(trimmed.slice(2))}</h1>);
+        continue;
+      }
+
+      // Horizontal rule
+      if (/^-{3,}$/.test(trimmed) || /^\*{3,}$/.test(trimmed)) {
+        flushList(listItems);
+        elements.push(<hr key={`hr-${i}`} className="md-hr" />);
+        continue;
+      }
+
+      // Blockquote
+      if (trimmed.startsWith('> ')) {
+        flushList(listItems);
+        elements.push(<blockquote key={`bq-${i}`} className="md-blockquote">{parseInline(trimmed.slice(2))}</blockquote>);
+        continue;
+      }
+
+      // Bullet list
+      if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+        inTable = false;
+        const content = trimmed.slice(2);
+        const isBoldHeader = content.includes('**');
+        if (isBoldHeader) {
+          const parts = content.split('**').filter(Boolean);
+          if (parts.length >= 2) {
+            listItems.push(<li key={`li-${i}`}><strong>{parts[0]}</strong>{parseInline(parts.slice(1).join(''))}</li>);
+            continue;
+          }
+        }
+        listItems.push(<li key={`li-${i}`}>{parseInline(content)}</li>);
+        inList = true;
+        continue;
+      }
+
+      // Numbered list
+      if (/^\d+[.)]\s/.test(trimmed)) {
+        inTable = false;
+        const content = trimmed.replace(/^\d+[.)]\s*/, '');
+        listItems.push(<li key={`li-${i}`}>{parseInline(content)}</li>);
+        inList = true;
+        continue;
+      }
+
+      // Regular paragraph
+      flushList(listItems);
+      elements.push(<p key={`p-${i}`} className="md-p">{parseInline(trimmed)}</p>);
     }
 
-    // Numbered list
-    if (/^\d+[.)]\s/.test(trimmed)) {
-      inTable = false;
-      const content = trimmed.replace(/^\d+[.)]\s*/, '');
-      listItems.push(<li key={`li-${i}`}>{parseInline(content)}</li>);
-      inList = true;
-      continue;
-    }
-
-    // Regular paragraph
     flushList(listItems);
-    elements.push(<p key={`p-${i}`} className="md-p">{parseInline(trimmed)}</p>);
+    flushPre(elements.length);
+    if (inCodeBlock) flushCode(elements.length);
+    if (inTable && tableRows.length >= 2) flushTable(tableRows, elements.length);
+
+    return <>{elements}</>;
+  } catch (e) {
+    console.warn('Markdown render error:', e);
+    return <pre className="md-pre-fallback">{text}</pre>;
   }
-
-  flushList(listItems);
-  if (inCodeBlock) flushCode(elements.length);
-  if (inTable && tableRows.length >= 2) flushTable(tableRows, elements.length);
-
-  return <>{elements}</>;
 }
 
 function parseInline(text) {

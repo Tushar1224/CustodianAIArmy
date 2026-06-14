@@ -429,7 +429,7 @@
 /* ── Session Two-Column ── */
 .bp-session-body {
   display: grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: 420px 1fr;
   gap: 20px;
   min-height: 500px;
 }
@@ -449,8 +449,8 @@
   border: 1px solid rgba(255,255,255,.05);
   border-radius: 14px;
   overflow: hidden;
-  height: fit-content;
-  max-height: 600px;
+  max-height: 80vh;
+  min-height: 500px;
 }
 .bp-chat-head {
   display: flex;
@@ -528,14 +528,13 @@
 }
 .bp-mode-suggestion:hover { opacity: .85; }
 .bp-chat-msgs {
-  flex: 1;
+  flex: 1 1 0;
   overflow-y: auto;
   padding: 12px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-height: 280px;
-  max-height: 400px;
+  min-height: 360px;
 }
 .bp-msg {
   display: flex;
@@ -985,6 +984,32 @@
 }
 
 /* ── Markdown Rendering ── */
+.bp-msg-bubble .md-pre {
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 6px 0;
+  overflow-x: auto;
+  font-size: .72rem;
+  line-height: 1.35;
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
+  color: #b0b8c0;
+  white-space: pre;
+}
+.bp-msg-bubble .md-pre-fallback {
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,0,0,.15);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 6px 0;
+  overflow-x: auto;
+  font-size: .78rem;
+  line-height: 1.4;
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
+  color: #c9d1d9;
+  white-space: pre-wrap;
+}
 .bp-msg-bubble .md-h1 {
   font-size: 1.15rem;
   font-weight: 700;
