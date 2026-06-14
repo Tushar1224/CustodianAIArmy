@@ -3,7 +3,7 @@ API Routes for Custodian AI Army
 """
 import json
 import asyncio
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request, WebSocket, WebSocketDisconnect, Query
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request, WebSocket, WebSocketDisconnect, Query, UploadFile, File, Form
 from fastapi.responses import JSONResponse, StreamingResponse
 import subprocess
 import random
@@ -2275,7 +2275,6 @@ Return ONLY valid JSON with this exact structure (use empty arrays/strings for m
 
 import tempfile
 from pathlib import Path
-from fastapi import UploadFile, File, Form
 
 
 @router.post("/resumes/extract-text")

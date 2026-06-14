@@ -17,7 +17,7 @@
     }
   ],
   "env": {
-    "DATABASE_PATH": "/tmp/chat_history.db"
+    "DATABASE_PATH": "/tmp/custodian.db"
   },
   "github": {
     "silent": true,
