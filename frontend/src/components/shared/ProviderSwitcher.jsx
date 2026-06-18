@@ -3,8 +3,8 @@ import { useState, useEffect } from 'react';
 const API_BASE = '/api/v1';
 
 const PROVIDER_META = {
-  google: { label: 'Gemini', icon: 'fab fa-google', providerKey: 'gemini' },
-  anthropic: { label: 'Claude', icon: 'fas fa-brain', providerKey: 'anthropic' },
+  gemini: { label: 'Gemini', icon: 'fab fa-google' },
+  anthropic: { label: 'Claude', icon: 'fas fa-brain' },
 };
 
 export default function ProviderSwitcher({ compact = false }) {

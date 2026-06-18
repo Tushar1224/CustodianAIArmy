@@ -22,8 +22,8 @@ const AGENT_UI_DATA = {
 };
 
 const PROVIDER_META = {
-  google: { label: 'Google (Gemini)', badgeClass: 'bg-info text-dark', icon: 'fab fa-google', providerKey: 'gemini' },
-  anthropic: { label: 'Anthropic (Claude)', badgeClass: 'bg-warning text-dark', icon: 'fas fa-brain', providerKey: 'anthropic' },
+  gemini: { label: 'Google (Gemini)', badgeClass: 'bg-info text-dark', icon: 'fab fa-google' },
+  anthropic: { label: 'Anthropic (Claude)', badgeClass: 'bg-warning text-dark', icon: 'fas fa-brain' },
 };
 
 function apiGet(path) {
@@ -76,15 +76,27 @@ export default function DashboardPage() {
       }
     };
     window.addEventListener('load-chat', handleLoadChat);
-    const handleProviderChanged = (e) => {
-      setProvider(e.detail);
-    };
     window.addEventListener('provider-changed', handleProviderChanged);
     return () => {
       window.removeEventListener('load-chat', handleLoadChat);
       window.removeEventListener('provider-changed', handleProviderChanged);
     };
   }, []);
+
+  const handleProviderChanged = async (e) => {
+    const newProvider = e.detail;
+    setProvider(newProvider);
+    try {
+      const agentsData = await fetch(`${API_BASE}/agents`, { credentials: 'include' }).then(r => r.json());
+      setAgents(agentsData.agents || []);
+      setActiveAgents(agentsData.agents?.length || 0);
+      const preferred = agentsData.agents.find(a => a.name === 'CustodianAI');
+      setSelectedAgent(preferred || agentsData.agents[0]);
+      setMessages([]);
+    } catch (e) {
+      console.error('Failed to reload agents after provider change', e);
+    }
+  };
 
   const loadInitialData = async () => {
     try {

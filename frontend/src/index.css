@@ -78,68 +78,33 @@
 [data-theme="dark"] .sub-header {
   background: rgba(22, 27, 34, 0.95);
 }
-[data-theme="dark"] .offcanvas {
-  background: #161b22 !important;
-}
 [data-theme="dark"] .offcanvas .nav-link:hover,
 [data-theme="dark"] .offcanvas .nav-link.active,
 [data-theme="dark"] .offcanvas .nav-link.active:hover {
   background: rgba(88, 166, 255, 0.1);
 }
-[data-theme="dark"] .page-header-box,
-[data-theme="dark"] .chat-container,
-[data-theme="dark"] .learning-path-card,
-[data-theme="dark"] .course-detail-layout,
-[data-theme="dark"] .pathway-card,
-[data-theme="dark"] .course-terminal-section {
-  background: #161b22;
-}
-[data-theme="dark"] .course-sidebar,
-[data-theme="dark"] .course-ai-panel {
-  background: #0d1117;
-}
-[data-theme="dark"] .course-sidebar-header,
-[data-theme="dark"] .course-content-header,
-[data-theme="dark"] .course-terminal-header,
-[data-theme="dark"] .course-ai-header {
-  background: #1c2333;
+[data-theme="dark"] .dropdown-item:hover {
+  background: rgba(88, 166, 255, 0.1) !important;
 }
 [data-theme="dark"] .course-slide-rendered pre,
 [data-theme="dark"] .course-code-editor {
-  background: #1c2333;
   border-color: rgba(88, 166, 255, 0.15);
-}
-[data-theme="dark"] .course-terminal-output {
-  background: #161b22;
-}
-[data-theme="dark"] .course-slide-rendered code {
-  background: rgba(88, 166, 255, 0.12);
 }
 [data-theme="dark"] .course-slide-rendered blockquote {
   background: rgba(88, 166, 255, 0.06);
 }
-[data-theme="dark"] .dropdown-menu {
-  background: #161b22 !important;
-}
-[data-theme="dark"] .dropdown-item:hover {
-  background: rgba(88, 166, 255, 0.1) !important;
-}
-[data-theme="dark"] .modal-content {
-  background: #161b22 !important;
-}
-[data-theme="dark"] .form-control,
-[data-theme="dark"] .form-select {
-  background: #0d1117 !important;
-}
 [data-theme="dark"] .course-module-item:hover {
-  background: #1c2333;
+  background: var(--bg3);
 }
 [data-theme="dark"] .course-module-item.active {
   background: rgba(88, 166, 255, 0.12);
 }
 [data-theme="dark"] .pathway-header:hover,
 [data-theme="dark"] .pathway-step:hover {
-  background: #1c2333;
+  background: var(--bg3);
+}
+[data-theme="dark"] .course-ai-header {
+  background: var(--bg3);
 }
 [data-theme="dark"] .loading-overlay {
   background: rgba(13, 17, 23, 0.85);
@@ -181,7 +146,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
 .loading-spinner { text-align: center; }
 .spinner {
   width: 40px; height: 40px;
-  border: 3px solid rgba(77, 171, 247, 0.2);
+  border: 3px solid var(--border);
   border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -236,7 +201,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
 
 /* ── Offcanvas / Sidebar ── */
 .offcanvas {
-  background: #ffffff !important;
+  background: var(--card) !important;
   color: var(--text) !important;
   border-right: 1px solid var(--border) !important;
 }
@@ -269,7 +234,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
 
 /* ── Page Header ── */
 .page-header-box {
-  background: #ffffff;
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1rem 1.25rem;
@@ -293,7 +258,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
   display: flex;
   flex-direction: column;
   height: calc(100vh - 200px);
-  background: #ffffff;
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
@@ -369,7 +334,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
   padding: 1rem 0;
 }
 .learning-path-card {
-  background: #ffffff;
+  background: var(--card);
   border: 1px solid var(--border);
   padding: 1.5rem;
   border-radius: 12px;
@@ -404,7 +369,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
   height: calc(100vh - 160px);
   min-height: 500px;
   gap: 0;
-  background: #ffffff;
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
@@ -413,7 +378,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
 
 .course-sidebar {
   width: 280px;
-  background: #f8fbff;
+  background: var(--bg2);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -422,6 +387,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
 }
 .course-sidebar-header {
   padding: 1rem;
+  background: var(--bg3);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -507,14 +473,14 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
 .course-slide-rendered ul, .course-slide-rendered ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
 .course-slide-rendered li { margin-bottom: 0.25rem; }
 .course-slide-rendered code {
-  background: rgba(77,171,247,0.1);
+  background: var(--primary-glow);
   padding: 0.15rem 0.4rem;
   border-radius: 3px;
   font-family: 'Fira Code', monospace;
   font-size: 0.85em;
 }
 .course-slide-rendered pre {
-  background: #f5f9ff;
+  background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 1rem;
@@ -531,7 +497,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
   border-left: 3px solid var(--primary);
   padding: 0.5rem 1rem;
   margin: 0 0 0.75rem;
-  background: rgba(77,171,247,0.05);
+  background: rgba(77, 171, 247, 0.05);
   border-radius: 0 4px 4px 0;
   color: var(--text2);
 }
@@ -551,7 +517,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
 
 .course-terminal-section {
   border-top: 1px solid var(--border);
-  background: #ffffff;
+  background: var(--card);
   flex-shrink: 0;
 }
 .course-terminal-header {
@@ -569,7 +535,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
 .course-code-editor {
   width: 100%;
   min-height: 120px;
-  background: #f5f9ff;
+  background: var(--bg3);
   color: var(--text);
   border: none;
   padding: 1rem;
@@ -578,7 +544,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
   resize: vertical;
 }
 .course-terminal-output {
-  background: #edf4ff;
+  background: var(--bg2);
   color: var(--text2);
   padding: 0.75rem 1rem;
   font-family: monospace;
@@ -592,7 +558,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
 
 .course-ai-panel {
   width: 320px;
-  background: #f8fbff;
+  background: var(--bg2);
   border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -642,7 +608,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
   gap: 1.5rem;
 }
 .pathway-card {
-  background: #ffffff;
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
@@ -757,7 +723,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
 
 /* ── Dropdown ── */
 .dropdown-menu {
-  background: #ffffff !important;
+  background: var(--card) !important;
   border: 1px solid var(--border) !important;
   box-shadow: var(--shadow-hover);
 }
@@ -770,7 +736,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
 
 /* ── Modals ── */
 .modal-content {
-  background: #ffffff !important;
+  background: var(--card) !important;
   color: var(--text) !important;
   border-color: var(--border) !important;
 }
@@ -781,7 +747,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
 
 /* ── Form Controls ── */
 .form-control, .form-select {
-  background: #ffffff !important;
+  background: var(--card) !important;
   border-color: var(--border) !important;
   color: var(--text) !important;
 }
