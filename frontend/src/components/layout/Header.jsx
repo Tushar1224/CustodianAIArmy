@@ -1,5 +1,4 @@
 import { useAuth } from '../../hooks/useAuth';
-import ProviderSwitcher from '../shared/ProviderSwitcher';
 import { useTheme } from '../../hooks/useTheme';
 
 export default function Header({ showSubHeader, subHeaderContent, style: customStyle, onOpenProfile }) {
@@ -39,12 +38,8 @@ export default function Header({ showSubHeader, subHeaderContent, style: customS
             </a>
           </div>
 
-          {/* Center: Provider Switcher */}
-          <div className="d-flex align-items-center ms-auto me-2">
-            <ProviderSwitcher compact={true} />
-          </div>
-
           {/* Right: Theme Toggle + Profile Dropdown */}
+          <div className="d-flex align-items-center ms-auto">
           <button className="btn-icon-only me-1" type="button" onClick={toggle}
             title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             style={{ background: 'none', border: 'none', color: 'var(--primary-color)', cursor: 'pointer', padding: '0.4rem 0.5rem', fontSize: '1.1rem', lineHeight: 1 }}>
@@ -76,6 +71,7 @@ export default function Header({ showSubHeader, subHeaderContent, style: customS
                 </>
               )}
             </ul>
+          </div>
           </div>
         </div>
       </header>

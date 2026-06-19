@@ -109,6 +109,23 @@
 [data-theme="dark"] .loading-overlay {
   background: rgba(13, 17, 23, 0.85);
 }
+[data-theme="dark"] .dropdown-menu {
+  background: var(--secondary-bg) !important;
+  border-color: var(--border-color) !important;
+}
+[data-theme="dark"] .modal-content {
+  background: var(--secondary-bg) !important;
+  border-color: var(--border-color) !important;
+}
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+  background: var(--tertiary-bg) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+[data-theme="dark"] .offcanvas {
+  background: var(--secondary-bg) !important;
+}
 
 /* ── Base Styles ── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }

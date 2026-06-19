@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { marked } from 'marked';
 import MainLayout from '../components/layout/MainLayout';
 import LoadingOverlay from '../components/shared/LoadingOverlay';
+import ProviderSwitcher from '../components/shared/ProviderSwitcher';
 
 const API_BASE = '/api/v1';
 
@@ -286,15 +287,40 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="chat-container chat-container-desktop">
-        <div className="chat-main" id="chat-main" style={{ flex: 1, minHeight: 0 }}>
-          {selectedAgent && (
-            <div className="active-agent-banner d-flex align-items-center gap-2 flex-wrap px-3 py-2" style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(77,171,247,0.03)' }}>
-              <span className="badge" style={{ background: 'var(--primary-color)', color: '#000' }}><i className="fas fa-robot me-1"></i>Active Agent</span>
-              <span className="fw-bold" style={{ color: 'var(--primary-color)', fontSize: '0.85rem' }}>{selectedAgent.name}</span>
-              <span className="small" style={{ color: 'var(--text-secondary)' }}>· {selectedAgent.specialization || 'general'}</span>
-            </div>
-          )}
+      <div className="chat-container chat-container-desktop" style={{ flexDirection: 'row' }}>
+        {/* Left: Agent list sidebar */}
+        <div className="chat-sidebar d-none d-md-flex" style={{ width: '240px', minWidth: '240px', flexDirection: 'column', borderRight: '1px solid var(--border-color)', background: 'var(--bg2)', overflowY: 'auto' }}>
+          <div className="px-3 py-2" style={{ borderBottom: '1px solid var(--border-color)' }}>
+            <h6 style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+              <i className="fas fa-robot me-1"></i> Available Agents
+            </h6>
+          </div>
+          {agents.map(agent => {
+            const isActive = selectedAgent?.agent_id === agent.agent_id;
+            return (
+              <div key={agent.agent_id}
+                className="agent-list-item d-flex align-items-center gap-2 px-3 py-2"
+                onClick={() => selectAgent(agent)}
+                style={{
+                  cursor: 'pointer',
+                  borderBottom: '1px solid var(--border-color)',
+                  background: isActive ? 'rgba(77,171,247,0.08)' : 'transparent',
+                  borderLeft: isActive ? '3px solid var(--primary-color)' : '3px solid transparent',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--bg3)'; }}
+                onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}>
+                <i className="fas fa-robot" style={{ color: 'var(--primary-color)', fontSize: '0.85rem' }}></i>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>{agent.name}</div>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{agent.specialization || 'general'}</div>
+                </div>
+                {isActive && <i className="fas fa-check-circle" style={{ color: 'var(--primary-color)', fontSize: '0.65rem' }}></i>}
+              </div>
+            );
+          })}
+        </div>
+        <div className="chat-main" id="chat-main" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <div className="chat-messages" id="chat-messages">
             {messages.length === 0 ? (
               <div className="welcome-message">
@@ -323,23 +349,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="chat-options-bar d-flex align-items-center gap-2 px-3 py-2" style={{ borderTop: '1px solid var(--border-color)', background: 'rgba(77,171,247,0.03)' }}>
-            <div className="dropdown">
-              <button className="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Switch agent" style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem' }}>
-                <i className="fas fa-robot me-1"></i> {selectedAgent?.name || 'Agent'}
-              </button>
-              <ul className="dropdown-menu" style={{ maxHeight: '300px', overflowY: 'auto', fontSize: '0.8rem' }}>
-                {agents.map(agent => (
-                  <li key={agent.agent_id}>
-                    <a className={`dropdown-item ${selectedAgent?.agent_id === agent.agent_id ? 'active' : ''}`} href="#"
-                      onClick={(e) => { e.preventDefault(); selectAgent(agent); }}>
-                      <i className="fas fa-robot text-info me-2"></i>
-                      <span>{agent.name}</span>
-                      <small className="ms-1 text-muted">· {agent.specialization || 'general'}</small>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <ProviderSwitcher compact={true} />
             <div className="form-check form-switch ms-auto">
               <input className="form-check-input" type="checkbox" id="incognitoToggle"
                 checked={incognito}
