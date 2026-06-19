@@ -318,15 +318,12 @@ export default function ResumePage() {
     setEditField(null);
   };
 
-  const [userTemplates, setUserTemplates] = useState([]);
   const [uploadStatus, setUploadStatus] = useState('');
   const [jdUploadStatus, setJdUploadStatus] = useState('');
   const [jdLoading, setJdLoading] = useState(false);
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [selectedCategory, setSelectedCategory] = useState('professional');
-  const [availableCategories, setAvailableCategories] = useState(CATEGORIES);
   const [currentPage, setCurrentPage] = useState(1);
   const [pendingChanges, setPendingChanges] = useState(null);
   const [remainingSections, setRemainingSections] = useState(null);
@@ -354,33 +351,7 @@ export default function ResumePage() {
     setLoading(false);
   }, []);
 
-  const loadTemplates = useCallback(async (category) => {
-    try {
-      const params = category ? `?category=${category}` : '';
-      const res = await fetch(`${API_BASE}/resumes/templates${params}`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setUserTemplates(data.templates || []);
-      }
-    } catch (e) { console.error('Failed to load templates', e); }
-  }, []);
-
-  const loadCategories = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_BASE}/resumes/templates/categories`, { credentials: 'include' });
-      if (!res.ok) return;
-      const text = await res.text();
-      if (!text.startsWith('{')) return; // not JSON
-      const data = JSON.parse(text);
-      if (data.categories?.length) {
-        const merged = CATEGORIES.filter(c => data.categories.includes(c.id));
-        const extras = data.categories.filter(c => !CATEGORIES.find(x => x.id === c)).map(c => ({ id: c, label: c.charAt(0).toUpperCase() + c.slice(1), icon: 'fa-folder' }));
-        setAvailableCategories([...merged, ...extras]);
-      }
-    } catch (e) { console.error('Failed to load categories', e); }
-  }, []);
-
-  useEffect(() => { loadResumes(); loadTemplates(selectedCategory); loadCategories(); }, [loadResumes, loadTemplates, loadCategories, selectedCategory]);
+  useEffect(() => { loadResumes(); }, [loadResumes]);
 
   // Load chat history when entering viewer
   useEffect(() => {
@@ -393,13 +364,6 @@ export default function ResumePage() {
         .catch(() => {});
     }
   }, [view, currentResume?.id]);
-
-  // Auto-expand templates panel when entering editor
-  useEffect(() => {
-    if (view === 'editor') {
-      setActiveTab('templates');
-    }
-  }, [view]);
 
   const createResume = async (templateIndex = 0) => {
     setShowTemplatePicker(false);
@@ -626,49 +590,6 @@ export default function ResumePage() {
       }
     } catch (e) { console.error('Failed to optimize resume', e); }
     setLoading(false);
-  };
-
-  const applyTemplate = async (indexOrName) => {
-    let templateData, name, category, sectionDefs;
-    if (typeof indexOrName === 'number') {
-      const builtin = BUILTIN_TEMPLATES[indexOrName];
-      if (!builtin) return;
-      templateData = builtin.data;
-      name = builtin.name;
-      category = builtin.category;
-      sectionDefs = builtin.section_defs;
-    } else {
-      const tpl = userTemplates.find(t => t.name === indexOrName);
-      if (!tpl) return;
-      templateData = tpl.config;
-      name = tpl.name;
-      category = tpl.category || 'general';
-      sectionDefs = tpl.section_defs || ALL_SECTION_DEFS;
-    }
-    setCurrentResume(prev => {
-      const existing = prev?.data || {};
-      const merged = JSON.parse(JSON.stringify(templateData || {}));
-      sectionDefs.forEach(section => {
-        const secId = section.id;
-        if (existing[secId] !== undefined) {
-          merged[secId] = existing[secId];
-        }
-      });
-      Object.keys(existing).forEach(key => {
-        if (!sectionDefs.find(s => s.id === key)) {
-          merged[key] = existing[key];
-        }
-      });
-      return { ...prev, data: merged, template_name: name };
-    });
-    setActiveTab('personal');
-    try {
-      await fetch(`${API_BASE}/resumes/templates`, {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, config: templateData, category, section_defs: sectionDefs }),
-      });
-    } catch (e) { console.error('Failed to save template', e); }
   };
 
   const updateField = (section, field, value) => {
@@ -1020,41 +941,69 @@ export default function ResumePage() {
             padding: '1rem',
           }} onClick={() => setShowTemplatePicker(false)}>
             <div style={{
-              background: 'var(--secondary-bg)', borderRadius: '12px',
-              maxWidth: '720px', width: '100%', maxHeight: '85vh', overflowY: 'auto',
-              border: '1px solid var(--border-color)',
+              background: 'var(--secondary-bg)', borderRadius: '16px',
+              maxWidth: '780px', width: '100%', maxHeight: '90vh', overflowY: 'auto',
+              border: '1px solid var(--border-color)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
             }} onClick={e => e.stopPropagation()}>
-              <div className="d-flex justify-content-between align-items-center p-3" style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <h5 style={{ margin: 0, color: 'var(--text-primary)' }}><i className="fas fa-magic me-2" style={{ color: 'var(--primary-color)' }}></i>Choose a Template</h5>
-                <button className="btn btn-sm btn-outline-secondary" onClick={() => setShowTemplatePicker(false)} style={{ border: 'none', fontSize: '1.2rem' }}>&times;</button>
+              <div className="d-flex justify-content-between align-items-center p-3 px-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <div>
+                  <h5 style={{ margin: 0, color: 'var(--text-primary)' }}><i className="fas fa-magic me-2" style={{ color: 'var(--primary-color)' }}></i>Choose a Template</h5>
+                  <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Select a template to get started with pre-filled content</small>
+                </div>
+                <button className="btn btn-sm btn-outline-secondary" onClick={() => setShowTemplatePicker(false)} style={{ border: 'none', fontSize: '1.3rem', opacity: 0.6 }}>&times;</button>
               </div>
-              <div className="p-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+              <div className="p-3 px-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
                 {BUILTIN_TEMPLATES.map((tpl, idx) => {
                   const cat = CATEGORIES.find(c => c.id === tpl.category);
+                  const accentColor = cat?.id === 'creative' ? '#e17055' : cat?.id === 'academic' ? '#6c5ce7' : 'var(--primary-color)';
                   return (
-                    <div key={tpl.name} style={{
-                      background: 'var(--tertiary-bg)', borderRadius: '8px',
-                      border: '1px solid var(--border-color)', overflow: 'hidden',
-                      transition: 'all 0.2s', cursor: 'default',
-                    }}>
+                    <div key={tpl.name} className="template-picker-card"
+                      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.2)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+                      style={{
+                        background: 'var(--tertiary-bg)', borderRadius: '10px',
+                        border: '1px solid var(--border-color)', overflow: 'hidden',
+                        transition: 'all 0.25s', cursor: 'default',
+                      }}>
+                      {/* Accent bar */}
+                      <div style={{ height: '4px', background: accentColor }}></div>
                       <div className="p-3">
                         <div className="d-flex justify-content-between align-items-start mb-2">
                           <h6 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.9rem', fontWeight: 700 }}>{tpl.name}</h6>
-                          {cat && <span className="badge" style={{ background: 'var(--primary-color)', color: '#000', fontSize: '0.6rem' }}><i className={`fas ${cat.icon} me-1`}></i>{cat.label}</span>}
+                          {cat && <span className="badge" style={{ background: accentColor + '22', color: accentColor, fontSize: '0.6rem', fontWeight: 600, border: '1px solid ' + accentColor + '44' }}><i className={`fas ${cat.icon} me-1`}></i>{cat.label}</span>}
                         </div>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', lineHeight: 1.4 }}>{tpl.description}</p>
+                        <p style={{ fontSize: '0.73rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', lineHeight: 1.4 }}>{tpl.description}</p>
                         <div className="d-flex flex-wrap gap-1 mb-2">
                           {tpl.section_defs.slice(0, 6).map(s => (
-                            <span key={s.id} className="badge" style={{ background: 'var(--secondary-bg)', color: 'var(--text-muted)', fontSize: '0.55rem', fontWeight: 400, border: '1px solid var(--border-color)' }}>
-                              <i className={`fas ${s.icon} me-1`} style={{ fontSize: '0.5rem' }}></i>{s.name}
+                            <span key={s.id} style={{
+                              background: 'var(--secondary-bg)', color: 'var(--text-muted)',
+                              fontSize: '0.55rem', fontWeight: 400, border: '1px solid var(--border-color)',
+                              borderRadius: '4px', padding: '2px 5px', display: 'inline-flex', alignItems: 'center', gap: '2px',
+                            }}>
+                              <i className={`fas ${s.icon}`} style={{ fontSize: '0.5rem' }}></i>{s.name}
                             </span>
                           ))}
-                          {tpl.section_defs.length > 6 && <span className="badge" style={{ fontSize: '0.55rem' }}>+{tpl.section_defs.length - 6}</span>}
+                          {tpl.section_defs.length > 6 && <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', padding: '2px 5px' }}>+{tpl.section_defs.length - 6} more</span>}
                         </div>
-                        {tpl.pages.length > 1 && <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}><i className="fas fa-copy me-1"></i>{tpl.pages.length} pages</div>}
-                        <button className="btn btn-sm w-100" style={{ background: 'var(--primary-color)', color: '#000', fontSize: '0.75rem', fontWeight: 600 }}
+                        <div className="d-flex gap-2 align-items-center mb-2">
+                          {tpl.pages.length > 1 && (
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                              <i className="fas fa-copy me-1"></i>{tpl.pages.length}-page layout
+                            </span>
+                          )}
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                            <i className="fas fa-font me-1"></i>{tpl.styling.font.replace(/'/g, '').split(',')[0]}
+                          </span>
+                        </div>
+                        <button className="btn btn-sm w-100" style={{
+                          background: 'var(--primary-color)', color: '#000',
+                          fontSize: '0.77rem', fontWeight: 700, borderRadius: '6px',
+                          transition: 'opacity 0.2s',
+                        }}
+                          onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
+                          onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
                           onClick={() => createResume(idx)}>
-                          <i className="fas fa-plus me-1"></i>Use this template
+                          <i className="fas fa-plus me-1"></i>Use {tpl.name}
                         </button>
                       </div>
                     </div>
@@ -1073,119 +1022,47 @@ export default function ResumePage() {
     <div className="resume-editor-layout d-flex gap-3" style={{ flexDirection: isMobile ? 'column' : 'row', height: isMobile ? 'auto' : 'calc(100vh - 140px)' }}>
       {/* Left: Form Tabs */}
       <div className="editor-form-panel" style={{ width: isMobile ? '100%' : '420px', minWidth: isMobile ? '100%' : '350px', display: 'flex', flexDirection: 'column', gap: '0.5rem', overflow: isMobile ? 'visible' : 'hidden' }}>
-        {/* Templates */}
-        <div className="templates-section mb-1" style={{ background: 'var(--tertiary-bg)', borderRadius: '8px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
-          <div className="templates-header d-flex justify-content-between align-items-center px-2 py-1"
-            style={{ cursor: 'pointer', borderBottom: '1px solid var(--border-color)' }}
-            onClick={() => setActiveTab(activeTab === 'templates' ? 'personal' : 'templates')}>
-            <span style={{ color: 'var(--primary-color)', fontSize: '0.8rem', fontWeight: 600 }}>
-              <i className="fas fa-folder me-1"></i> Templates
-              {currentResume?.template_name && activeTab !== 'templates' && (
-                <small className="ms-2" style={{ color: 'var(--text-muted)', fontSize: '0.7rem', fontWeight: 400 }}>
-                  ({currentResume.template_name})
-                </small>
-              )}
-            </span>
-            <i className={`fas fa-chevron-${activeTab === 'templates' ? 'up' : 'down'}`} style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}></i>
+        {/* Current template badge */}
+        {currentResume?.template_name && (
+          <div className="px-2 py-1 mb-1 d-flex align-items-center gap-2" style={{ background: 'rgba(77,171,247,0.08)', borderRadius: '6px', fontSize: '0.7rem' }}>
+            <i className="fas fa-folder" style={{ color: 'var(--primary-color)' }}></i>
+            <span style={{ color: 'var(--text-muted)' }}>Template:</span>
+            <strong style={{ color: 'var(--text-primary)', fontSize: '0.75rem' }}>{currentResume.template_name}</strong>
           </div>
-          {activeTab === 'templates' && (
-            <div className="templates-list" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-              {/* Category tabs */}
-              <div className="d-flex gap-1 p-1 flex-wrap" style={{ borderBottom: '1px solid var(--border-color)' }}>
-                {availableCategories.map(cat => (
-                  <button key={cat.id}
-                    onClick={() => setSelectedCategory(cat.id)}
-                    className={`btn btn-sm ${selectedCategory === cat.id ? 'btn-primary' : 'btn-outline-secondary'}`}
-                    style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem' }}>
-                    <i className={`fas ${cat.icon} me-1`}></i>{cat.label}
-                  </button>
-                ))}
-              </div>
-              {/* Template cards for selected category */}
-              <div className="p-2">
-                {/* Built-in templates matching category */}
-                {BUILTIN_TEMPLATES.filter(t => t.category === selectedCategory).map((tpl, idx) => {
-                  const builtinIdx = BUILTIN_TEMPLATES.indexOf(tpl);
-                  return (
-                    <div key={tpl.name} className="mb-2 p-2 template-card" style={{
-                      background: currentResume?.template_name === tpl.name ? 'rgba(77,171,247,0.15)' : 'var(--secondary-bg)',
-                      borderRadius: '6px', border: `1px solid ${currentResume?.template_name === tpl.name ? 'var(--primary-color)' : 'var(--border-color)'}`,
-                      cursor: 'pointer'
+        )}
+        {/* Section management */}
+        <div className="mt-2 p-2" style={{ background: 'rgba(77,171,247,0.05)', borderRadius: '6px', border: '1px dashed var(--primary-color)' }}>
+          <strong style={{ fontSize: '0.75rem', color: 'var(--primary-color)' }}>
+            <i className="fas fa-plus-circle me-1"></i> Sections
+          </strong>
+          <div className="d-flex flex-wrap gap-1 mt-1">
+            {ALL_SECTION_DEFS.map(s => {
+              const isEnabled = !currentResume?.data?.[s.id] || (Array.isArray(currentResume.data[s.id]) && currentResume.data[s.id].length > 0) || (typeof currentResume.data?.[s.id] === 'object' && currentResume.data[s.id]?.full_name);
+              return (
+                <label key={s.id} className="d-flex align-items-center gap-1 p-1"
+                  style={{ fontSize: '0.65rem', cursor: 'pointer', opacity: isEnabled ? 1 : 0.5, borderRadius: '4px', background: isEnabled ? 'var(--tertiary-bg)' : 'transparent' }}>
+                  <input type="checkbox" checked={isEnabled}
+                    onChange={() => {
+                      setCurrentResume(prev => {
+                        const data = { ...prev.data };
+                        if (isEnabled) {
+                          delete data[s.id];
+                        } else {
+                          const def = ALL_SECTION_DEFS.find(d => d.id === s.id);
+                          if (def?.type === 'array') data[s.id] = [];
+                          else if (def?.type === 'object') data[s.id] = { full_name: '', email: '' };
+                          else data[s.id] = '';
+                        }
+                        return { ...prev, data };
+                      });
                     }}
-                      onClick={() => applyTemplate(builtinIdx)}>
-                      <div className="d-flex align-items-center gap-2">
-                        <i className="fas fa-file-alt" style={{ color: 'var(--primary-color)' }}></i>
-                        <div>
-                          <strong style={{ fontSize: '0.8rem', color: 'var(--text-primary)' }}>{tpl.name}</strong>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{tpl.description}</div>
-                          <div className="d-flex gap-1 mt-1">
-                            {tpl.section_defs.map(s => (
-                              <span key={s.id} className="badge" style={{ background: 'var(--tertiary-bg)', color: 'var(--text-muted)', fontSize: '0.55rem', fontWeight: 400 }}>{s.name}</span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                {/* User-accumulated templates matching category */}
-                {userTemplates.filter(t => !t.is_system && t.category === selectedCategory).map(tpl => (
-                  <div key={tpl.name} className="mb-2 p-2 template-card" style={{
-                    background: currentResume?.template_name === tpl.name ? 'rgba(77,171,247,0.15)' : 'var(--secondary-bg)',
-                    borderRadius: '6px', border: `1px solid ${currentResume?.template_name === tpl.name ? 'var(--primary-color)' : 'var(--border-color)'}`,
-                    cursor: 'pointer'
-                  }}
-                    onClick={() => applyTemplate(tpl.name)}>
-                    <div className="d-flex align-items-center gap-2">
-                      <i className="fas fa-file-export" style={{ color: 'var(--accent3, #6c5ce7)' }}></i>
-                      <div>
-                        <strong style={{ fontSize: '0.8rem', color: 'var(--text-primary)' }}>{tpl.name}</strong>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                          {(tpl.section_defs?.length || Object.keys(tpl.config || {}).length) + ' sections'}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {/* Section management */}
-                <div className="mt-2 p-2" style={{ background: 'rgba(77,171,247,0.05)', borderRadius: '6px', border: '1px dashed var(--primary-color)' }}>
-                  <strong style={{ fontSize: '0.75rem', color: 'var(--primary-color)' }}>
-                    <i className="fas fa-plus-circle me-1"></i> Sections
-                  </strong>
-                  <div className="d-flex flex-wrap gap-1 mt-1">
-                    {ALL_SECTION_DEFS.map(s => {
-                      const isEnabled = !currentResume?.data?.[s.id] || (Array.isArray(currentResume.data[s.id]) && currentResume.data[s.id].length > 0) || (typeof currentResume.data?.[s.id] === 'object' && currentResume.data[s.id]?.full_name);
-                      return (
-                        <label key={s.id} className="d-flex align-items-center gap-1 p-1"
-                          style={{ fontSize: '0.65rem', cursor: 'pointer', opacity: isEnabled ? 1 : 0.5, borderRadius: '4px', background: isEnabled ? 'var(--tertiary-bg)' : 'transparent' }}>
-                          <input type="checkbox" checked={isEnabled}
-                            onChange={() => {
-                              setCurrentResume(prev => {
-                                const data = { ...prev.data };
-                                if (isEnabled) {
-                                  // Remove section data
-                                  delete data[s.id];
-                                } else {
-                                  // Add empty section data
-                                  const def = ALL_SECTION_DEFS.find(d => d.id === s.id);
-                                  if (def?.type === 'array') data[s.id] = [];
-                                  else if (def?.type === 'object') data[s.id] = { full_name: '', email: '' };
-                                  else data[s.id] = '';
-                                }
-                                return { ...prev, data };
-                              });
-                            }}
-                            style={{ width: '0.7rem', height: '0.7rem' }} />
-                          <i className={`fas ${s.icon}`} style={{ fontSize: '0.6rem', color: 'var(--primary-color)' }}></i>
-                          {s.name}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+                    style={{ width: '0.7rem', height: '0.7rem' }} />
+                  <i className={`fas ${s.icon}`} style={{ fontSize: '0.6rem', color: 'var(--primary-color)' }}></i>
+                  {s.name}
+                </label>
+              );
+            })}
+          </div>
         </div>
 
         <div className="d-flex gap-1 flex-wrap" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
@@ -1213,12 +1090,12 @@ export default function ResumePage() {
 
         <div className="editor-form-content" style={{ flex: 1, overflowY: 'auto', paddingRight: '0.5rem' }}>
           {/* Empty state guide for new resumes */}
-          {(!currentResume?.data?.personal_info?.full_name && !currentResume?.data?.education?.length && !currentResume?.data?.experience?.length) && activeTab !== 'templates' && (
+          {(!currentResume?.data?.personal_info?.full_name && !currentResume?.data?.education?.length && !currentResume?.data?.experience?.length) && (
             <div className="mb-3 p-3 text-center" style={{ background: 'rgba(77,171,247,0.08)', border: '1px dashed var(--primary-color)', borderRadius: '8px' }}>
               <i className="fas fa-lightbulb" style={{ fontSize: '1.5rem', color: 'var(--primary-color)', marginBottom: '0.5rem', display: 'block' }}></i>
               <strong style={{ fontSize: '0.85rem', color: 'var(--primary-color)' }}>Getting Started</strong>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0.25rem 0' }}>
-                Fill in your details using the tabs above, or choose a template from the folder icon to get started quickly.
+                Fill in your details using the tabs above.
               </p>
             </div>
           )}
@@ -1726,49 +1603,6 @@ export default function ResumePage() {
               )}
             </div>
             <div className="d-flex align-items-center gap-2">
-              {/* Template badge */}
-              <div className="dropdown">
-                <button className="btn btn-sm btn-outline-secondary dropdown-toggle" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}
-                  data-bs-toggle="dropdown" aria-expanded="false">
-                  <i className="fas fa-folder me-1"></i>
-                  {currentResume?.template_name || 'Template'}
-                </button>
-                <ul className="dropdown-menu dropdown-menu-end" style={{ maxHeight: '300px', overflowY: 'auto', fontSize: '0.8rem', background: 'var(--secondary-bg)', border: '1px solid var(--border-color)' }}>
-                  {BUILTIN_TEMPLATES.map((tpl, idx) => (
-                    <li key={tpl.name}>
-                      <button className={`dropdown-item ${currentResume?.template_name === tpl.name ? 'active' : ''}`}
-                        style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem', color: currentResume?.template_name === tpl.name ? 'var(--primary-color)' : 'var(--text-primary)' }}
-                        onClick={() => {
-                          const cat = CATEGORIES.find(c => c.id === tpl.category);
-                          const label = cat ? cat.label : tpl.category;
-                          if (confirm(`Switch to "${tpl.name}" (${label})?\n\nYour existing resume data will be preserved and mapped to the new template.`)) {
-                            applyTemplate(idx);
-                          }
-                        }}>
-                        <i className="fas fa-file-alt me-1" style={{ color: 'var(--primary-color)' }}></i>
-                        <strong>{tpl.name}</strong>
-                        <small className="ms-1" style={{ color: 'var(--text-muted)' }}>
-                          ({CATEGORIES.find(c => c.id === tpl.category)?.label || tpl.category})
-                        </small>
-                      </button>
-                    </li>
-                  ))}
-                  {userTemplates.filter(t => !t.is_system).map(tpl => (
-                    <li key={tpl.name}>
-                      <button className={`dropdown-item ${currentResume?.template_name === tpl.name ? 'active' : ''}`}
-                        style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem', color: currentResume?.template_name === tpl.name ? 'var(--primary-color)' : 'var(--text-primary)' }}
-                        onClick={() => {
-                          if (confirm(`Switch to "${tpl.name}"?\n\nYour existing resume data will be preserved.`)) {
-                            applyTemplate(tpl.name);
-                          }
-                        }}>
-                        <i className="fas fa-file-export me-1" style={{ color: 'var(--accent3, #6c5ce7)' }}></i>
-                        {tpl.name}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
               <button className="btn btn-sm btn-warning" onClick={optimizeResume} disabled={loading}
                 title={jdText ? `Optimizing with JD: ${jdText.slice(0, 80)}...` : 'Optimize without JD'}>
                 <i className="fas fa-magic me-1"></i> {jdText ? 'Optimize with JD' : 'Optimize with AI'}
