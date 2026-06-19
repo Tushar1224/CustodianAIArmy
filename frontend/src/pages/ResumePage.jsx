@@ -1024,14 +1024,14 @@ export default function ResumePage() {
       <div className="editor-form-panel" style={{ width: isMobile ? '100%' : '420px', minWidth: isMobile ? '100%' : '350px', display: 'flex', flexDirection: 'column', gap: '0.5rem', overflow: isMobile ? 'visible' : 'hidden' }}>
         {/* Current template badge */}
         {currentResume?.template_name && (
-          <div className="px-2 py-1 mb-1 d-flex align-items-center gap-2" style={{ background: 'rgba(77,171,247,0.08)', borderRadius: '6px', fontSize: '0.7rem' }}>
+          <div className="px-2 py-1 mb-1 d-flex align-items-center gap-2" style={{ background: 'rgba(var(--primary-rgb),0.08)', borderRadius: '6px', fontSize: '0.7rem' }}>
             <i className="fas fa-folder" style={{ color: 'var(--primary-color)' }}></i>
             <span style={{ color: 'var(--text-muted)' }}>Template:</span>
             <strong style={{ color: 'var(--text-primary)', fontSize: '0.75rem' }}>{currentResume.template_name}</strong>
           </div>
         )}
         {/* Section management */}
-        <div className="mt-2 p-2" style={{ background: 'rgba(77,171,247,0.05)', borderRadius: '6px', border: '1px dashed var(--primary-color)' }}>
+        <div className="mt-2 p-2" style={{ background: 'rgba(var(--primary-rgb),0.05)', borderRadius: '6px', border: '1px dashed var(--primary-color)' }}>
           <strong style={{ fontSize: '0.75rem', color: 'var(--primary-color)' }}>
             <i className="fas fa-plus-circle me-1"></i> Sections
           </strong>
@@ -1091,7 +1091,7 @@ export default function ResumePage() {
         <div className="editor-form-content" style={{ flex: 1, overflowY: 'auto', paddingRight: '0.5rem' }}>
           {/* Empty state guide for new resumes */}
           {(!currentResume?.data?.personal_info?.full_name && !currentResume?.data?.education?.length && !currentResume?.data?.experience?.length) && (
-            <div className="mb-3 p-3 text-center" style={{ background: 'rgba(77,171,247,0.08)', border: '1px dashed var(--primary-color)', borderRadius: '8px' }}>
+            <div className="mb-3 p-3 text-center" style={{ background: 'rgba(var(--primary-rgb),0.08)', border: '1px dashed var(--primary-color)', borderRadius: '8px' }}>
               <i className="fas fa-lightbulb" style={{ fontSize: '1.5rem', color: 'var(--primary-color)', marginBottom: '0.5rem', display: 'block' }}></i>
               <strong style={{ fontSize: '0.85rem', color: 'var(--primary-color)' }}>Getting Started</strong>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0.25rem 0' }}>
@@ -1310,7 +1310,7 @@ export default function ResumePage() {
               <div className="d-flex flex-wrap gap-2">
                 {(currentResume?.data?.skills || []).map(skill => (
                   <span key={skill.id} className="skill-badge d-flex align-items-center gap-1"
-                    style={{ background: 'rgba(77,171,247,0.15)', border: '1px solid var(--primary-color)', borderRadius: '20px', padding: '0.3rem 0.75rem', fontSize: '0.85rem' }}>
+                    style={{ background: 'rgba(var(--primary-rgb),0.15)', border: '1px solid var(--primary-color)', borderRadius: '20px', padding: '0.3rem 0.75rem', fontSize: '0.85rem' }}>
                     {skill.value}
                     <button className="btn btn-sm p-0 ms-1" onClick={() => removeArrayItem('skills', skill.id)}
                       style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer' }}>

@@ -304,7 +304,7 @@ export default function DashboardPage() {
                 style={{
                   cursor: 'pointer',
                   borderBottom: '1px solid var(--border-color)',
-                  background: isActive ? 'rgba(77,171,247,0.08)' : 'transparent',
+                  background: isActive ? 'var(--bg3)' : 'transparent',
                   borderLeft: isActive ? '3px solid var(--primary-color)' : '3px solid transparent',
                   transition: 'all 0.15s',
                 }}
@@ -348,7 +348,7 @@ export default function DashboardPage() {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="chat-options-bar d-flex align-items-center gap-2 px-3 py-2" style={{ borderTop: '1px solid var(--border-color)', background: 'rgba(77,171,247,0.03)' }}>
+          <div className="chat-options-bar d-flex align-items-center gap-2 px-3 py-2" style={{ borderTop: '1px solid var(--border-color)', background: 'var(--bg2)' }}>
             <ProviderSwitcher compact={true} />
             <div className="form-check form-switch ms-auto">
               <input className="form-check-input" type="checkbox" id="incognitoToggle"

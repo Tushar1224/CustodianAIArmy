@@ -117,9 +117,9 @@ export default function HomePage() {
               Chat with specialized agents, build products, optimize resumes, and more — all in one place.
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <button onClick={() => navigate('/dashboard')} style={{ background: 'var(--primary)', color: '#fff', padding: '0.75rem 1.75rem', borderRadius: '10px', fontSize: '0.95rem', fontWeight: 700, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 14px rgba(77,171,247,0.3)', transition: 'all 0.2s' }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(77,171,247,0.4)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(77,171,247,0.3)'; }}>
+              <button onClick={() => navigate('/dashboard')} style={{ background: 'var(--primary)', color: '#fff', padding: '0.75rem 1.75rem', borderRadius: '10px', fontSize: '0.95rem', fontWeight: 700, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', boxShadow: 'var(--shadow-hover)', transition: 'all 0.2s' }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px var(--primary-glow)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-hover)'; }}>
                 <i className="fas fa-rocket"></i> Start Free
               </button>
               <a href="/api/v1/auth/google" style={{ background: 'transparent', color: 'var(--primary)', border: '2px solid var(--primary)', padding: '0.75rem 1.75rem', borderRadius: '10px', fontSize: '0.95rem', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
@@ -226,7 +226,7 @@ export default function HomePage() {
             { num: '3', title: 'Build', desc: 'Choose your AI agent, pick your feature, and let your AI army do the heavy lifting.' },
           ].map((s, i) => (
             <div key={i} className="step-card" style={{ textAlign: 'center', padding: '2rem 1rem' }}>
-              <div style={{ width: '56px', height: '56px', background: 'linear-gradient(135deg, #4dabf7, #3b8ad9)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Orbitron', monospace", fontSize: '1.3rem', fontWeight: 900, color: '#fff', margin: '0 auto 1.25rem', boxShadow: '0 4px 14px rgba(77,171,247,0.3)' }}>
+              <div style={{ width: '56px', height: '56px', background: 'linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 60%, #000 40%))', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Orbitron', monospace", fontSize: '1.3rem', fontWeight: 900, color: '#fff', margin: '0 auto 1.25rem', boxShadow: 'var(--shadow-hover)' }}>
                 {s.num}
               </div>
               <h3 style={{ fontFamily: "'Orbitron', monospace", fontSize: '1rem', color: 'var(--text)', marginBottom: '0.5rem' }}>{s.title}</h3>
@@ -266,7 +266,7 @@ export default function HomePage() {
             </button>
           </div>
 
-          <div style={{ background: 'var(--card)', border: '2px solid var(--primary)', borderRadius: '16px', padding: '2.5rem 2rem', textAlign: 'center', position: 'relative', boxShadow: '0 4px 24px rgba(77,171,247,0.15)' }}>
+          <div style={{ background: 'var(--card)', border: '2px solid var(--primary)', borderRadius: '16px', padding: '2.5rem 2rem', textAlign: 'center', position: 'relative', boxShadow: 'var(--shadow-hover)' }}>
             <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', background: 'var(--primary)', color: '#fff', fontSize: '0.75rem', fontWeight: 700, padding: '0.25rem 1rem', borderRadius: '10px' }}>Most Popular</div>
             <div style={{ fontFamily: "'Orbitron', monospace", fontSize: '1.1rem', color: 'var(--text2)', marginBottom: '0.5rem' }}>Pro</div>
             <div style={{ fontFamily: "'Orbitron', monospace", fontSize: '3rem', fontWeight: 900, color: 'var(--primary)', marginBottom: '0.25rem' }}>
@@ -280,9 +280,9 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
-            <button onClick={() => navigate('/payment')} style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', background: 'var(--primary)', color: '#fff', border: 'none', boxShadow: '0 4px 14px rgba(77,171,247,0.3)', transition: 'all 0.2s' }}
-              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(77,171,247,0.4)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(77,171,247,0.3)'; }}>
+            <button onClick={() => navigate('/payment')} style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', background: 'var(--primary)', color: '#fff', border: 'none', boxShadow: 'var(--shadow-hover)', transition: 'all 0.2s' }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px var(--primary-glow)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-hover)'; }}>
               Upgrade to Pro
             </button>
           </div>
@@ -328,7 +328,7 @@ export default function HomePage() {
           <h2 style={{ fontFamily: "'Orbitron', monospace", fontSize: 'clamp(1.5rem, 3vw, 2.2rem)', color: 'var(--primary)', marginBottom: '1rem' }}>Ready to Build Your AI Army?</h2>
           <p style={{ color: 'var(--text2)', marginBottom: '2rem', fontSize: '1rem' }}>Join thousands of learners and builders using Custodian AI. Start free — no credit card required.</p>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button onClick={() => navigate('/dashboard')} style={{ background: 'var(--primary)', color: '#fff', padding: '0.875rem 2rem', borderRadius: '10px', fontSize: '1rem', fontWeight: 700, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 14px rgba(77,171,247,0.3)' }}>
+            <button onClick={() => navigate('/dashboard')} style={{ background: 'var(--primary)', color: '#fff', padding: '0.875rem 2rem', borderRadius: '10px', fontSize: '1rem', fontWeight: 700, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', boxShadow: 'var(--shadow-hover)' }}>
               <i className="fas fa-rocket"></i> Start for Free
             </button>
             <a href="/api/v1/auth/google" style={{ background: 'transparent', color: 'var(--primary)', border: '2px solid var(--primary)', padding: '0.875rem 2rem', borderRadius: '10px', fontSize: '1rem', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>

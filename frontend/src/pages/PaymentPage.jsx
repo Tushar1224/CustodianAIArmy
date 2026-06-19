@@ -67,7 +67,7 @@ export default function PaymentPage() {
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #e8f4ff 0%, #f0f5ff 50%, #e0ecfe 100%)', display: 'flex', flexDirection: 'column' }}>
       <AdSenseAd />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
-        <div className="payment-card" style={{ background: '#ffffff', border: '1px solid #d0e1f7', borderRadius: '16px', padding: '2rem', maxWidth: '460px', width: '100%', boxShadow: '0 2px 20px rgba(77,171,247,0.12)' }}>
+        <div className="payment-card" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '2rem', maxWidth: '460px', width: '100%', boxShadow: '0 2px 20px rgba(var(--primary-rgb),0.12)' }}>
           <div className="brand-header" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
             <div style={{ fontSize: '2.5rem', color: '#4dabf7', marginBottom: '0.5rem' }}><i className="fas fa-robot"></i></div>
             <h1 style={{ fontSize: '1.4rem', color: '#1a2332', margin: 0 }}>Custodian AI</h1>

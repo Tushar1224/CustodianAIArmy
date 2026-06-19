@@ -808,8 +808,8 @@ export default function BuildPage() {
                 <span className="bp-mode-badge" style={{
                   display: 'inline-flex', alignItems: 'center', gap: '4px',
                   padding: '3px 10px', borderRadius: '6px', fontSize: '.72rem', fontWeight: 600,
-                  background: mode === 'plan' ? 'rgba(77,171,247,.15)' : 'rgba(239,68,68,.15)',
-                  color: mode === 'plan' ? '#4dabf7' : '#ef4444',
+                  background: mode === 'plan' ? 'rgba(var(--primary-rgb),.15)' : 'rgba(239,68,68,.15)',
+                  color: mode === 'plan' ? 'var(--primary-color)' : '#ef4444',
                   textTransform: 'uppercase', letterSpacing: '.03em',
                 }}>
                   <i className={`fas ${MODE_ICONS[mode]} me-1`}></i>
@@ -822,7 +822,7 @@ export default function BuildPage() {
             <div className="bp-chat-msgs">
               {chatHistory.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '40px 16px', color: '#555' }}>
-                  <i className={`fas ${MODE_ICONS[mode]}`} style={{ fontSize: '2.2rem', display: 'block', marginBottom: '12px', color: mode === 'plan' ? 'rgba(77,171,247,.3)' : 'rgba(239,68,68,.3)' }}></i>
+                  <i className={`fas ${MODE_ICONS[mode]}`} style={{ fontSize: '2.2rem', display: 'block', marginBottom: '12px', color: mode === 'plan' ? 'rgba(var(--primary-rgb),.3)' : 'rgba(239,68,68,.3)' }}></i>
                   <p style={{ fontSize: '.85rem', margin: '0 0 4px' }}>
                     {mode === 'plan'
                       ? `Brainstorm in ${currentPhaseInfo.name} phase.`
@@ -998,7 +998,7 @@ export default function BuildPage() {
                     <span>Discuss layout changes with the AI in the chat</span>
                   </div>
                   <div className="bp-ux-suggestion">
-                    <span className="bp-ux-tag" style={{ background: 'rgba(77,171,247,.12)', color: '#4dabf7' }}>Colors</span>
+                    <span className="bp-ux-tag" style={{ background: 'rgba(var(--primary-rgb),.12)', color: 'var(--primary-color)' }}>Colors</span>
                     <span>Refine color scheme and visual hierarchy</span>
                   </div>
                   <div className="bp-ux-suggestion">

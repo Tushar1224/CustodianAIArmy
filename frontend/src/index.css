@@ -5,14 +5,15 @@
 
 /* ── CSS Variables (Light Blue Theme) ── */
 :root, [data-theme="light"] {
-  --bg: #f5f9ff;
-  --bg2: #edf4ff;
-  --bg3: #e3edff;
+  --bg: #ffffff;
+  --bg2: #f8faff;
+  --bg3: #f0f6ff;
   --card: #ffffff;
   --card-hover: #fafcff;
   --border: rgba(77, 171, 247, 0.18);
   --border-hover: rgba(77, 171, 247, 0.5);
   --primary: #4dabf7;
+  --primary-rgb: 77, 171, 247;
   --primary-glow: rgba(77, 171, 247, 0.15);
   --accent: #7c3aed;
   --accent2: #06b6d4;
@@ -27,8 +28,8 @@
 
   /* Component-level aliases (used by sub-pages) */
   --primary-color: #4dabf7;
-  --secondary-bg: #edf4ff;
-  --tertiary-bg: #e3edff;
+  --secondary-bg: #f8faff;
+  --tertiary-bg: #f0f6ff;
   --border-color: rgba(77, 171, 247, 0.18);
   --text-primary: #0f172a;
   --text-secondary: #475569;
@@ -48,6 +49,7 @@
   --border: rgba(88, 166, 255, 0.2);
   --border-hover: rgba(88, 166, 255, 0.5);
   --primary: #58a6ff;
+  --primary-rgb: 88, 166, 255;
   --primary-glow: rgba(88, 166, 255, 0.15);
   --accent: #8957e5;
   --accent2: #22d3ee;
