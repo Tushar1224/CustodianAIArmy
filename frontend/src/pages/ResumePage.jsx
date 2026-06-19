@@ -27,31 +27,159 @@ const ALL_SECTION_DEFS = [
   { id: 'references', name: 'References', icon: 'fa-address-card', required: false, type: 'array' },
 ];
 
-const EMPTY_RESUME = {};
+function createTemplateData() {
+  return {
+    personal_info: { full_name: 'Alex Johnson', email: 'alex.johnson@email.com', phone: '+1 (555) 123-4567', linkedin: 'linkedin.com/in/alexjohnson', github: 'github.com/alexjohnson', website: 'alexjohnson.dev', title: 'Software Engineer', summary: 'Results-driven software engineer with 5+ years of experience building scalable web applications and leading cross-functional teams. Passionate about clean code, cloud architecture, and delivering user-centric solutions.' },
+    education: [{ id: 1, degree: 'B.Tech in Computer Science', institution: 'University of Technology', field_of_study: 'Computer Science', start_date: '2018', end_date: '2022', cgpa: '8.5', achievements: "Dean's list all semesters, Hackathon winner 2021" }],
+    experience: [
+      { id: 1, company: 'Tech Corp', role: 'Senior Software Engineer', location: 'San Francisco, CA', start_date: '06/2022', end_date: '', current: true, description: 'Lead a team of 5 engineers building microservices architecture serving 2M+ users. Drive technical decisions, code reviews, and sprint planning.', tech_stack: ['React', 'Python', 'AWS', 'PostgreSQL', 'Docker'], achievements: ['Reduced API response time by 60% through caching and query optimization', 'Mentored 3 junior developers, 2 promoted within a year', 'Architected migration from monolith to microservices'] },
+      { id: 2, company: 'StartupXYZ', role: 'Full Stack Developer', location: 'Austin, TX', start_date: '01/2021', end_date: '05/2022', current: false, description: 'Developed and maintained customer-facing web application from concept to production.', tech_stack: ['Vue.js', 'Node.js', 'MongoDB', 'GCP'], achievements: ['Built real-time analytics dashboard used by 500+ clients', 'Implemented CI/CD pipeline reducing deployment time by 80%'] },
+    ],
+    certifications: [
+      { id: 1, name: 'AWS Solutions Architect Associate', issuer: 'Amazon Web Services', date: '2023', url: '' },
+      { id: 2, name: 'Google Cloud Professional Developer', issuer: 'Google Cloud', date: '2024', url: '' },
+    ],
+    skills: [
+      { id: 1, value: 'React/Next.js' }, { id: 2, value: 'TypeScript' }, { id: 3, value: 'Python' },
+      { id: 4, value: 'Node.js' }, { id: 5, value: 'AWS' }, { id: 6, value: 'Docker/Kubernetes' },
+      { id: 7, value: 'PostgreSQL' }, { id: 8, value: 'GraphQL' }, { id: 9, value: 'CI/CD' },
+    ],
+    projects: [
+      { id: 1, name: 'E-Commerce Platform', description: 'Built a full-featured e-commerce platform with real-time inventory management, payment processing, and admin dashboard.', tech_stack: ['Next.js', 'Stripe', 'PostgreSQL', 'Redis'], url: '' },
+      { id: 2, name: 'Open Source CLI Tool', description: 'Created and maintain a CLI tool for automated database migrations used by 1k+ developers.', tech_stack: ['Node.js', 'TypeScript', 'Commander.js'], url: 'github.com/alexjohnson/db-migrate-cli' },
+    ],
+    achievements: [
+      { id: 1, value: 'Best Innovation Award 2023 — Tech Corp' },
+      { id: 2, value: 'Published 3 technical articles on Medium (50k+ reads)' },
+      { id: 3, value: 'Speaker at ReactConf 2024' },
+    ],
+  };
+}
+
+function createDesignerData() {
+  return {
+    personal_info: { full_name: 'Maya Chen', email: 'maya.chen@email.com', phone: '+1 (555) 987-6543', linkedin: 'linkedin.com/in/mayachen', github: 'github.com/mayachen', website: 'mayachen.design', title: 'UX/UI Designer', summary: 'Creative UX/UI designer with 6 years of experience crafting intuitive digital experiences. Skilled in user research, prototyping, and design systems. Passionate about accessible and human-centered design.' },
+    education: [{ id: 1, degree: 'B.Des in Interaction Design', institution: 'Design Institute of Technology', field_of_study: 'Interaction Design', start_date: '2016', end_date: '2020', cgpa: '9.1', achievements: 'Best Design Thesis Award, Student Design Club President' }],
+    experience: [
+      { id: 1, company: 'DesignStudio Co.', role: 'Senior UX Designer', location: 'New York, NY', start_date: '03/2022', end_date: '', current: true, description: 'Lead design for B2B SaaS platform. Conduct user research, create wireframes and prototypes, and maintain design system used by 4 product teams.', tech_stack: ['Figma', 'Adobe Creative Suite', 'Framer', 'Principle'], achievements: ['Redesign increased user engagement by 40%', 'Built comprehensive design system adopted company-wide', 'Mentored 2 junior designers'] },
+      { id: 2, company: 'WebAgency Pro', role: 'UI Designer', location: 'Boston, MA', start_date: '08/2020', end_date: '02/2022', current: false, description: 'Designed responsive web interfaces for 15+ client projects across e-commerce, healthcare, and fintech.', tech_stack: ['Figma', 'Sketch', 'InVision', 'Zeplin'], achievements: ['Delivered 20+ projects on time and within budget', 'Client satisfaction score of 4.8/5'] },
+    ],
+    certifications: [
+      { id: 1, name: 'Google UX Design Professional', issuer: 'Google/Coursera', date: '2022', url: '' },
+      { id: 2, name: 'Interaction Design Foundation — UX Management', issuer: 'IDF', date: '2023', url: '' },
+    ],
+    skills: [
+      { id: 1, value: 'Figma' }, { id: 2, value: 'User Research' }, { id: 3, value: 'Wireframing' },
+      { id: 4, value: 'Prototyping' }, { id: 5, value: 'Design Systems' }, { id: 6, value: 'Usability Testing' },
+      { id: 7, value: 'HTML/CSS' }, { id: 8, value: 'Motion Design' },
+    ],
+    projects: [
+      { id: 1, name: 'HealthTrack App', description: 'Designed a patient-facing mobile app for tracking medications and appointments. Conducted usability studies with 30+ patients.', tech_stack: ['Figma', 'UserTesting', 'Lookback'], url: '' },
+      { id: 2, name: 'Design System — Polar', description: 'Created a comprehensive design system with 200+ components, documentation, and usage guidelines.', tech_stack: ['Figma', 'Storybook', 'React'], url: '' },
+    ],
+    achievements: [
+      { id: 1, value: 'Awwwards Site of the Day — HealthTrack case study' },
+      { id: 2, value: 'Published in UX Collective (Medium) — "Designing for Accessibility"' },
+      { id: 3, value: 'Speaker at DesignUp 2023 conference' },
+    ],
+  };
+}
+
+function createAcademicData() {
+  return {
+    personal_info: { full_name: 'Dr. Sarah Williams', email: 's.williams@university.edu', phone: '+1 (555) 234-5678', linkedin: 'linkedin.com/in/sarahwilliams', github: '', website: 'sarahwilliams.academia.edu', title: 'Assistant Professor', summary: 'Dedicated researcher and educator in computational biology with 8+ years of experience in machine learning applications for genomics. Published 15+ peer-reviewed papers and secured $2M+ in research grants.' },
+    education: [
+      { id: 1, degree: 'PhD in Computational Biology', institution: 'Stanford University', field_of_study: 'Computational Biology', start_date: '2014', end_date: '2019', cgpa: '', achievements: 'NSF Graduate Research Fellowship, Best Dissertation Award' },
+      { id: 2, degree: 'M.Sc. in Computer Science', institution: 'MIT', field_of_study: 'Artificial Intelligence', start_date: '2012', end_date: '2014', cgpa: '4.0', achievements: 'Teaching Assistant of the Year' },
+    ],
+    experience: [
+      { id: 1, company: 'University of California', role: 'Assistant Professor', location: 'Berkeley, CA', start_date: '09/2020', end_date: '', current: true, description: 'Lead research group of 6 PhD students in computational genomics. Teach graduate-level machine learning and bioinformatics courses.', tech_stack: ['Python', 'PyTorch', 'R', 'AWS'], achievements: ['Secured $2.3M in NIH and NSF research grants', 'Published 12 papers in top-tier journals (Nature, Cell)', 'Developed novel ML algorithm for gene expression analysis'] },
+      { id: 2, company: 'Genomics Institute', role: 'Postdoctoral Researcher', location: 'Cambridge, MA', start_date: '06/2019', end_date: '08/2020', current: false, description: 'Developed deep learning models for single-cell RNA sequencing data analysis.', tech_stack: ['Python', 'TensorFlow', 'ScanPy', 'High-performance computing'], achievements: ['Published 3 first-author papers', 'Open-sourced analysis pipeline used by 50+ labs worldwide'] },
+    ],
+    certifications: [],
+    skills: [
+      { id: 1, value: 'Python' }, { id: 2, value: 'PyTorch/TensorFlow' }, { id: 3, value: 'R/Bioconductor' },
+      { id: 4, value: 'Machine Learning' }, { id: 5, value: 'Statistical Analysis' }, { id: 6, value: 'Genomics' },
+      { id: 7, value: 'Scientific Writing' }, { id: 8, value: 'Grant Writing' }, { id: 9, value: 'Mentoring' },
+    ],
+    projects: [
+      { id: 1, name: 'GeneExpressionML', description: 'Open-source framework for applying deep learning to gene expression data. 500+ GitHub stars.', tech_stack: ['Python', 'PyTorch', 'Weights & Biases'], url: 'github.com/swilliams/GeneExpressionML' },
+    ],
+    achievements: [
+      { id: 1, value: 'NSF CAREER Award ($500k) — 2022' },
+      { id: 2, value: 'Best Paper Award — ISMB 2023' },
+      { id: 3, value: '15+ peer-reviewed publications, 2000+ citations' },
+      { id: 4, value: 'Editorial Board Member — PLOS Computational Biology' },
+    ],
+    publications: [
+      { id: 1, title: 'Deep Learning for Single-Cell Genomics: A Comprehensive Review', publisher: 'Nature Reviews Genetics', date: '2024', url: '', authors: 'Williams, S., et al.' },
+      { id: 2, title: 'Novel Neural Architecture for Gene Regulatory Network Inference', publisher: 'Cell Systems', date: '2023', url: '', authors: 'Williams, S., Johnson, P.' },
+    ],
+    languages: [
+      { id: 1, value: 'English (Native)' }, { id: 2, value: 'Spanish (Fluent)' }, { id: 3, value: 'Mandarin (Intermediate)' },
+    ],
+  };
+}
+
+function createExecutiveData() {
+  return {
+    personal_info: { full_name: 'James Rodriguez', email: 'j.rodriguez@exec.com', phone: '+1 (555) 345-6789', linkedin: 'linkedin.com/in/jamesrodriguez', github: '', website: '', title: 'Chief Technology Officer', summary: 'Visionary technology executive with 15+ years of experience driving digital transformation, building high-performance engineering teams, and delivering scalable products. Proven track record of growing startups from seed to Series C and beyond.' },
+    education: [
+      { id: 1, degree: 'MBA', institution: 'Harvard Business School', field_of_study: 'Business Administration', start_date: '2010', end_date: '2012', cgpa: '', achievements: 'Baker Scholar' },
+      { id: 2, degree: 'B.S. in Computer Engineering', institution: 'Georgia Tech', field_of_study: 'Computer Engineering', start_date: '2003', end_date: '2007', cgpa: '3.9', achievements: 'Summa Cum Laude, Outstanding Undergraduate Researcher' },
+    ],
+    experience: [
+      { id: 1, company: 'DataFlow Technologies', role: 'Chief Technology Officer', location: 'San Francisco, CA', start_date: '01/2020', end_date: '', current: true, description: 'Lead all engineering, data science, and infrastructure teams (120+ people). Drive technical strategy, product roadmap, and AI/ML initiatives that power the core platform.', tech_stack: ['AWS', 'Kubernetes', 'Python', 'React', 'TensorFlow'], achievements: ['Scaled engineering org from 20 to 120 in 3 years', 'Reduced infrastructure costs by 35% through cloud optimization', 'Launched AI-powered analytics product generating $15M ARR'] },
+      { id: 2, company: 'CloudScale Inc.', role: 'VP of Engineering', location: 'Seattle, WA', start_date: '06/2015', end_date: '12/2019', current: false, description: 'Managed 5 engineering teams (50+ engineers) building enterprise cloud infrastructure products.', tech_stack: ['Go', 'Kubernetes', 'Terraform', 'GCP'], achievements: ['Grew platform from 100 to 10,000+ enterprise customers', 'Built and shipped 3 major product lines', 'Achieved 99.99% uptime SLA for 2 consecutive years'] },
+      { id: 3, company: 'ByteStart', role: 'Engineering Director (Early Employee)', location: 'Palo Alto, CA', start_date: '01/2013', end_date: '05/2015', current: false, description: 'Joined as 10th employee, built the founding engineering team and core platform architecture.', tech_stack: ['Ruby on Rails', 'PostgreSQL', 'AWS'], achievements: ['Company grew from 10 to 200 employees, acquired for $400M', 'Architected platform that processed $1B+ in transactions'] },
+    ],
+    certifications: [
+      { id: 1, name: 'AWS Certified Solutions Architect — Professional', issuer: 'Amazon Web Services', date: '2021', url: '' },
+      { id: 2, name: 'Certified Scrum Master', issuer: 'Scrum Alliance', date: '2018', url: '' },
+    ],
+    skills: [
+      { id: 1, value: 'Strategic Planning' }, { id: 2, value: 'Engineering Management' }, { id: 3, value: 'Cloud Architecture' },
+      { id: 4, value: 'AI/ML Strategy' }, { id: 5, value: 'M&A Technical Due Diligence' }, { id: 6, value: 'Board Presentations' },
+      { id: 7, value: 'Team Building' }, { id: 8, value: 'Budget Management' }, { id: 9, value: 'Product Strategy' },
+    ],
+    projects: [],
+    achievements: [
+      { id: 1, value: 'Forbes 40 Under 40 — Technology (2023)' },
+      { id: 2, value: 'Led company through successful Series C ($120M) and Series D ($200M)' },
+      { id: 3, value: 'Holding 5 patents in cloud computing and distributed systems' },
+      { id: 4, value: 'Keynote speaker at AWS re:Invent 2023 and KubeCon 2024' },
+    ],
+    volunteering: [
+      { id: 1, organization: 'Code for Good', role: 'Board Member', start_date: '2021', end_date: '', description: 'Non-profit teaching coding to underserved youth. Helped scale to 50+ cities.', current: true },
+    ],
+  };
+}
 
 const BUILTIN_TEMPLATES = [
   {
     name: 'Modern Professional',
     category: 'professional',
-    description: 'Clean, ATS-optimized layout for corporate and tech roles. Full demo content included.',
+    description: 'Clean, ATS-optimized layout for corporate and tech roles. Pre-filled with sample software engineer data ready to customize.',
     section_defs: ALL_SECTION_DEFS.filter(s => ['personal_info','summary','education','experience','skills','certifications','projects','achievements'].includes(s.id)),
     default_enabled_sections: ['personal_info','summary','education','experience','skills','certifications','projects','achievements'],
     pages: [{ page_number: 1, layout: 'single', sections: ['personal_info','summary','education','experience','skills','certifications','projects','achievements'] }],
     styling: { font: "'Times New Roman', serif", size: '11pt', primary_color: '#222', accent_color: '#4dabf7', spacing: 'compact' },
-    data: {
-      personal_info: { full_name: '', email: '', phone: '', linkedin: '', github: '', website: '', title: 'Software Engineer', summary: 'Results-driven software engineer with expertise in full-stack development, cloud architecture, and team leadership.' },
-      education: [{ id: 1, degree: 'B.Tech in Computer Science', institution: 'University of Technology', field_of_study: 'Computer Science', start_date: '2018', end_date: '2022', cgpa: '8.5', achievements: "Dean's list, Hackathon winner" }],
-      experience: [{ id: 1, company: 'Tech Corp', role: 'Senior Software Engineer', location: '', start_date: '06/2022', end_date: '', current: true, description: 'Led development of microservices architecture serving 1M+ users.', tech_stack: ['React', 'Python', 'AWS', 'PostgreSQL'], achievements: ['Reduced deployment time by 60%', 'Mentored 3 junior developers'] }],
-      certifications: [{ id: 1, name: 'AWS Solutions Architect', issuer: 'Amazon', date: '2023', url: '' }],
-      skills: [{ id: 1, value: 'React' }, { id: 2, value: 'Python' }, { id: 3, value: 'TypeScript' }, { id: 4, value: 'AWS' }, { id: 5, value: 'Docker' }, { id: 6, value: 'PostgreSQL' }],
-      projects: [{ id: 1, name: 'E-Commerce Platform', description: 'Built a scalable e-commerce platform with React, Node.js, and AWS.', tech_stack: ['React', 'Node.js', 'AWS'], url: '' }],
-      achievements: [{ id: 1, value: 'Best Innovation Award 2023' }, { id: 2, value: 'Published 3 technical articles' }],
-    },
+    data: createTemplateData(),
   },
   {
-    name: 'Classic Academic',
+    name: 'Creative Designer',
+    category: 'creative',
+    description: 'Modern layout for designers and creative professionals. Pre-filled with sample UX designer data.',
+    section_defs: ALL_SECTION_DEFS.filter(s => ['personal_info','summary','education','experience','skills','projects','achievements','languages'].includes(s.id)),
+    default_enabled_sections: ['personal_info','summary','skills','experience','projects','education','achievements'],
+    pages: [{ page_number: 1, layout: 'single', sections: ['personal_info','summary','skills','experience','projects','education','achievements'] }],
+    styling: { font: "'Inter', sans-serif", size: '10pt', primary_color: '#2d3436', accent_color: '#e17055', spacing: 'compact' },
+    data: createDesignerData(),
+  },
+  {
+    name: 'Academic Scholar',
     category: 'academic',
-    description: 'Traditional two-page format for research and academic roles.',
+    description: 'Two-page format for research, academic, and teaching roles. Pre-filled with professor/researcher data.',
     section_defs: ALL_SECTION_DEFS.filter(s => ['personal_info','education','experience','skills','certifications','projects','achievements','publications','languages','volunteering'].includes(s.id)),
     default_enabled_sections: ['personal_info','summary','education','experience','skills','certifications','projects','achievements','publications','languages'],
     pages: [
@@ -59,22 +187,12 @@ const BUILTIN_TEMPLATES = [
       { page_number: 2, layout: 'single', sections: ['skills','certifications','projects','publications','achievements','languages'] },
     ],
     styling: { font: "'Times New Roman', serif", size: '12pt', primary_color: '#1a1a2e', accent_color: '#6c5ce7', spacing: 'relaxed' },
-    data: {},
-  },
-  {
-    name: 'Full-Stack Developer',
-    category: 'technical',
-    description: 'Skills-first layout highlighting technical stack and project experience.',
-    section_defs: ALL_SECTION_DEFS.filter(s => ['personal_info','summary','education','experience','skills','certifications','projects','achievements','languages'].includes(s.id)),
-    default_enabled_sections: ['personal_info','summary','skills','experience','projects','education','certifications','achievements'],
-    pages: [{ page_number: 1, layout: 'single', sections: ['personal_info','summary','skills','experience','projects','education','certifications','achievements'] }],
-    styling: { font: "'Segoe UI', sans-serif", size: '10.5pt', primary_color: '#0d1117', accent_color: '#58a6ff', spacing: 'compact' },
-    data: {},
+    data: createAcademicData(),
   },
   {
     name: 'Executive Leader',
     category: 'professional',
-    description: 'Executive-focused layout emphasizing leadership and strategy.',
+    description: 'Executive-focused layout emphasizing leadership and strategy. Pre-filled with CTO/executive data.',
     section_defs: ALL_SECTION_DEFS.filter(s => ['personal_info','summary','education','experience','skills','certifications','achievements','volunteering','references'].includes(s.id)),
     default_enabled_sections: ['personal_info','summary','experience','education','certifications','achievements','volunteering'],
     pages: [
@@ -82,27 +200,7 @@ const BUILTIN_TEMPLATES = [
       { page_number: 2, layout: 'single', sections: ['education','certifications','achievements','volunteering'] },
     ],
     styling: { font: "'Georgia', serif", size: '11pt', primary_color: '#1a1a2e', accent_color: '#c9a84c', spacing: 'relaxed' },
-    data: {},
-  },
-  {
-    name: 'Creative Portfolio',
-    category: 'creative',
-    description: 'Modern layout for designers, artists, and creative professionals.',
-    section_defs: ALL_SECTION_DEFS.filter(s => ['personal_info','summary','education','experience','skills','projects','achievements','languages'].includes(s.id)),
-    default_enabled_sections: ['personal_info','summary','skills','experience','projects','education','achievements'],
-    pages: [{ page_number: 1, layout: 'single', sections: ['personal_info','summary','skills','experience','projects','education','achievements'] }],
-    styling: { font: "'Inter', sans-serif", size: '10pt', primary_color: '#2d3436', accent_color: '#e17055', spacing: 'compact' },
-    data: {},
-  },
-  {
-    name: 'Student Internship',
-    category: 'academic',
-    description: 'Internship-focused layout highlighting education, projects, and technical skills for students and entry-level candidates.',
-    section_defs: ALL_SECTION_DEFS.filter(s => ['personal_info','summary','education','skills','projects','achievements','certifications','languages','volunteering'].includes(s.id)),
-    default_enabled_sections: ['personal_info','summary','education','skills','projects','achievements','certifications','languages'],
-    pages: [{ page_number: 1, layout: 'single', sections: ['personal_info','summary','education','skills','projects','achievements','certifications','languages'] }],
-    styling: { font: "'Inter', sans-serif", size: '10.5pt', primary_color: '#0f172a', accent_color: '#06b6d4', spacing: 'compact' },
-    data: {},
+    data: createExecutiveData(),
   },
 ];
 
@@ -305,11 +403,13 @@ export default function ResumePage() {
   const createResume = async () => {
     setLoading(true);
     try {
+      const defaultTemplate = BUILTIN_TEMPLATES[0];
+      const defaultData = JSON.parse(JSON.stringify(defaultTemplate.data));
       const res = await fetch(`${API_BASE}/resumes`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'Untitled Resume', data: EMPTY_RESUME }),
+        body: JSON.stringify({ title: 'Untitled Resume', data: defaultData, template_name: defaultTemplate.name }),
       });
       if (res.status === 403) {
         const err = await res.json();
