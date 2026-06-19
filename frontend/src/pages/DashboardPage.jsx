@@ -21,22 +21,8 @@ const AGENT_UI_DATA = {
   TrendAnalystAI: { description: 'Identifies emerging patterns and forecasts future trends in various domains.', useCases: ['"What are the emerging trends in remote team collaboration tools?"', '"Analyze social media sentiment to forecast next season\u2019s fashion trends."'] },
 };
 
-const PROVIDER_META = {
-  gemini: { label: 'Google (Gemini)', badgeClass: 'bg-info text-dark', icon: 'fab fa-google' },
-  anthropic: { label: 'Anthropic (Claude)', badgeClass: 'bg-warning text-dark', icon: 'fas fa-brain' },
-};
-
 function apiGet(path) {
   return fetch(`${API_BASE}${path}`, { credentials: 'include' }).then(r => r.json());
-}
-
-function apiPost(path, body) {
-  return fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  }).then(r => r.json());
 }
 
 export default function DashboardPage() {
@@ -116,26 +102,13 @@ export default function DashboardPage() {
     }
   };
 
-  const switchProvider = async (newProvider) => {
-    try {
-      const data = await apiPost('/provider/switch', { provider: newProvider });
-      if (data.status === 'success') {
-        setProvider(data.active_provider);
-        const agentsData = await apiGet('/agents');
-        setAgents(agentsData.agents || []);
-        setActiveAgents(agentsData.agents?.length || 0);
-        const preferred = agentsData.agents.find(a => a.name === 'CustodianAI');
-        setSelectedAgent(preferred || agentsData.agents[0]);
-        setMessages([]);
-      }
-    } catch (e) {
-      console.error('Failed to switch provider', e);
-    }
-  };
-
   const selectAgent = (agent) => {
     setSelectedAgent(agent);
-    const welcome = `Hello! I'm ${agent.name}, your AI assistant. I specialize in ${agent.specialization || 'general tasks'}. How can I help you today?`;
+    const uiData = AGENT_UI_DATA[agent.name] || {};
+    const desc = uiData.description || 'A versatile AI assistant ready for any task.';
+    const useCases = uiData.useCases || [];
+    const casesMd = useCases.length ? useCases.map(u => `- \`${u}\``).join('\n') : '';
+    const welcome = `## Welcome to ${agent.name}\n\n${desc}\n\n${useCases.length ? `**Example use cases:**\n${casesMd}\n\n` : ''}I'm ready to help. What would you like to do?`;
     setMessages([{ sender: agent.name, content: welcome }]);
     setChatId('chat-' + Date.now());
   };
@@ -169,26 +142,44 @@ export default function DashboardPage() {
     try {
       const userStr = localStorage.getItem('custodian_user');
       const isGuest = !userStr;
+      const endpoint = isGuest ? '/api/v1/chat/stream/guest' : '/api/v1/chat/stream';
 
-      const body = {
+      let body = {
         message: msg,
         agent_id: selectedAgent.agent_id,
         agent_name: selectedAgent.name,
         history: [...messages.slice(-19), userMsg],
       };
 
-      const endpoint = isGuest ? '/api/v1/chat/stream/guest' : '/api/v1/chat/stream';
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        credentials: 'include',
+      let response = await fetch(endpoint, {
+        method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || 'Failed to send message');
+        if (response.status === 404 && errData.detail?.includes('Agent')) {
+          // Agent went stale (provider switch) — reload agents and retry once
+          const agentsData = await apiGet('/agents');
+          setAgents(agentsData.agents || []);
+          const refreshed = agentsData.agents.find(a => a.name === selectedAgent?.name);
+          if (refreshed) {
+            setSelectedAgent(refreshed);
+            body.agent_id = refreshed.agent_id;
+            response = await fetch(endpoint, {
+              method: 'POST', credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            });
+          }
+        }
+        if (!response.ok) {
+          const err2 = response.status === 404
+            ? { detail: 'Agent not found after refresh. Please select the agent again.' }
+            : await response.json().catch(() => ({}));
+          throw new Error(err2.detail || 'Failed to send message');
+        }
       }
 
       const reader = response.body.getReader();
@@ -266,7 +257,6 @@ export default function DashboardPage() {
   };
 
   const providerLabel = provider === 'anthropic' ? 'Anthropic' : 'Google';
-  const providerIcon = provider === 'anthropic' ? 'fas fa-brain' : 'fab fa-google';
 
   const subHeaderContent = (
     <>
@@ -389,24 +379,22 @@ export default function DashboardPage() {
           </div>
 
           <div className="chat-options-bar d-flex align-items-center gap-2 px-3 py-2" style={{ borderTop: '1px solid var(--border-color)', background: 'rgba(77,171,247,0.03)' }}>
-            <div className="d-md-none">
-              <div className="dropdown">
-                <button className="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Switch agent" style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem' }}>
-                  <i className="fas fa-robot me-1"></i> {selectedAgent?.name || 'Agent'}
-                </button>
-                <ul className="dropdown-menu" style={{ maxHeight: '300px', overflowY: 'auto', fontSize: '0.8rem' }}>
-                  {agents.map(agent => (
-                    <li key={agent.agent_id}>
-                      <a className={`dropdown-item ${selectedAgent?.agent_id === agent.agent_id ? 'active' : ''}`} href="#"
-                        onClick={(e) => { e.preventDefault(); selectAgent(agent); }}>
-                        <i className="fas fa-robot text-info me-2"></i>
-                        <span>{agent.name}</span>
-                        <small className="ms-1 text-muted">· {agent.specialization || 'general'}</small>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            <div className="dropdown">
+              <button className="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Switch agent" style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem' }}>
+                <i className="fas fa-robot me-1"></i> {selectedAgent?.name || 'Agent'}
+              </button>
+              <ul className="dropdown-menu" style={{ maxHeight: '300px', overflowY: 'auto', fontSize: '0.8rem' }}>
+                {agents.map(agent => (
+                  <li key={agent.agent_id}>
+                    <a className={`dropdown-item ${selectedAgent?.agent_id === agent.agent_id ? 'active' : ''}`} href="#"
+                      onClick={(e) => { e.preventDefault(); selectAgent(agent); }}>
+                      <i className="fas fa-robot text-info me-2"></i>
+                      <span>{agent.name}</span>
+                      <small className="ms-1 text-muted">· {agent.specialization || 'general'}</small>
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </div>
             <div className="form-check form-switch ms-auto">
               <input className="form-check-input" type="checkbox" id="incognitoToggle"
@@ -420,24 +408,6 @@ export default function DashboardPage() {
           </div>
 
           <div className="chat-input-container">
-            <div className="dropdown provider-switcher">
-              <button className="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Switch provider">
-                <i className={providerIcon}></i>
-                <span className="ms-1">{providerLabel}</span>
-              </button>
-              <ul className="dropdown-menu">
-                <li>
-                  <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); switchProvider('gemini'); }}>
-                    <i className="fab fa-google me-1"></i>Google
-                  </a>
-                </li>
-                <li>
-                  <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); switchProvider('anthropic'); }}>
-                    <i className="fas fa-brain me-1"></i>Anthropic
-                  </a>
-                </li>
-              </ul>
-            </div>
             <textarea
               ref={inputRef}
               id="chat-input"

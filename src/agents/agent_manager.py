@@ -272,6 +272,8 @@ class AgentManager:
                     
                     # Retry with the alternative provider
                     retry_agent = self.get_agent(message.receiver_id)
+                    if not retry_agent:
+                        retry_agent = self.get_agent_by_name(target_agent.name)
                     if retry_agent and retry_agent != target_agent:
                         self.logger.info(f"Retrying message with {alternative_provider} provider")
                         retry_response = await retry_agent.process_message(message)

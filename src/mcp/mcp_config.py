@@ -2,7 +2,9 @@
 MCP Server Configuration and Agent-to-Tools Mapping.
 
 Defines which MCP servers are available and which tools each agent specialization
-has access to. Uses DuckDuckGo (free, no API key) for web search.
+has access to. Free web search via DuckDuckGo (no API key) and Firecrawl keyless mode
+(firecrawl_search + firecrawl_scrape free, rate-limited per IP).
+Set FIRECRAWL_API_KEY env var for full crawl/extract/agent tools.
 """
 
 from typing import Dict, List, Any
@@ -63,6 +65,21 @@ MCP_SERVERS: Dict[str, Dict[str, Any]] = {
         "env": {},
         "tools": ["crawl_course_pathway"],
     },
+    "firecrawl": {
+        "name": "firecrawl",
+        "description": "Web search, scrape, and crawl via Firecrawl. Keyless mode: firecrawl_search and firecrawl_scrape are free (rate-limited per IP). Set FIRECRAWL_API_KEY env var for full access (crawl, extract, agent).",
+        "command": "npx",
+        "args": ["-y", "firecrawl-mcp"],
+        "env": {},
+        "tools": [
+            "firecrawl_search",
+            "firecrawl_scrape",
+            "firecrawl_map",
+            "firecrawl_crawl",
+            "firecrawl_extract",
+            "firecrawl_agent",
+        ],
+    },
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -74,11 +91,13 @@ DEFAULT_TOOLS = ["fetch"]
 
 # Additional tools per specialization
 AGENT_TOOLS: Dict[str, List[str]] = {
-    # Coordinator — orchestrates everything, needs memory + reasoning
+    # Coordinator — orchestrates everything, needs search + memory + reasoning
     "coordinator": [
         "fetch",
         "duckduckgo_web_search",
         "duckduckgo_news_search",
+        "firecrawl_search",
+        "firecrawl_scrape",
         "create_entities",
         "add_observations",
         "search_nodes",
@@ -86,11 +105,15 @@ AGENT_TOOLS: Dict[str, List[str]] = {
         "sequentialthinking",
     ],
 
-    # Research cluster — web search is their primary capability
+    # Research cluster — web search + crawl is their primary capability
     "researcher": [
         "fetch",
         "duckduckgo_web_search",
         "duckduckgo_news_search",
+        "firecrawl_search",
+        "firecrawl_scrape",
+        "firecrawl_map",
+        "firecrawl_crawl",
         "create_entities",
         "add_observations",
         "search_nodes",
@@ -102,11 +125,13 @@ AGENT_TOOLS: Dict[str, List[str]] = {
         "fetch",
         "duckduckgo_web_search",
         "duckduckgo_news_search",
+        "firecrawl_search",
     ],
     "trend_analyst": [
         "fetch",
         "duckduckgo_web_search",
         "duckduckgo_news_search",
+        "firecrawl_search",
     ],
 
     # Analyst cluster — search + reasoning

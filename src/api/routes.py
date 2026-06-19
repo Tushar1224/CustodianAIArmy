@@ -569,8 +569,13 @@ async def chat_with_agent(
         elif request.agent_name:
             target_agent = agent_manager.get_agent_by_name(request.agent_name)
         else:
-            # Use the coordinator agent as default
-            target_agent = agent_manager.get_agent_by_name("CommanderAI")
+            # Use CustodianAI as default
+            target_agent = agent_manager.get_agent_by_name("CustodianAI")
+        
+        if not target_agent:
+            # Last resort: any available main agent
+            main_agents = agent_manager.get_main_agents()
+            target_agent = main_agents[0] if main_agents else None
         
         if not target_agent:
             raise HTTPException(status_code=404, detail="Agent not found")
@@ -648,6 +653,8 @@ async def _stream_with_fallback(
             # Get the updated agent after potential provider switch
             current_agent = agent_manager.get_agent(target_agent.agent_id)
             if not current_agent:
+                current_agent = agent_manager.get_agent_by_name(target_agent.name)
+            if not current_agent:
                 current_agent = target_agent
             
             logger.info(f"Attempting to stream with {provider} provider")
@@ -715,10 +722,14 @@ async def chat_stream(
         target_agent = None
         if request.agent_id:
             target_agent = agent_manager.get_agent(request.agent_id)
-        elif request.agent_name:
+        if not target_agent and request.agent_name:
             target_agent = agent_manager.get_agent_by_name(request.agent_name)
-        else:
+        if not target_agent:
             target_agent = agent_manager.get_agent_by_name("CustodianAI")
+        if not target_agent:
+            # Last resort: any available main agent
+            main_agents = agent_manager.get_main_agents()
+            target_agent = main_agents[0] if main_agents else None
         
         if not target_agent:
             raise HTTPException(status_code=404, detail="Agent not found")
@@ -856,6 +867,8 @@ async def stream_to_agent(
 
         # Get agent
         agent = agent_manager.get_agent(agent_id)
+        if not agent:
+            agent = agent_manager.get_agent_by_name(agent_id)
         if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")
         
