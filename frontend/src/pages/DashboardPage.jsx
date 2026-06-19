@@ -277,8 +277,6 @@ export default function DashboardPage() {
     </>
   );
 
-  const uiData = selectedAgent ? AGENT_UI_DATA[selectedAgent.name] || { description: 'A versatile AI assistant ready for any task.', useCases: [] } : null;
-
   return (
     <MainLayout showSubHeader={true} subHeaderContent={subHeaderContent}>
       <div className="page-header-box mb-3">
@@ -289,60 +287,6 @@ export default function DashboardPage() {
       </div>
 
       <div className="chat-container chat-container-desktop">
-        <div className="agents-top-section d-none d-md-flex">
-          <div className="chat-sidebar" style={{ width: '50%', overflowY: 'auto' }}>
-            <h3 style={{ fontSize: '0.85rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Available Agents</h3>
-            <div className="agent-list" id="dashboard-agent-list">
-              {agents.map(agent => (
-                <div
-                  key={agent.agent_id}
-                  className="agent-list-item d-flex align-items-center gap-2 p-2 rounded mb-1"
-                  style={{
-                    cursor: 'pointer',
-                    border: selectedAgent?.agent_id === agent.agent_id ? '1px solid var(--primary-color)' : '1px solid transparent',
-                    background: selectedAgent?.agent_id === agent.agent_id ? 'rgba(0,123,255,0.08)' : '',
-                    transition: '0.2s',
-                  }}
-                  onClick={() => selectAgent(agent)}
-                >
-                  <i className="fas fa-robot text-info"></i>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{agent.name}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{agent.specialization || 'general'}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="agent-info-panel"
-            style={{
-              display: selectedAgent ? 'block' : 'none',
-              width: '50%', overflowY: 'auto', padding: '0.75rem',
-            }}
-          >
-            <h3 style={{ marginBottom: '0.5rem', color: 'var(--primary-color)', fontFamily: "'Orbitron', monospace", fontSize: '0.85rem' }}>Agent Details</h3>
-            {selectedAgent && (
-              <div className="agent-info-content">
-                <h4 style={{ color: 'var(--primary-color)', fontSize: '0.95rem' }} className="mt-1 mb-0">{selectedAgent.name}</h4>
-                <div className="agent-specialization mb-1" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{selectedAgent.specialization || 'General'}</div>
-                <p className="agent-description" style={{ fontSize: '0.8rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-                  {uiData?.description || 'A versatile AI assistant ready for any task.'}
-                </p>
-                {uiData?.useCases?.length > 0 && (
-                  <div className="agent-usage">
-                    <strong style={{ fontSize: '0.75rem' }}>Example use cases:</strong>
-                    <ul className="mt-2" style={{ fontSize: '0.75rem', paddingLeft: '1rem' }}>
-                      {uiData.useCases.map((uc, i) => (
-                        <li key={i}><code>{uc}</code></li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
         <div className="chat-main" id="chat-main" style={{ flex: 1, minHeight: 0 }}>
           {selectedAgent && (
             <div className="active-agent-banner d-flex align-items-center gap-2 flex-wrap px-3 py-2" style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(77,171,247,0.03)' }}>
