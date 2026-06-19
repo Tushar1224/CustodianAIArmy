@@ -248,6 +248,7 @@ export default function ResumePage() {
   const [chatMessage, setChatMessage] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [editField, setEditField] = useState(null);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const CHAT_COMPACTION_CHAR_THRESHOLD = 8000;
 
   const handleFieldSave = (value, section, field, index = null) => {
@@ -400,16 +401,17 @@ export default function ResumePage() {
     }
   }, [view]);
 
-  const createResume = async () => {
+  const createResume = async (templateIndex = 0) => {
+    setShowTemplatePicker(false);
     setLoading(true);
     try {
-      const defaultTemplate = BUILTIN_TEMPLATES[0];
-      const defaultData = JSON.parse(JSON.stringify(defaultTemplate.data));
+      const tpl = BUILTIN_TEMPLATES[templateIndex] || BUILTIN_TEMPLATES[0];
+      const tplData = JSON.parse(JSON.stringify(tpl.data));
       const res = await fetch(`${API_BASE}/resumes`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'Untitled Resume', data: defaultData, template_name: defaultTemplate.name }),
+        body: JSON.stringify({ title: 'Untitled Resume', data: tplData, template_name: tpl.name }),
       });
       if (res.status === 403) {
         const err = await res.json();
@@ -902,7 +904,7 @@ export default function ResumePage() {
               <p>Build, optimize, and manage your ATS-ready resumes with AI.</p>
             </div>
             <div className="d-flex gap-2 mt-3 flex-wrap">
-              <button className="btn btn-primary" onClick={createResume}>
+              <button className="btn btn-primary" onClick={() => setShowTemplatePicker(true)}>
                 <i className="fas fa-plus me-2"></i>Create New Resume
               </button>
               <label className={`btn ${loading ? 'btn-info disabled' : 'btn-outline-info'}`} style={{ cursor: loading ? 'not-allowed' : 'pointer' }}>
@@ -1009,6 +1011,59 @@ export default function ResumePage() {
             ))}
           </div>
         </div>
+
+        {/* Template picker modal */}
+        {showTemplatePicker && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '1rem',
+          }} onClick={() => setShowTemplatePicker(false)}>
+            <div style={{
+              background: 'var(--secondary-bg)', borderRadius: '12px',
+              maxWidth: '720px', width: '100%', maxHeight: '85vh', overflowY: 'auto',
+              border: '1px solid var(--border-color)',
+            }} onClick={e => e.stopPropagation()}>
+              <div className="d-flex justify-content-between align-items-center p-3" style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <h5 style={{ margin: 0, color: 'var(--text-primary)' }}><i className="fas fa-magic me-2" style={{ color: 'var(--primary-color)' }}></i>Choose a Template</h5>
+                <button className="btn btn-sm btn-outline-secondary" onClick={() => setShowTemplatePicker(false)} style={{ border: 'none', fontSize: '1.2rem' }}>&times;</button>
+              </div>
+              <div className="p-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+                {BUILTIN_TEMPLATES.map((tpl, idx) => {
+                  const cat = CATEGORIES.find(c => c.id === tpl.category);
+                  return (
+                    <div key={tpl.name} style={{
+                      background: 'var(--tertiary-bg)', borderRadius: '8px',
+                      border: '1px solid var(--border-color)', overflow: 'hidden',
+                      transition: 'all 0.2s', cursor: 'default',
+                    }}>
+                      <div className="p-3">
+                        <div className="d-flex justify-content-between align-items-start mb-2">
+                          <h6 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.9rem', fontWeight: 700 }}>{tpl.name}</h6>
+                          {cat && <span className="badge" style={{ background: 'var(--primary-color)', color: '#000', fontSize: '0.6rem' }}><i className={`fas ${cat.icon} me-1`}></i>{cat.label}</span>}
+                        </div>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', lineHeight: 1.4 }}>{tpl.description}</p>
+                        <div className="d-flex flex-wrap gap-1 mb-2">
+                          {tpl.section_defs.slice(0, 6).map(s => (
+                            <span key={s.id} className="badge" style={{ background: 'var(--secondary-bg)', color: 'var(--text-muted)', fontSize: '0.55rem', fontWeight: 400, border: '1px solid var(--border-color)' }}>
+                              <i className={`fas ${s.icon} me-1`} style={{ fontSize: '0.5rem' }}></i>{s.name}
+                            </span>
+                          ))}
+                          {tpl.section_defs.length > 6 && <span className="badge" style={{ fontSize: '0.55rem' }}>+{tpl.section_defs.length - 6}</span>}
+                        </div>
+                        {tpl.pages.length > 1 && <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}><i className="fas fa-copy me-1"></i>{tpl.pages.length} pages</div>}
+                        <button className="btn btn-sm w-100" style={{ background: 'var(--primary-color)', color: '#000', fontSize: '0.75rem', fontWeight: 600 }}
+                          onClick={() => createResume(idx)}>
+                          <i className="fas fa-plus me-1"></i>Use this template
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </MainLayout>
     );
   }
