@@ -64,78 +64,74 @@ export default function PaymentPage() {
   }, []);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #e8f4ff 0%, #f0f5ff 50%, #e0ecfe 100%)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, var(--bg3) 0%, var(--bg2) 50%, var(--bg) 100%)', display: 'flex', flexDirection: 'column' }}>
       <AdSenseAd />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
         <div className="payment-card" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '2rem', maxWidth: '460px', width: '100%', boxShadow: '0 2px 20px rgba(var(--primary-rgb),0.12)' }}>
           <div className="brand-header" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-            <div style={{ fontSize: '2.5rem', color: '#4dabf7', marginBottom: '0.5rem' }}><i className="fas fa-robot"></i></div>
-            <h1 style={{ fontSize: '1.4rem', color: '#1a2332', margin: 0 }}>Custodian AI</h1>
-            <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#b8860b', fontSize: '0.7rem', padding: '0.2rem 0.6rem', borderRadius: '20px', display: 'inline-block', marginTop: '0.5rem' }}>
+            <div style={{ fontSize: '2.5rem', color: 'var(--primary)', marginBottom: '0.5rem' }}><i className="fas fa-robot"></i></div>
+            <h1 style={{ fontSize: '1.4rem', color: 'var(--text)', margin: 0 }}>Custodian AI</h1>
+            <div style={{ background: 'rgba(var(--warning-rgb,245,158,11),0.1)', border: '1px solid rgba(var(--warning-rgb,245,158,11),0.3)', color: 'rgb(var(--warning-rgb,245,158,11))', fontSize: '0.7rem', padding: '0.2rem 0.6rem', borderRadius: '20px', display: 'inline-block', marginTop: '0.5rem' }}>
               <i className="fas fa-flask me-1"></i>Demo / Sandbox Mode
             </div>
           </div>
 
           <div id="payment-form-section">
-            <div className="plan-summary" style={{ background: '#f0f7ff', border: '1px solid #d0e1f7', borderRadius: '10px', padding: '1.25rem', marginBottom: '1.5rem' }}>
+            <div className="plan-summary" style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1.25rem', marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#b8860b' }}><i className="fas fa-crown me-2" style={{ color: '#b8860b' }}></i>Pro Plan</div>
-                  <div style={{ fontSize: '2rem', fontWeight: 900, color: '#4dabf7' }}>$9.99 <span style={{ fontSize: '1rem', color: '#666', fontWeight: 400 }}>/ month</span></div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'rgb(var(--warning-rgb,245,158,11))' }}><i className="fas fa-crown me-2" style={{ color: 'rgb(var(--warning-rgb,245,158,11))' }}></i>Pro Plan</div>
+                  <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--primary)' }}>$9.99 <span style={{ fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 400 }}>/ month</span></div>
                 </div>
-                <span className="badge" style={{ background: '#4dabf7', color: '#fff' }}>Most Popular</span>
+                <span className="badge" style={{ background: 'var(--primary)', color: '#fff' }}>Most Popular</span>
               </div>
-              <hr style={{ borderColor: '#d0e1f7', margin: '1.25rem 0' }} />
+              <hr style={{ borderColor: 'var(--border)', margin: '1.25rem 0' }} />
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {['50 requests per day', 'Access to Gemini, Claude & Claude', 'Chat history saved', 'Course progress tracking', 'Priority support'].map((f, i) => (
-                  <li key={i} style={{ color: '#444', fontSize: '0.875rem', marginBottom: '0.3rem' }}>
-                    <i className="fas fa-check-circle" style={{ color: '#28a745', marginRight: '0.5rem' }}></i>{f}
+                  <li key={i} style={{ color: 'var(--text2)', fontSize: '0.875rem', marginBottom: '0.3rem' }}>
+                    <i className="fas fa-check-circle" style={{ color: 'var(--success)', marginRight: '0.5rem' }}></i>{f}
                   </li>
                 ))}
               </ul>
             </div>
 
             <div style={{ marginBottom: '1rem' }}>
-              <label style={{ color: '#444', fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Card Number</label>
+              <label style={{ color: 'var(--text2)', fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Card Number</label>
               <input type="text" className="form-control" id="card-number" placeholder="4242 4242 4242 4242" maxLength="19"
-                onInput={(e) => formatCardNumber(e.target)}
-                style={{ background: '#f7faff', border: '1px solid #d0e1f7', color: '#1a2332', borderRadius: '8px', padding: '0.5rem 0.75rem', width: '100%' }} />
+                onInput={(e) => formatCardNumber(e.target)} />
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
               <div style={{ flex: 1 }}>
-                <label style={{ color: '#444', fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Expiry</label>
+                <label style={{ color: 'var(--text2)', fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Expiry</label>
                 <input type="text" className="form-control" id="card-expiry" placeholder="MM / YY" maxLength="7"
-                  onInput={(e) => formatExpiry(e.target)}
-                  style={{ background: '#f7faff', border: '1px solid #d0e1f7', color: '#1a2332', borderRadius: '8px', padding: '0.5rem 0.75rem', width: '100%' }} />
+                  onInput={(e) => formatExpiry(e.target)} />
               </div>
               <div style={{ flex: 1 }}>
-                <label style={{ color: '#444', fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>CVC</label>
-                <input type="text" className="form-control" id="card-cvc" placeholder="123" maxLength="3"
-                  style={{ background: '#f7faff', border: '1px solid #d0e1f7', color: '#1a2332', borderRadius: '8px', padding: '0.5rem 0.75rem', width: '100%' }} />
+                <label style={{ color: 'var(--text2)', fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>CVC</label>
+                <input type="text" className="form-control" id="card-cvc" placeholder="123" maxLength="3" />
               </div>
             </div>
             <div style={{ marginBottom: '1rem' }}>
-              <label style={{ color: '#444', fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Name on Card</label>
-              <input type="text" className="form-control" id="card-name" placeholder="John Doe"
-                style={{ background: '#f7faff', border: '1px solid #d0e1f7', color: '#1a2332', borderRadius: '8px', padding: '0.5rem 0.75rem', width: '100%' }} />
+              <label style={{ color: 'var(--text2)', fontSize: '0.85rem', marginBottom: '0.25rem', display: 'block' }}>Name on Card</label>
+              <input type="text" className="form-control" id="card-name" placeholder="John Doe" />
             </div>
 
             <div id="payment-error" className="alert alert-danger d-none" role="alert" style={{ display: 'none' }}></div>
 
             <button className="btn-pay" id="pay-btn" onClick={processPayment}
-              style={{ background: 'linear-gradient(135deg, #4dabf7, #3b8fd4)', border: 'none', color: '#fff', fontWeight: 700, fontSize: '1rem', padding: '0.75rem', borderRadius: '10px', width: '100%', cursor: 'pointer' }}>
+              style={{ background: 'linear-gradient(135deg, var(--primary), rgba(var(--primary-rgb),0.7))', border: 'none', color: '#fff', fontWeight: 700, fontSize: '1rem', padding: '0.75rem', borderRadius: '10px', width: '100%', cursor: 'pointer' }}>
               <i className="fas fa-lock me-2"></i>Pay $9.99 & Upgrade to Pro
             </button>
-            <div style={{ textAlign: 'center', color: '#888', fontSize: '0.75rem', marginTop: '0.75rem' }}>
+            <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.75rem' }}>
               <i className="fas fa-shield-alt me-1"></i>Secured by 256-bit SSL encryption
             </div>
           </div>
 
           <div className="success-overlay" id="success-section" style={{ display: 'none', textAlign: 'center', padding: '2rem 1rem' }}>
-            <div style={{ fontSize: '4rem', color: '#28a745', marginBottom: '1rem' }}><i className="fas fa-check-circle"></i></div>
-            <h2 style={{ color: '#28a745', margin: '0 0 0.5rem 0' }}>Payment Successful!</h2>
-            <p style={{ color: '#555', marginBottom: '0.25rem' }}>You've been upgraded to <strong style={{ color: '#b8860b' }}>Pro</strong>.</p>
-            <p style={{ color: '#888', fontSize: '0.875rem' }}>Redirecting to home page...</p>
+            <div style={{ fontSize: '4rem', color: 'var(--success)', marginBottom: '1rem' }}><i className="fas fa-check-circle"></i></div>
+            <h2 style={{ color: 'var(--success)', margin: '0 0 0.5rem 0' }}>Payment Successful!</h2>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>You've been upgraded to <strong style={{ color: 'rgb(var(--warning-rgb,245,158,11))' }}>Pro</strong>.</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Redirecting to home page...</p>
           </div>
         </div>
       </div>

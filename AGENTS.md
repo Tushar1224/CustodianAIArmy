@@ -833,3 +833,51 @@ Templates used on resumes are now automatically saved to the database, building 
 - Optimize button always visible (not conditional on ATS score) so users can re-optimize anytime with new JD
 - No DB changes needed — `user_resumes` already had a `jd` column; `jd` form field added to upload endpoint
 - JD is included in both optimize and chat requests, so all AI interactions are JD-context-aware
+
+---
+
+## Session: 2026-06-20 — Theme Fix (All Pages Dark/Light Mode)
+
+### What was done
+
+#### CSS theme variables (`frontend/src/index.css`)
+| Change | Detail |
+|--------|--------|
+| Light mode `--bg` | Changed to `#ffffff` (was grey-ish) |
+| Light mode `--bg2` | Changed to `#f8faff` |
+| Light mode `--bg3` | Changed to `#f0f6ff` |
+| Added `--primary-rgb` to both themes | Light: `77, 171, 247`; Dark: `88, 166, 255` |
+| Added `--warning-rgb`, `--success-rgb`, `--danger-rgb` to both themes | Enables `rgba(var(--warning-rgb), X)` patterns |
+
+#### Theme hook rewrite (`frontend/src/hooks/useTheme.js`)
+- Rewrote as standalone hook (no context dependency) that sets `data-theme`, `data-bs-theme` on `<html>` and `theme-light`/`theme-dark` class on `<body>`
+- Added inline `<script>` in `index.html` for FOUC prevention (sets theme before React mounts)
+
+#### PaymentPage (`frontend/src/pages/PaymentPage.jsx`)
+- Replaced all hardcoded light-mode colors with CSS variables:
+  - Background gradient → `var(--bg3)`/`var(--bg2)`/`var(--bg)`
+  - Form inputs: removed overriding inline styles, rely on Bootstrap + `data-bs-theme`
+  - Text colors: `#444`→`var(--text2)`, `#666`→`var(--text-secondary)`, `#888`→`var(--text-muted)`, `#1a2332`→`var(--text)`
+  - Primary colors: `#4dabf7`→`var(--primary)`
+  - Plan summary: `#f0f7ff`→`var(--bg3)`, `#d0e1f7`→`var(--border)`
+- Form inputs now use Bootstrap's theme-aware styling (no more hardcoded `#f7faff` backgrounds)
+
+#### ResumePage (`frontend/src/pages/ResumePage.jsx`)
+- **NOVA document preview** (editor + viewer): `#fff`→`var(--card)`, `#222`→`var(--text)`, `#444`→`var(--text2)`, `#555`→`var(--text-secondary)`, `#999`→`var(--text3)` for section borders
+- **Inline edit forms**: `#f8f9fa`→`var(--bg2)`, `#dee2e6`→`var(--border)`, `#666`→`var(--text-secondary)`
+- **Pen icons**: `#999`→`var(--text3)` (all section edit buttons)
+- **Primary accent**: All `color: '#4dabf7'` → `'var(--primary)'`, `'1px dashed #4dabf7'` → `'1px dashed var(--primary)'`
+- **Diff/review section**: OLD red bg `rgba(239,68,68,0.08)`→`rgba(var(--danger-rgb),0.08)`, AI PROPOSED green bg `rgba(34,197,94,0.08)`→`rgba(var(--success-rgb),0.08)`; delete buttons `#ef4444`→`var(--danger)`
+- **Add section buttons**: `#4dabf7`→`var(--primary)`
+
+#### HomePage (`frontend/src/pages/HomePage.jsx`)
+- Already used CSS variables for all structural elements (background, text, cards, borders)
+- Brand accent colors (`#4dabf7`, `#f59e0b`) intentionally left in feature card icon backgrounds/gradients as they are brand-specific, not theme colors
+
+#### DashboardPage (`frontend/src/pages/DashboardPage.jsx`)
+- Already working correctly as the reference implementation
+
+### Known Issues
+- Resume optimizer page NOVA preview in viewer mode uses `var(--card)`/`var(--text)` which may appear different from the previous hardcoded white/black appearance; user may need to verify it looks correct in both themes
+- `rgba(245,158,11,0.1)` and `rgba(245,158,11,0.3)` on HomePage "coming soon" badges are hardcoded but acceptable since `--warning-rgb` was just added and could be used if desired
+- `#fbbf24` review mode borders on ResumePage could be changed to `var(--warning)` for theme awareness

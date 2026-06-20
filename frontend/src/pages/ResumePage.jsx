@@ -163,7 +163,7 @@ const BUILTIN_TEMPLATES = [
     section_defs: ALL_SECTION_DEFS.filter(s => ['personal_info','summary','education','experience','skills','certifications','projects','achievements'].includes(s.id)),
     default_enabled_sections: ['personal_info','summary','education','experience','skills','certifications','projects','achievements'],
     pages: [{ page_number: 1, layout: 'single', sections: ['personal_info','summary','education','experience','skills','certifications','projects','achievements'] }],
-    styling: { font: "'Times New Roman', serif", size: '11pt', primary_color: '#222', accent_color: '#4dabf7', spacing: 'compact' },
+    styling: { font: "'Times New Roman', serif", size: '11pt', primary_color: '#222', accent_color: 'var(--primary)', spacing: 'compact' },
     data: createTemplateData(),
   },
   {
@@ -1462,13 +1462,13 @@ export default function ResumePage() {
             </div>
           </div>
           <div className="preview-content p-3" style={{ flex: 1, overflowY: 'auto' }}>
-            <div className="resume-preview-doc" style={{ background: '#fff', color: '#222', borderRadius: '4px', padding: '2rem 1.5rem', maxWidth: '800px', margin: '0 auto', boxShadow: '0 4px 20px rgba(0,0,0,0.2)', fontSize: '11pt', lineHeight: 1.5, fontFamily: "'Times New Roman', serif" }}>
+            <div className="resume-preview-doc" style={{ background: 'var(--card)', color: 'var(--text)', borderRadius: '4px', padding: '2rem 1.5rem', maxWidth: '800px', margin: '0 auto', boxShadow: 'var(--shadow-hover)', fontSize: '11pt', lineHeight: 1.5, fontFamily: "'Times New Roman', serif" }}>
               {/* Header */}
-              <div style={{ textAlign: 'center', marginBottom: '1rem', borderBottom: '2px solid #222', paddingBottom: '0.75rem' }}>
-                <h2 style={{ margin: 0, fontSize: '18pt', fontWeight: 700, color: '#000' }}>
+              <div style={{ textAlign: 'center', marginBottom: '1rem', borderBottom: '2px solid var(--text)', paddingBottom: '0.75rem' }}>
+                <h2 style={{ margin: 0, fontSize: '18pt', fontWeight: 700, color: 'var(--text)' }}>
                   {currentResume?.data?.personal_info?.full_name || 'Your Name'}
                 </h2>
-                <div style={{ fontSize: '10pt', color: '#444', marginTop: '0.25rem' }}>
+                <div style={{ fontSize: '10pt', color: 'var(--text2)', marginTop: '0.25rem' }}>
                   {currentResume?.data?.personal_info?.title && <div>{currentResume.data.personal_info.title}</div>}
                   <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
                     {currentResume?.data?.personal_info?.email && <span>{currentResume.data.personal_info.email}</span>}
@@ -1482,7 +1482,7 @@ export default function ResumePage() {
               {/* Summary */}
               {currentResume?.data?.personal_info?.summary && (
                 <div style={{ marginBottom: '0.75rem' }}>
-                  <div style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.25rem' }}>Professional Summary</div>
+                  <div style={{ fontWeight: 700, borderBottom: '1px solid var(--text3)', marginBottom: '0.25rem' }}>Professional Summary</div>
                   <p style={{ margin: 0, fontSize: '10pt' }}>{currentResume.data.personal_info.summary}</p>
                 </div>
               )}
@@ -1490,12 +1490,12 @@ export default function ResumePage() {
               {/* Education */}
               {(currentResume?.data?.education || []).length > 0 && (
                 <div style={{ marginBottom: '0.75rem' }}>
-                  <div style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.25rem' }}>Education</div>
+                  <div style={{ fontWeight: 700, borderBottom: '1px solid var(--text3)', marginBottom: '0.25rem' }}>Education</div>
                 {(currentResume.data.education || []).map((edu, i) => (
                     <div key={i} style={{ marginBottom: '0.35rem', fontSize: '10pt' }}>
                       <strong>{edu.degree}</strong> — {edu.institution}
                       {edu.cgpa && <span> | CGPA: {edu.cgpa}</span>}
-                      <div style={{ color: '#555' }}>{edu.start_date} - {edu.end_date}{edu.achievements ? ` | ${edu.achievements}` : ''}</div>
+                      <div style={{ color: 'var(--text-secondary)' }}>{edu.start_date} - {edu.end_date}{edu.achievements ? ` | ${edu.achievements}` : ''}</div>
                     </div>
                   ))}
                 </div>
@@ -1504,13 +1504,13 @@ export default function ResumePage() {
               {/* Experience */}
               {(currentResume?.data?.experience || []).length > 0 && (
                 <div style={{ marginBottom: '0.75rem' }}>
-                  <div style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.25rem' }}>Experience</div>
+                  <div style={{ fontWeight: 700, borderBottom: '1px solid var(--text3)', marginBottom: '0.25rem' }}>Experience</div>
                 {(currentResume.data.experience || []).map((exp, i) => (
                     <div key={i} style={{ marginBottom: '0.5rem', fontSize: '10pt' }}>
                       <strong>{exp.role}</strong> at <strong>{exp.company}</strong>
-                      <div style={{ color: '#555' }}>{exp.start_date} - {exp.current ? 'Present' : exp.end_date}</div>
+                      <div style={{ color: 'var(--text-secondary)' }}>{exp.start_date} - {exp.current ? 'Present' : exp.end_date}</div>
                       {exp.description && <p style={{ margin: '0.15rem 0', fontSize: '9.5pt' }}>{exp.description}</p>}
-                      {(exp.tech_stack || []).length > 0 && <div style={{ color: '#555', fontSize: '9pt' }}>Tech: {exp.tech_stack.join(', ')}</div>}
+                      {(exp.tech_stack || []).length > 0 && <div style={{ color: 'var(--text-secondary)', fontSize: '9pt' }}>Tech: {exp.tech_stack.join(', ')}</div>}
                       {(exp.achievements || []).length > 0 && (
                         <ul style={{ margin: '0.15rem 0', paddingLeft: '1.25rem', fontSize: '9.5pt' }}>
                           {exp.achievements.map((a, j) => <li key={j}>{a}</li>)}
@@ -1524,7 +1524,7 @@ export default function ResumePage() {
               {/* Skills */}
               {(currentResume?.data?.skills || []).length > 0 && (
                 <div style={{ marginBottom: '0.75rem' }}>
-                  <div style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.25rem' }}>Skills</div>
+                  <div style={{ fontWeight: 700, borderBottom: '1px solid var(--text3)', marginBottom: '0.25rem' }}>Skills</div>
                   <div style={{ fontSize: '10pt' }}>{(currentResume.data.skills || []).map(s => s.value).join(', ')}</div>
                 </div>
               )}
@@ -1532,7 +1532,7 @@ export default function ResumePage() {
               {/* Certifications */}
               {(currentResume?.data?.certifications || []).length > 0 && (
                 <div style={{ marginBottom: '0.75rem' }}>
-                  <div style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.25rem' }}>Certifications</div>
+                  <div style={{ fontWeight: 700, borderBottom: '1px solid var(--text3)', marginBottom: '0.25rem' }}>Certifications</div>
                   {(currentResume.data.certifications || []).map((cert, i) => (
                     <div key={i} style={{ fontSize: '10pt' }}>
                       <strong>{cert.name}</strong> — {cert.issuer} {cert.date && `(${cert.date})`}
@@ -1544,12 +1544,12 @@ export default function ResumePage() {
               {/* Projects */}
               {(currentResume?.data?.projects || []).length > 0 && (
                 <div style={{ marginBottom: '0.75rem' }}>
-                  <div style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.25rem' }}>Projects</div>
+                  <div style={{ fontWeight: 700, borderBottom: '1px solid var(--text3)', marginBottom: '0.25rem' }}>Projects</div>
                   {(currentResume.data.projects || []).map((proj, i) => (
                     <div key={i} style={{ marginBottom: '0.35rem', fontSize: '10pt' }}>
                       <strong>{proj.name}</strong>
                       <p style={{ margin: '0.1rem 0', fontSize: '9.5pt' }}>{proj.description}</p>
-                      {(proj.tech_stack || []).length > 0 && <div style={{ color: '#555', fontSize: '9pt' }}>{proj.tech_stack.join(', ')}</div>}
+                      {(proj.tech_stack || []).length > 0 && <div style={{ color: 'var(--text-secondary)', fontSize: '9pt' }}>{proj.tech_stack.join(', ')}</div>}
                     </div>
                   ))}
                 </div>
@@ -1558,7 +1558,7 @@ export default function ResumePage() {
               {/* Achievements */}
               {(currentResume?.data?.achievements || []).length > 0 && (
                 <div style={{ marginBottom: '0.75rem' }}>
-                  <div style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.25rem' }}>Achievements</div>
+                  <div style={{ fontWeight: 700, borderBottom: '1px solid var(--text3)', marginBottom: '0.25rem' }}>Achievements</div>
                   {(currentResume.data.achievements || []).map((ach, i) => (
                     <div key={i} style={{ fontSize: '10pt' }}>• {ach.value}</div>
                   ))}
@@ -1727,7 +1727,7 @@ export default function ResumePage() {
               const renderOldValue = (oldVal, newVal) => {
                 if (!isReview || oldVal === newVal) return null;
                 return (
-                  <div style={{ background: 'rgba(239,68,68,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px', marginBottom: '0.15rem' }}>
+                  <div style={{ background: 'rgba(var(--danger-rgb),0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px', marginBottom: '0.15rem' }}>
                     <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600, display: 'block' }}>OLD</span>
                     <span style={{ textDecoration: 'line-through', color: '#dc2626', fontSize: '10pt' }}>{oldVal}</span>
                   </div>
@@ -1737,7 +1737,7 @@ export default function ResumePage() {
               const renderNewValue = (newVal, section) => {
                 if (!isReview) return null;
                 return (
-                  <div style={{ background: 'rgba(34,197,94,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px' }}>
+                  <div style={{ background: 'rgba(var(--success-rgb),0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px' }}>
                     <span style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 600, display: 'block' }}>AI PROPOSED</span>
                     <span style={{ color: '#15803d', fontSize: '10pt', fontWeight: 600 }}>{newVal}</span>
                   </div>
@@ -1749,11 +1749,11 @@ export default function ResumePage() {
                 return (
                   <div className="d-flex gap-1 mt-1 justify-content-end" style={{ borderTop: '1px dashed rgba(251,191,36,0.3)', paddingTop: '0.35rem' }}>
                     <button className="btn btn-sm" onClick={() => acceptSection(sectionId)}
-                      style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: 'rgba(34,197,94,0.12)', border: '1px solid #22c55e', color: '#16a34a', borderRadius: '3px' }}>
+                      style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: 'rgba(var(--success-rgb),0.12)', border: '1px solid #22c55e', color: '#16a34a', borderRadius: '3px' }}>
                       <i className="fas fa-check me-1"></i> Accept
                     </button>
                     <button className="btn btn-sm" onClick={() => rejectSection(sectionId)}
-                      style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: 'rgba(239,68,68,0.08)', border: '1px solid #ef4444', color: '#dc2626', borderRadius: '3px' }}>
+                      style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: 'rgba(var(--danger-rgb),0.08)', border: '1px solid #ef4444', color: '#dc2626', borderRadius: '3px' }}>
                       <i className="fas fa-times me-1"></i> Reject
                     </button>
                   </div>
@@ -1766,11 +1766,11 @@ export default function ResumePage() {
                 return (
                   <div className="d-flex gap-1 mt-1 justify-content-start">
                     <button className="btn btn-sm" onClick={() => acceptPersonalField(field)}
-                      style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'rgba(34,197,94,0.12)', border: '1px solid #22c55e', color: '#16a34a', borderRadius: '3px' }}>
+                      style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'rgba(var(--success-rgb),0.12)', border: '1px solid #22c55e', color: '#16a34a', borderRadius: '3px' }}>
                       <i className="fas fa-check me-1"></i> Accept {field === 'title' ? 'role' : field.replace('_', ' ')}
                     </button>
                     <button className="btn btn-sm" onClick={() => rejectPersonalField(field)}
-                      style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'rgba(239,68,68,0.08)', border: '1px solid #ef4444', color: '#dc2626', borderRadius: '3px' }}>
+                      style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'rgba(var(--danger-rgb),0.08)', border: '1px solid #ef4444', color: '#dc2626', borderRadius: '3px' }}>
                       <i className="fas fa-times me-1"></i> Reject
                     </button>
                   </div>
@@ -1782,21 +1782,21 @@ export default function ResumePage() {
 
               return (
                 <div className="resume-preview-doc nova-style" style={{
-                  background: '#fff', color: '#222', borderRadius: '8px', padding: '2.5rem 2rem',
-                  boxShadow: '0 8px 40px rgba(0,0,0,0.15)', fontSize: '11pt', lineHeight: 1.5,
+                  background: 'var(--card)', color: 'var(--text)', borderRadius: '8px', padding: '2.5rem 2rem',
+                  boxShadow: 'var(--shadow-hover)', fontSize: '11pt', lineHeight: 1.5,
                   fontFamily: "'Times New Roman', serif", position: 'relative',
                   outline: isReview ? '2px solid #fbbf24' : 'none',
                 }}>
                 {!isReview && (
-                  <div className="edit-hint text-center mb-3" style={{ fontSize: '0.75rem', color: '#999' }}>
+                  <div className="edit-hint text-center mb-3" style={{ fontSize: '0.75rem', color: 'var(--text3)' }}>
                     <i className="fas fa-mouse-pointer me-1"></i> Click any field to edit inline
                   </div>
                 )}
 
                 {/* Header / Personal Info */}
                 <div style={sectionDiffStyle('personal_info')}>
-                  <div style={{ textAlign: 'center', marginBottom: '0.75rem', borderBottom: '2px solid #222', paddingBottom: '0.75rem' }}>
-                    <div style={{ margin: 0, fontSize: '20pt', fontWeight: 700, color: '#000' }}>
+                  <div style={{ textAlign: 'center', marginBottom: '0.75rem', borderBottom: '2px solid var(--text)', paddingBottom: '0.75rem' }}>
+                    <div style={{ margin: 0, fontSize: '20pt', fontWeight: 700, color: 'var(--text)' }}>
                       {changedFields.has('full_name') ? (
                         <div>
                           {renderOldValue(pi.full_name, optPi.full_name)}
@@ -1809,12 +1809,12 @@ export default function ResumePage() {
                               onClick={(e) => { if (!isReview) { e.stopPropagation(); setEditField({ section: 'personal_info', field: 'full_name', index: null }); setTimeout(() => e.target.focus(), 0); } }}
                               onBlur={(e) => handleFieldSave(e.target.innerText.trim() || 'Your Name', 'personal_info', 'full_name')}
                               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
-                              style={{ cursor: !isReview ? 'pointer' : 'default', outline: 'none', borderBottom: isEditing('personal_info', 'full_name') ? '1px dashed #4dabf7' : 'none', minWidth: '100px', display: 'inline-block' }}>
+                              style={{ cursor: !isReview ? 'pointer' : 'default', outline: 'none', borderBottom: isEditing('personal_info', 'full_name') ? '1px dashed var(--primary)' : 'none', minWidth: '100px', display: 'inline-block' }}>
                           {pi.full_name || 'Your Name'}
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: '10pt', color: '#444', marginTop: '0.25rem' }}>
+                    <div style={{ fontSize: '10pt', color: 'var(--text2)', marginTop: '0.25rem' }}>
                       <div style={{ display: 'inline-block' }}>
                         {changedFields.has('title') ? (
                           <div>
@@ -1828,7 +1828,7 @@ export default function ResumePage() {
                                 onClick={(e) => { if (!isReview) { e.stopPropagation(); setEditField({ section: 'personal_info', field: 'title', index: null }); setTimeout(() => e.target.focus(), 0); } }}
                                 onBlur={(e) => handleFieldSave(e.target.innerText.trim() || 'Professional Title', 'personal_info', 'title')}
                                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
-                                style={{ cursor: !isReview ? 'pointer' : 'default', outline: 'none', borderBottom: isEditing('personal_info', 'title') ? '1px dashed #4dabf7' : 'none', minWidth: '60px', display: 'inline-block' }}>
+                                style={{ cursor: !isReview ? 'pointer' : 'default', outline: 'none', borderBottom: isEditing('personal_info', 'title') ? '1px dashed var(--primary)' : 'none', minWidth: '60px', display: 'inline-block' }}>
                             {pi.title || 'Professional Title'}
                           </span>
                         )}
@@ -1843,7 +1843,7 @@ export default function ResumePage() {
                                   onClick={(e) => { if (!isReview) { e.stopPropagation(); setEditField({ section: 'personal_info', field: f, index: null }); setTimeout(() => e.target.focus(), 0); } }}
                                   onBlur={(e) => handleFieldSave(e.target.innerText.trim(), 'personal_info', f)}
                                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
-                                  style={{ cursor: !isReview ? 'pointer' : 'default', outline: 'none', borderBottom: isEditing('personal_info', f) ? '1px dashed #4dabf7' : 'none', display: 'inline-block' }}>
+                                  style={{ cursor: !isReview ? 'pointer' : 'default', outline: 'none', borderBottom: isEditing('personal_info', f) ? '1px dashed var(--primary)' : 'none', display: 'inline-block' }}>
                               {pi[f] || (f === 'email' ? 'email@example.com' : '')}
                             </span>
                           )}</span>
@@ -1854,7 +1854,7 @@ export default function ResumePage() {
                   {/* Summary under personal_info */}
                   {(pi.summary || isEditing('personal_info', 'summary')) && (
                     <div style={{ marginBottom: '0.5rem' }}>
-                      <div style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>Professional Summary</div>
+                      <div style={{ fontWeight: 700, borderBottom: '1px solid var(--text3)', marginBottom: '0.35rem' }}>Professional Summary</div>
                       {changedFields.has('summary') ? (
                         <div>
                           {renderOldValue(pi.summary, optPi.summary)}
@@ -1866,7 +1866,7 @@ export default function ResumePage() {
                            suppressContentEditableWarning
                            onClick={(e) => { if (!isReview) { e.stopPropagation(); setEditField({ section: 'personal_info', field: 'summary', index: null }); setTimeout(() => e.target.focus(), 0); } }}
                            onBlur={(e) => handleFieldSave(e.target.innerText.trim(), 'personal_info', 'summary')}
-                           style={{ margin: 0, fontSize: '10pt', cursor: !isReview ? 'pointer' : 'default', outline: 'none', borderBottom: isEditing('personal_info', 'summary') ? '1px dashed #4dabf7' : 'none' }}>
+                           style={{ margin: 0, fontSize: '10pt', cursor: !isReview ? 'pointer' : 'default', outline: 'none', borderBottom: isEditing('personal_info', 'summary') ? '1px dashed var(--primary)' : 'none' }}>
                           {pi.summary || 'Click to add professional summary'}
                         </p>
                       )}
@@ -1877,22 +1877,22 @@ export default function ResumePage() {
                 {/* Education */}
                 {(displayData?.education || []).length > 0 && (
                   <div style={{ ...sectionDiffStyle('education'), ...(changedSections.has('education') ? { marginTop: '0' } : { marginBottom: '1rem' }) }}>
-                    <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>
+                    <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, borderBottom: '1px solid var(--text3)', marginBottom: '0.35rem' }}>
                       <span>Education</span>
-                      {!isReview && <i className="fas fa-pen fa-xs" style={{ color: '#999', cursor: 'pointer' }} onClick={() => setEditField(editField?.section === 'education' ? null : { section: 'education', field: '_section', index: null })}></i>}
+                      {!isReview && <i className="fas fa-pen fa-xs" style={{ color: 'var(--text3)', cursor: 'pointer' }} onClick={() => setEditField(editField?.section === 'education' ? null : { section: 'education', field: '_section', index: null })}></i>}
                     </div>
                     {changedSections.has('education') ? (
                       <div>
-                        <div style={{ background: 'rgba(239,68,68,0.08)', padding: '0.35rem 0.5rem', borderRadius: '3px', marginBottom: '0.25rem' }}>
+                        <div style={{ background: 'rgba(var(--danger-rgb),0.08)', padding: '0.35rem 0.5rem', borderRadius: '3px', marginBottom: '0.25rem' }}>
                           <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600 }}>OLD</span>
                           {(displayData.education || []).map((edu, i) => (
                             <div key={edu.id || i} style={{ fontSize: '10pt', textDecoration: 'line-through', color: '#dc2626', marginBottom: '0.2rem' }}>
                               <strong>{edu.degree}</strong> — {edu.institution}{edu.cgpa && <span> | CGPA: {edu.cgpa}</span>}
-                              <div style={{ color: '#999' }}>{edu.start_date} - {edu.end_date}</div>
+                              <div style={{ color: 'var(--text3)' }}>{edu.start_date} - {edu.end_date}</div>
                             </div>
                           ))}
                         </div>
-                        <div style={{ background: 'rgba(34,197,94,0.08)', padding: '0.35rem 0.5rem', borderRadius: '3px' }}>
+                        <div style={{ background: 'rgba(var(--success-rgb),0.08)', padding: '0.35rem 0.5rem', borderRadius: '3px' }}>
                           <span style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 600 }}>AI PROPOSED</span>
                           {(pendingChanges.optimizedData.education || []).map((edu, i) => (
                             <div key={edu.id || i} style={{ fontSize: '10pt', color: '#15803d', fontWeight: 600, marginBottom: '0.2rem' }}>
@@ -1906,11 +1906,11 @@ export default function ResumePage() {
                       (displayData.education || []).map((edu, i) => (
                         <div key={edu.id || i} style={{ marginBottom: '0.35rem', fontSize: '10pt' }}>
                           {(!isReview && isEditing('education', 'degree', i)) ? (
-                            <div className="inline-edit-form" style={{ background: '#f8f9fa', padding: '0.35rem', borderRadius: '4px', border: '1px solid #dee2e6', marginBottom: '0.25rem' }}>
+                            <div className="inline-edit-form" style={{ background: 'var(--bg2)', padding: '0.35rem', borderRadius: '4px', border: '1px solid var(--border)', marginBottom: '0.25rem' }}>
                               <div className="d-flex justify-content-between mb-1">
-                                <span style={{ fontSize: '0.7rem', color: '#666' }}><i className="fas fa-pen me-1"></i>Editing</span>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}><i className="fas fa-pen me-1"></i>Editing</span>
                                 <button className="btn btn-sm" onClick={(e) => removeSectionItem('education', i, e)}
-                                  style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '3px' }}>
+                                  style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'none', border: '1px solid var(--danger)', color: 'var(--danger)', borderRadius: '3px' }}>
                                   <i className="fas fa-trash"></i>
                                 </button>
                               </div>
@@ -1942,7 +1942,7 @@ export default function ResumePage() {
                             <div style={{ cursor: !isReview ? 'pointer' : 'default' }}
                                  onClick={() => { if (!isReview) setEditField({ section: 'education', field: 'degree', index: i }); }}>
                               <strong>{edu.degree}</strong> — {edu.institution}{edu.cgpa && <span> | CGPA: {edu.cgpa}</span>}
-                              <div style={{ color: '#555' }}>{edu.start_date} - {edu.end_date}</div>
+                              <div style={{ color: 'var(--text-secondary)' }}>{edu.start_date} - {edu.end_date}</div>
                             </div>
                           )}
                         </div>
@@ -1950,7 +1950,7 @@ export default function ResumePage() {
                     )}
                     {!isReview && (
                       <div className="text-center mt-1">
-                        <button className="btn btn-sm" style={{ fontSize: '0.7rem', padding: '0', color: '#4dabf7', background: 'none', border: 'none', cursor: 'pointer' }}
+                        <button className="btn btn-sm" style={{ fontSize: '0.7rem', padding: '0', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer' }}
                           onClick={() => addSectionItem('education')}>
                           <i className="fas fa-plus me-1"></i>Add Education
                         </button>
@@ -1963,23 +1963,23 @@ export default function ResumePage() {
                 {/* Experience */}
                 {(displayData?.experience || []).length > 0 && (
                   <div style={sectionDiffStyle('experience')}>
-                    <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>
+                    <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, borderBottom: '1px solid var(--text3)', marginBottom: '0.35rem' }}>
                       <span>Experience</span>
-                      {!isReview && <i className="fas fa-pen fa-xs" style={{ color: '#999', cursor: 'pointer' }} onClick={() => setEditField(editField?.section === 'experience' ? null : { section: 'experience', field: '_section', index: null })}></i>}
+                      {!isReview && <i className="fas fa-pen fa-xs" style={{ color: 'var(--text3)', cursor: 'pointer' }} onClick={() => setEditField(editField?.section === 'experience' ? null : { section: 'experience', field: '_section', index: null })}></i>}
                     </div>
                     {changedSections.has('experience') ? (
                       <div>
-                        <div style={{ background: 'rgba(239,68,68,0.08)', padding: '0.35rem 0.5rem', borderRadius: '3px', marginBottom: '0.25rem' }}>
+                        <div style={{ background: 'rgba(var(--danger-rgb),0.08)', padding: '0.35rem 0.5rem', borderRadius: '3px', marginBottom: '0.25rem' }}>
                           <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600 }}>OLD</span>
                           {(displayData.experience || []).map((exp, i) => (
                             <div key={exp.id || i} style={{ fontSize: '10pt', textDecoration: 'line-through', color: '#dc2626', marginBottom: '0.3rem' }}>
                               <strong>{exp.role}</strong> at <strong>{exp.company}</strong>
-                              <div style={{ color: '#999' }}>{exp.start_date} - {exp.current ? 'Present' : exp.end_date}</div>
+                              <div style={{ color: 'var(--text3)' }}>{exp.start_date} - {exp.current ? 'Present' : exp.end_date}</div>
                               {exp.description && <p style={{ margin: '0.1rem 0', fontSize: '9pt' }}>{exp.description}</p>}
                             </div>
                           ))}
                         </div>
-                        <div style={{ background: 'rgba(34,197,94,0.08)', padding: '0.35rem 0.5rem', borderRadius: '3px' }}>
+                        <div style={{ background: 'rgba(var(--success-rgb),0.08)', padding: '0.35rem 0.5rem', borderRadius: '3px' }}>
                           <span style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 600 }}>AI PROPOSED</span>
                           {(pendingChanges.optimizedData.experience || []).map((exp, i) => (
                             <div key={exp.id || i} style={{ fontSize: '10pt', color: '#15803d', fontWeight: 600, marginBottom: '0.3rem' }}>
@@ -1994,11 +1994,11 @@ export default function ResumePage() {
                       (displayData.experience || []).map((exp, i) => (
                         <div key={exp.id || i} style={{ marginBottom: '0.5rem', fontSize: '10pt' }}>
                           {(!isReview && isEditing('experience', 'role', i)) ? (
-                            <div className="inline-edit-form" style={{ background: '#f8f9fa', padding: '0.35rem', borderRadius: '4px', border: '1px solid #dee2e6', marginBottom: '0.25rem' }}>
+                            <div className="inline-edit-form" style={{ background: 'var(--bg2)', padding: '0.35rem', borderRadius: '4px', border: '1px solid var(--border)', marginBottom: '0.25rem' }}>
                               <div className="d-flex justify-content-between mb-1">
-                                <span style={{ fontSize: '0.7rem', color: '#666' }}><i className="fas fa-pen me-1"></i>Editing</span>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}><i className="fas fa-pen me-1"></i>Editing</span>
                                 <button className="btn btn-sm" onClick={(e) => removeSectionItem('experience', i, e)}
-                                  style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '3px' }}>
+                                  style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'none', border: '1px solid var(--danger)', color: 'var(--danger)', borderRadius: '3px' }}>
                                   <i className="fas fa-trash"></i>
                                 </button>
                               </div>
@@ -2031,7 +2031,7 @@ export default function ResumePage() {
                             <div style={{ cursor: !isReview ? 'pointer' : 'default' }}
                                  onClick={() => { if (!isReview) setEditField({ section: 'experience', field: 'role', index: i }); }}>
                               <strong>{exp.role}</strong> at <strong>{exp.company}</strong>
-                              <div style={{ color: '#555' }}>{exp.start_date} - {exp.current ? 'Present' : exp.end_date}</div>
+                              <div style={{ color: 'var(--text-secondary)' }}>{exp.start_date} - {exp.current ? 'Present' : exp.end_date}</div>
                               {exp.description && <p style={{ margin: '0.15rem 0', fontSize: '9pt' }}>{exp.description}</p>}
                             </div>
                           )}
@@ -2040,7 +2040,7 @@ export default function ResumePage() {
                     )}
                     {!isReview && (
                       <div className="text-center mt-1">
-                        <button className="btn btn-sm" style={{ fontSize: '0.7rem', padding: '0', color: '#4dabf7', background: 'none', border: 'none', cursor: 'pointer' }}
+                        <button className="btn btn-sm" style={{ fontSize: '0.7rem', padding: '0', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer' }}
                           onClick={() => addSectionItem('experience')}>
                           <i className="fas fa-plus me-1"></i>Add Experience
                         </button>
@@ -2053,19 +2053,19 @@ export default function ResumePage() {
                 {/* Skills */}
                 {(displayData?.skills || []).length > 0 && (
                   <div style={sectionDiffStyle('skills')}>
-                    <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>
+                    <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, borderBottom: '1px solid var(--text3)', marginBottom: '0.35rem' }}>
                       <span>Skills</span>
-                      {!isReview && <i className="fas fa-pen fa-xs" style={{ color: '#999', cursor: 'pointer' }} onClick={() => setEditField(editField?.section === 'skills' ? null : { section: 'skills', field: '_section', index: null })}></i>}
+                      {!isReview && <i className="fas fa-pen fa-xs" style={{ color: 'var(--text3)', cursor: 'pointer' }} onClick={() => setEditField(editField?.section === 'skills' ? null : { section: 'skills', field: '_section', index: null })}></i>}
                     </div>
                     {changedSections.has('skills') ? (
                       <div>
-                        <div style={{ background: 'rgba(239,68,68,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px', marginBottom: '0.25rem' }}>
+                        <div style={{ background: 'rgba(var(--danger-rgb),0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px', marginBottom: '0.25rem' }}>
                           <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600 }}>OLD</span>
                           <span style={{ fontSize: '10pt', textDecoration: 'line-through', color: '#dc2626' }}>
                             {(displayData.skills || []).map(s => s.value).join(', ')}
                           </span>
                         </div>
-                        <div style={{ background: 'rgba(34,197,94,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px' }}>
+                        <div style={{ background: 'rgba(var(--success-rgb),0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px' }}>
                           <span style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 600 }}>AI PROPOSED</span>
                           <span style={{ fontSize: '10pt', color: '#15803d', fontWeight: 600 }}>
                             {(pendingChanges.optimizedData.skills || []).map(s => s.value).join(', ')}
@@ -2075,7 +2075,8 @@ export default function ResumePage() {
                     ) : (
                       <div>
                         {isEditing('skills', '_section') ? (
-                          <div style={{ background: '#f8f9fa', padding: '0.35rem', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                          <div style={{ background: 'var(--bg2)', padding: '0.35rem', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}><i className="fas fa-pen me-1"></i>Editing</div>
                             <input className="form-control form-control-sm mb-1" defaultValue={(displayData.skills || []).map(s => s.value).join(', ')} placeholder="Comma-separated skills"
                               onBlur={(e) => {
                                 const vals = e.target.value.split(',').map(v => v.trim()).filter(Boolean);
@@ -2083,7 +2084,7 @@ export default function ResumePage() {
                                 setEditField(null);
                               }}
                               onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} autoFocus />
-                            <div style={{ fontSize: '0.7rem', color: '#999' }}>Type skills separated by commas, then press Enter</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text3)' }}>Type skills separated by commas, then press Enter</div>
                           </div>
                         ) : (
                           <span style={{ fontSize: '10pt', cursor: !isReview ? 'pointer' : 'default' }}
@@ -2095,7 +2096,7 @@ export default function ResumePage() {
                     )}
                     {!isReview && (
                       <div className="text-center mt-1">
-                        <button className="btn btn-sm" style={{ fontSize: '0.7rem', padding: '0', color: '#4dabf7', background: 'none', border: 'none', cursor: 'pointer' }}
+                        <button className="btn btn-sm" style={{ fontSize: '0.7rem', padding: '0', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer' }}
                           onClick={() => addSectionItem('skills')}>
                           <i className="fas fa-plus me-1"></i>Add Skill
                         </button>
@@ -2108,13 +2109,13 @@ export default function ResumePage() {
                 {/* Certifications */}
                 {(displayData?.certifications || []).length > 0 && (
                   <div style={sectionDiffStyle('certifications')}>
-                    <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>
+                    <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, borderBottom: '1px solid var(--text3)', marginBottom: '0.35rem' }}>
                       <span>Certifications</span>
-                      {!isReview && <i className="fas fa-pen fa-xs" style={{ color: '#999', cursor: 'pointer' }} onClick={() => setEditField(editField?.section === 'certifications' ? null : { section: 'certifications', field: '_section', index: null })}></i>}
+                      {!isReview && <i className="fas fa-pen fa-xs" style={{ color: 'var(--text3)', cursor: 'pointer' }} onClick={() => setEditField(editField?.section === 'certifications' ? null : { section: 'certifications', field: '_section', index: null })}></i>}
                     </div>
                     {changedSections.has('certifications') ? (
                       <div>
-                        <div style={{ background: 'rgba(239,68,68,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px', marginBottom: '0.25rem' }}>
+                        <div style={{ background: 'rgba(var(--danger-rgb),0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px', marginBottom: '0.25rem' }}>
                           <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600 }}>OLD</span>
                           {(displayData.certifications || []).map((cert, i) => (
                             <div key={i} style={{ fontSize: '10pt', textDecoration: 'line-through', color: '#dc2626', marginBottom: '0.15rem' }}>
@@ -2123,7 +2124,7 @@ export default function ResumePage() {
                             </div>
                           ))}
                         </div>
-                        <div style={{ background: 'rgba(34,197,94,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px' }}>
+                        <div style={{ background: 'rgba(var(--success-rgb),0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px' }}>
                           <span style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 600 }}>AI PROPOSED</span>
                           {(pendingChanges.optimizedData.certifications || []).map((cert, i) => (
                             <div key={i} style={{ fontSize: '10pt', color: '#15803d', fontWeight: 600, marginBottom: '0.15rem' }}>
@@ -2137,11 +2138,11 @@ export default function ResumePage() {
                       (displayData.certifications || []).map((cert, i) => (
                         <div key={i} style={{ marginBottom: '0.35rem', fontSize: '10pt' }}>
                           {(!isReview && isEditing('certifications', 'name', i)) ? (
-                            <div className="inline-edit-form" style={{ background: '#f8f9fa', padding: '0.35rem', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div className="inline-edit-form" style={{ background: 'var(--bg2)', padding: '0.35rem', borderRadius: '4px', border: '1px solid var(--border)' }}>
                               <div className="d-flex justify-content-between mb-1">
-                                <span style={{ fontSize: '0.7rem', color: '#666' }}><i className="fas fa-pen me-1"></i>Editing</span>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}><i className="fas fa-pen me-1"></i>Editing</span>
                                 <button className="btn btn-sm" onClick={(e) => removeSectionItem('certifications', i, e)}
-                                  style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '3px' }}>
+                                  style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'none', border: '1px solid var(--danger)', color: 'var(--danger)', borderRadius: '3px' }}>
                                   <i className="fas fa-trash"></i>
                                 </button>
                               </div>
@@ -2162,7 +2163,7 @@ export default function ResumePage() {
                             <div style={{ cursor: !isReview ? 'pointer' : 'default' }}
                                  onClick={() => { if (!isReview) setEditField({ section: 'certifications', field: 'name', index: i }); }}>
                               <strong>{cert.name}</strong> — {cert.issuer}
-                              {cert.date && <span style={{ display: 'block', fontSize: '9pt', color: '#666' }}>{cert.date}</span>}
+                              {cert.date && <span style={{ display: 'block', fontSize: '9pt', color: 'var(--text-secondary)' }}>{cert.date}</span>}
                             </div>
                           )}
                         </div>
@@ -2170,7 +2171,7 @@ export default function ResumePage() {
                     )}
                     {!isReview && (
                       <div className="text-center mt-1">
-                        <button className="btn btn-sm" style={{ fontSize: '0.7rem', padding: '0', color: '#4dabf7', background: 'none', border: 'none', cursor: 'pointer' }}
+                        <button className="btn btn-sm" style={{ fontSize: '0.7rem', padding: '0', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer' }}
                           onClick={() => addSectionItem('certifications')}>
                           <i className="fas fa-plus me-1"></i>Add Certification
                         </button>
@@ -2183,13 +2184,13 @@ export default function ResumePage() {
                 {/* Projects */}
                 {(displayData?.projects || []).length > 0 && (
                   <div style={sectionDiffStyle('projects')}>
-                    <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>
+                    <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, borderBottom: '1px solid var(--text3)', marginBottom: '0.35rem' }}>
                       <span>Projects</span>
-                      {!isReview && <i className="fas fa-pen fa-xs" style={{ color: '#999', cursor: 'pointer' }} onClick={() => setEditField(editField?.section === 'projects' ? null : { section: 'projects', field: '_section', index: null })}></i>}
+                      {!isReview && <i className="fas fa-pen fa-xs" style={{ color: 'var(--text3)', cursor: 'pointer' }} onClick={() => setEditField(editField?.section === 'projects' ? null : { section: 'projects', field: '_section', index: null })}></i>}
                     </div>
                     {changedSections.has('projects') ? (
                       <div>
-                        <div style={{ background: 'rgba(239,68,68,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px', marginBottom: '0.25rem' }}>
+                        <div style={{ background: 'rgba(var(--danger-rgb),0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px', marginBottom: '0.25rem' }}>
                           <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600 }}>OLD</span>
                           {(displayData.projects || []).map((proj, i) => (
                             <div key={i} style={{ fontSize: '10pt', textDecoration: 'line-through', color: '#dc2626', marginBottom: '0.2rem' }}>
@@ -2197,7 +2198,7 @@ export default function ResumePage() {
                             </div>
                           ))}
                         </div>
-                        <div style={{ background: 'rgba(34,197,94,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px' }}>
+                        <div style={{ background: 'rgba(var(--success-rgb),0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px' }}>
                           <span style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 600 }}>AI PROPOSED</span>
                           {(pendingChanges.optimizedData.projects || []).map((proj, i) => (
                             <div key={i} style={{ fontSize: '10pt', color: '#15803d', fontWeight: 600, marginBottom: '0.2rem' }}>
@@ -2210,11 +2211,11 @@ export default function ResumePage() {
                       (displayData.projects || []).map((proj, i) => (
                         <div key={i} style={{ marginBottom: '0.35rem', fontSize: '10pt' }}>
                           {(!isReview && isEditing('projects', 'name', i)) ? (
-                            <div className="inline-edit-form" style={{ background: '#f8f9fa', padding: '0.35rem', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div className="inline-edit-form" style={{ background: 'var(--bg2)', padding: '0.35rem', borderRadius: '4px', border: '1px solid var(--border)' }}>
                               <div className="d-flex justify-content-between mb-1">
-                                <span style={{ fontSize: '0.7rem', color: '#666' }}><i className="fas fa-pen me-1"></i>Editing</span>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}><i className="fas fa-pen me-1"></i>Editing</span>
                                 <button className="btn btn-sm" onClick={(e) => removeSectionItem('projects', i, e)}
-                                  style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '3px' }}>
+                                  style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'none', border: '1px solid var(--danger)', color: 'var(--danger)', borderRadius: '3px' }}>
                                   <i className="fas fa-trash"></i>
                                 </button>
                               </div>
@@ -2234,7 +2235,7 @@ export default function ResumePage() {
                             <div style={{ cursor: !isReview ? 'pointer' : 'default' }}
                                  onClick={() => { if (!isReview) setEditField({ section: 'projects', field: 'name', index: i }); }}>
                               <strong>{proj.name}</strong> — {proj.description}
-                              {(proj.tech_stack || []).length > 0 && <div style={{ color: '#555', fontSize: '9pt' }}>{proj.tech_stack.join(', ')}</div>}
+                              {(proj.tech_stack || []).length > 0 && <div style={{ color: 'var(--text-secondary)', fontSize: '9pt' }}>{proj.tech_stack.join(', ')}</div>}
                             </div>
                           )}
                         </div>
@@ -2242,7 +2243,7 @@ export default function ResumePage() {
                     )}
                     {!isReview && (
                       <div className="text-center mt-1">
-                        <button className="btn btn-sm" style={{ fontSize: '0.7rem', padding: '0', color: '#4dabf7', background: 'none', border: 'none', cursor: 'pointer' }}
+                        <button className="btn btn-sm" style={{ fontSize: '0.7rem', padding: '0', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer' }}
                           onClick={() => addSectionItem('projects')}>
                           <i className="fas fa-plus me-1"></i>Add Project
                         </button>
@@ -2255,19 +2256,19 @@ export default function ResumePage() {
                 {/* Achievements */}
                 {(displayData?.achievements || []).length > 0 && (
                   <div style={sectionDiffStyle('achievements')}>
-                    <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, borderBottom: '1px solid #999', marginBottom: '0.35rem' }}>
+                    <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, borderBottom: '1px solid var(--text3)', marginBottom: '0.35rem' }}>
                       <span>Achievements</span>
-                      {!isReview && <i className="fas fa-pen fa-xs" style={{ color: '#999', cursor: 'pointer' }} onClick={() => setEditField(editField?.section === 'achievements' ? null : { section: 'achievements', field: '_section', index: null })}></i>}
+                      {!isReview && <i className="fas fa-pen fa-xs" style={{ color: 'var(--text3)', cursor: 'pointer' }} onClick={() => setEditField(editField?.section === 'achievements' ? null : { section: 'achievements', field: '_section', index: null })}></i>}
                     </div>
                     {changedSections.has('achievements') ? (
                       <div>
-                        <div style={{ background: 'rgba(239,68,68,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px', marginBottom: '0.25rem' }}>
+                        <div style={{ background: 'rgba(var(--danger-rgb),0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px', marginBottom: '0.25rem' }}>
                           <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600 }}>OLD</span>
                           {(displayData.achievements || []).map((ach, i) => (
                             <div key={i} style={{ fontSize: '10pt', textDecoration: 'line-through', color: '#dc2626' }}>• {ach.value}</div>
                           ))}
                         </div>
-                        <div style={{ background: 'rgba(34,197,94,0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px' }}>
+                        <div style={{ background: 'rgba(var(--success-rgb),0.08)', padding: '0.25rem 0.5rem', borderRadius: '3px' }}>
                           <span style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 600 }}>AI PROPOSED</span>
                           {(pendingChanges.optimizedData.achievements || []).map((ach, i) => (
                             <div key={i} style={{ fontSize: '10pt', color: '#15803d', fontWeight: 600 }}>• {ach.value}</div>
@@ -2284,7 +2285,7 @@ export default function ResumePage() {
                                 onBlur={(e) => handleFieldSave(e.target.value.trim(), 'achievements', 'value', i)}
                                 onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} autoFocus />
                               <button className="btn btn-sm" onClick={(e) => removeSectionItem('achievements', i, e)}
-                                style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '3px' }}>
+                                style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem', background: 'none', border: '1px solid var(--danger)', color: 'var(--danger)', borderRadius: '3px' }}>
                                 <i className="fas fa-trash"></i>
                               </button>
                             </span>
@@ -2299,7 +2300,7 @@ export default function ResumePage() {
                     )}
                     {!isReview && (
                       <div className="text-center mt-1">
-                        <button className="btn btn-sm" style={{ fontSize: '0.7rem', padding: '0', color: '#4dabf7', background: 'none', border: 'none', cursor: 'pointer' }}
+                        <button className="btn btn-sm" style={{ fontSize: '0.7rem', padding: '0', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer' }}
                           onClick={() => addSectionItem('achievements')}>
                           <i className="fas fa-plus me-1"></i>Add Achievement
                         </button>

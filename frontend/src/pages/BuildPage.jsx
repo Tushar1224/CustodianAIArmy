@@ -565,7 +565,7 @@ export default function BuildPage() {
   };
 
   const renderFileTree = (tree, depth = 0) => {
-    if (!tree || tree.length === 0) return <div className="bp-file-node" style={{ padding: '12px', color: '#555', cursor: 'default', fontFamily: 'inherit' }}>No files yet</div>;
+    if (!tree || tree.length === 0) return <div className="bp-file-node" style={{ padding: '12px', color: 'var(--text-secondary)', cursor: 'default', fontFamily: 'inherit' }}>No files yet</div>;
     return tree.map((node, i) => {
       if (node.type === 'directory') {
         return (
@@ -798,7 +798,7 @@ export default function BuildPage() {
                     onClick={() => setMode('plan')}>
                     <i className="fas fa-comments me-1"></i>Plan
                   </button>
-                  <span style={{ color: '#555', fontSize: '.65rem', padding: '0 4px' }}><i className="fas fa-arrow-right"></i></span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '.65rem', padding: '0 4px' }}><i className="fas fa-arrow-right"></i></span>
                   <button className={`bp-mode-btn bp-mode-act ${mode === 'act' ? 'active' : ''}`}
                     onClick={() => setMode('act')}>
                     <i className="fas fa-bolt me-1"></i>Act
@@ -821,7 +821,7 @@ export default function BuildPage() {
             {/* Chat Messages */}
             <div className="bp-chat-msgs">
               {chatHistory.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '40px 16px', color: '#555' }}>
+                <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-secondary)' }}>
                   <i className={`fas ${MODE_ICONS[mode]}`} style={{ fontSize: '2.2rem', display: 'block', marginBottom: '12px', color: mode === 'plan' ? 'rgba(var(--primary-rgb),.3)' : 'rgba(239,68,68,.3)' }}></i>
                   <p style={{ fontSize: '.85rem', margin: '0 0 4px' }}>
                     {mode === 'plan'
@@ -829,7 +829,7 @@ export default function BuildPage() {
                       : `Generate code in ${currentPhaseInfo.name} phase.`
                     }
                   </p>
-                  <small style={{ color: '#555' }}>{MODE_DESCRIPTIONS[mode] || ''}</small>
+                  <small style={{ color: 'var(--text-secondary)' }}>{MODE_DESCRIPTIONS[mode] || ''}</small>
                   {availableModes.length > 1 && mode === 'plan' && (
                     <div style={{ marginTop: '8px' }}>
                       <span style={{ fontSize: '.72rem', color: '#6c5ce7' }}>
@@ -955,7 +955,7 @@ export default function BuildPage() {
             <div className="bp-file-tree">
               <div className="bp-file-tree-title">
                 <i className="fas fa-folder-open me-1"></i> Project Files
-                {fileTree.length > 0 && <span style={{ color: '#555', fontWeight: 400, marginLeft: '4px' }}>({fileTree.length})</span>}
+                {fileTree.length > 0 && <span style={{ color: 'var(--text-secondary)', fontWeight: 400, marginLeft: '4px' }}>({fileTree.length})</span>}
               </div>
               <div className="bp-file-tree-body">
                 {renderFileTree(fileTree)}
@@ -965,7 +965,7 @@ export default function BuildPage() {
             {/* Phase detail / instructions + artifacts */}
             {currentPhaseIndex === 1 && currentSession?.files?.['plan.md'] && !previewHtml && (
               <div className="bp-phase-card">
-                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: '#555', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <i className="fas fa-file-alt" style={{ color: '#4dabf7' }}></i> plan.md
                 </h4>
                 <pre className="bp-artifact-preview">{currentSession.files['plan.md']}</pre>
@@ -973,7 +973,7 @@ export default function BuildPage() {
             )}
             {currentPhaseIndex === 2 && currentSession?.files?.['reviewed-plan.md'] && !previewHtml && (
               <div className="bp-phase-card">
-                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: '#555', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <i className="fas fa-check-circle" style={{ color: '#f59e0b' }}></i> reviewed-plan.md
                 </h4>
                 <pre className="bp-artifact-preview">{currentSession.files['reviewed-plan.md']}</pre>
@@ -981,7 +981,7 @@ export default function BuildPage() {
             )}
             {(currentPhaseIndex === 3) && currentSession?.files?.['prd.md'] && !previewHtml && (
               <div className="bp-phase-card">
-                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: '#555', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <i className="fas fa-paint-brush" style={{ color: '#22c55e' }}></i> prd.md
                 </h4>
                 <pre className="bp-artifact-preview">{currentSession.files['prd.md']}</pre>
@@ -989,7 +989,7 @@ export default function BuildPage() {
             )}
             {currentPhaseIndex === 3 && !previewHtml && (
               <div className="bp-phase-card" style={{ borderLeft: '3px solid #22c55e' }}>
-                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: '#555', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: '.82rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <i className="fas fa-palette" style={{ color: '#22c55e' }}></i> UX Improvement Suggestions
                 </h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1009,7 +1009,7 @@ export default function BuildPage() {
                     <span className="bp-ux-tag" style={{ background: 'rgba(239,68,68,.12)', color: '#ef4444' }}>Accessibility</span>
                     <span>Add ARIA labels, keyboard nav, focus states</span>
                   </div>
-                  <div style={{ fontSize: '.76rem', color: '#777', marginTop: '4px', fontStyle: 'italic' }}>
+                  <div style={{ fontSize: '.76rem', color: 'var(--text-muted)', marginTop: '4px', fontStyle: 'italic' }}>
                     <i className="fas fa-comment-dots me-1"></i>Chat with the AI to refine these. Switch to <strong>Act</strong> mode to apply changes.
                   </div>
                 </div>
