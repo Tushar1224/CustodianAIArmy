@@ -17,7 +17,7 @@ const PLATFORM_OPTIONS = [
   { id: 'zip_recruiter', label: 'ZipRecruiter', icon: 'fas fa-bolt', color: '#5fba3d' },
   { id: 'google', label: 'Google Jobs', icon: 'fab fa-google', color: '#4285f4' },
   { id: 'bayt', label: 'Bayt', icon: 'fas fa-globe', color: '#1b7f5a' },
-  { id: 'naukri', label: 'Naukri', icon: 'fas fa-user-tie', color: '#ff6f00' },
+  { id: 'naukri', label: 'Naukri', icon: 'fas fa-briefcase', color: '#ff6f00' },
 ];
 
 const TYPE_LABELS = { remote: 'Remote', hybrid: 'Hybrid', on_site: 'On-Site' };
@@ -158,19 +158,22 @@ export default function JobsPage() {
   const fileInputRef = useRef(null);
   const refreshTimerRef = useRef(null);
   const [showAllPlatforms, setShowAllPlatforms] = useState(false);
+  const [quickSearch, setQuickSearch] = useState('');
+  const [quickLocation, setQuickLocation] = useState('');
 
   useEffect(() => {
     fetch(`${API_BASE}/resumes`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => setResumes(d.resumes || []))
       .catch(() => {});
+    searchJobs(null, null, 'software engineer', 'remote');
   }, []);
 
   const getSiteNames = useCallback(() => {
     return PLATFORM_OPTIONS.filter(p => platformFilters[p.id]).map(p => p.id).join(',');
   }, [platformFilters]);
 
-  const searchJobs = useCallback(async (resumeId, resumeData) => {
+  const searchJobs = useCallback(async (resumeId, resumeData, searchTerm, location) => {
     setSearching(true);
     setError(null);
     try {
@@ -179,6 +182,8 @@ export default function JobsPage() {
         resume_data: resumeData || undefined,
         filters: Object.fromEntries(Object.entries(typeFilters).filter(([, v]) => v)),
         site_names: getSiteNames(),
+        search_term: searchTerm || undefined,
+        location: location || undefined,
       };
       const r = await fetch(`${API_BASE}/jobs/search`, {
         method: 'POST',
@@ -197,6 +202,13 @@ export default function JobsPage() {
       setSearching(false);
     }
   }, [typeFilters, getSiteNames]);
+
+  const handleQuickSearch = (e) => {
+    e.preventDefault();
+    setSelectedResumeId('');
+    setUploadedResume(null);
+    searchJobs(null, null, quickSearch, quickLocation);
+  };
 
   const handleResumeSelect = (e) => {
     const id = e.target.value;
@@ -242,22 +254,24 @@ export default function JobsPage() {
   };
 
   useEffect(() => {
-    if (!selectedResumeId && !uploadedResume) return;
+    if (!selectedResumeId && !uploadedResume && !quickSearch) return;
     const timer = setTimeout(() => {
       if (selectedResumeId) searchJobs(selectedResumeId);
       else if (uploadedResume) searchJobs(null, uploadedResume.data);
+      else if (quickSearch) searchJobs(null, null, quickSearch, quickLocation);
     }, 500);
     return () => clearTimeout(timer);
-  }, [typeFilters, platformFilters, selectedResumeId, uploadedResume, searchJobs]);
+  }, [typeFilters, platformFilters, selectedResumeId, uploadedResume, quickSearch, quickLocation, searchJobs]);
 
   useEffect(() => {
-    if (!selectedResumeId && !uploadedResume) return;
+    if (!selectedResumeId && !uploadedResume && !quickSearch) return;
     refreshTimerRef.current = setInterval(() => {
       if (selectedResumeId) searchJobs(selectedResumeId);
       else if (uploadedResume) searchJobs(null, uploadedResume.data);
+      else if (quickSearch) searchJobs(null, null, quickSearch, quickLocation);
     }, REFRESH_INTERVAL);
     return () => clearInterval(refreshTimerRef.current);
-  }, [selectedResumeId, uploadedResume, searchJobs]);
+  }, [selectedResumeId, uploadedResume, quickSearch, quickLocation, searchJobs]);
 
   const filteredJobs = jobs.filter(j => {
     if (keywordFilter) {
@@ -281,6 +295,7 @@ export default function JobsPage() {
   };
 
   const hasResume = selectedResumeId || uploadedResume;
+  const hasQuery = hasResume || quickSearch;
   const activePlatforms = PLATFORM_OPTIONS.filter(p => platformFilters[p.id]).length;
 
   const visiblePlatforms = showAllPlatforms ? PLATFORM_OPTIONS : PLATFORM_OPTIONS.slice(0, 4);
@@ -299,11 +314,21 @@ export default function JobsPage() {
         background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '12px',
         padding: '1.25rem', marginBottom: '1.5rem',
       }}>
+        {/* Quick Search */}
+        <form onSubmit={handleQuickSearch} style={{ display: 'flex', gap: '0.5rem', marginBottom: hasResume ? '1rem' : 0 }}>
+          <input type="text" className="form-control form-control-sm" placeholder="Search jobs..." value={quickSearch} onChange={e => setQuickSearch(e.target.value)} style={{ flex: 1, minWidth: 0, fontSize: '0.85rem' }} />
+          <input type="text" className="form-control form-control-sm" placeholder="Location (e.g. remote, Mumbai)" value={quickLocation} onChange={e => setQuickLocation(e.target.value)} style={{ flex: '0 1 200px', fontSize: '0.85rem' }} />
+          <button type="submit" className="btn btn-sm btn-primary" disabled={!quickSearch || searching}>
+            <i className={`fas ${searching ? 'fa-spinner fa-spin' : 'fa-search'} me-1`}></i> Search
+          </button>
+        </form>
+
+        {hasResume && (
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ flex: '1 1 280px', minWidth: 0 }}>
             <label className="form-label small" style={{ fontWeight: 600 }}>Select Resume</label>
             <select className="form-select form-select-sm" value={selectedResumeId} onChange={handleResumeSelect} style={{ fontSize: '0.85rem' }}>
-              <option value="">— Choose a saved resume —</option>
+              <option value="">— Quick Search —</option>
               {resumes.map(r => (
                 <option key={r.id} value={r.id}>{r.title}</option>
               ))}
@@ -321,6 +346,7 @@ export default function JobsPage() {
             <input ref={fileInputRef} type="file" accept=".pdf,.docx,.doc,.txt" onChange={handleFileUpload} style={{ display: 'none' }} />
           </div>
         </div>
+        )}
 
         {/* Platform + Type filters */}
         <div style={{ marginTop: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'flex-start' }}>
@@ -375,7 +401,7 @@ export default function JobsPage() {
       </div>
 
       {/* Results Header */}
-      {hasResume && (
+      {hasQuery && (
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem',
@@ -418,14 +444,14 @@ export default function JobsPage() {
         </div>
       )}
 
-      {!hasResume && !searching && !error && (
+      {!hasQuery && !searching && !error && (
         <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
           <div style={{ fontSize: '4rem', color: 'var(--text-muted)', marginBottom: '1rem', opacity: 0.5 }}>
             <i className="fas fa-file-search"></i>
           </div>
-          <h5 style={{ color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Select or upload a resume to start</h5>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '400px', margin: '0 auto', opacity: 0.7 }}>
-            Choose from your saved resumes above, or upload a new PDF/DOCX to search real job listings across {PLATFORM_OPTIONS.length} platforms.
+          <h5 style={{ color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Search jobs across {PLATFORM_OPTIONS.length} platforms</h5>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '450px', margin: '0 auto', opacity: 0.7 }}>
+            Type a job title above and click Search, or select a saved resume to get AI-matched results instantly.
           </p>
         </div>
       )}
@@ -436,14 +462,14 @@ export default function JobsPage() {
         </div>
       )}
 
-      {!searching && hasResume && filteredJobs.length === 0 && totalCount === 0 && (
+      {!searching && hasQuery && filteredJobs.length === 0 && totalCount === 0 && (
         <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
           <i className="fas fa-search-minus" style={{ fontSize: '2.5rem', color: 'var(--text-muted)', marginBottom: '1rem', opacity: 0.5 }}></i>
-          <p style={{ color: 'var(--text-muted)' }}>No jobs found on the selected platforms. Try different sites or a different resume.</p>
+          <p style={{ color: 'var(--text-muted)' }}>No jobs found on the selected platforms. Try different keywords, location, or job sites.</p>
         </div>
       )}
 
-      {!searching && hasResume && filteredJobs.length === 0 && totalCount > 0 && (
+      {!searching && hasQuery && filteredJobs.length === 0 && totalCount > 0 && (
         <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
           <i className="fas fa-filter" style={{ fontSize: '2.5rem', color: 'var(--text-muted)', marginBottom: '1rem', opacity: 0.5 }}></i>
           <p style={{ color: 'var(--text-muted)' }}>No jobs match your current filters.</p>
@@ -456,7 +482,7 @@ export default function JobsPage() {
         </div>
       )}
 
-      {hasResume && !searching && (
+      {hasQuery && !searching && (
         <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
           <i className="fas fa-sync-alt me-1"></i> Auto-refreshes every 5 minutes
         </div>

@@ -387,6 +387,8 @@ class JobSearchRequest(BaseModel):
     upload_file: Optional[str] = None
     filters: Optional[Dict[str, Any]] = None
     site_names: Optional[str] = None
+    search_term: Optional[str] = None
+    location: Optional[str] = None
 
 @router.post("/jobs/search")
 async def search_jobs(
@@ -409,8 +411,10 @@ async def search_jobs(
                 return {"jobs": cached["jobs"], "total_count": cached["total_count"], "cached": True}
         elif request.resume_data:
             resume_data = request.resume_data
+        elif request.search_term:
+            resume_data = {"personal_info": {"title": request.search_term, "location": request.location or ""}, "skills": []}
         else:
-            raise HTTPException(status_code=400, detail="Provide resume_id or resume_data")
+            raise HTTPException(status_code=400, detail="Provide resume_id, resume_data, or search_term")
 
         pi = resume_data.get("personal_info", {})
         skills_list = [s.get("value", "") for s in resume_data.get("skills", [])]
@@ -440,7 +444,8 @@ async def search_jobs(
                     is_remote = False
                     hours_old = 168
                     if request.filters:
-                        if request.filters.get("remote"):
+                        only_remote = request.filters.get("remote") and not request.filters.get("hybrid") and not request.filters.get("on_site")
+                        if only_remote:
                             is_remote = True
                             location = "remote"
                         hours_old = 72
