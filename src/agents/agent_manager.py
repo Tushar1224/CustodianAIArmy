@@ -259,8 +259,8 @@ class AgentManager:
             
             # Check if response contains provider error - if so, try alternative provider
             if isinstance(response.content, str) and (
-                response.content.startswith("Error:") and 
-                ("API" in response.content or "403" in response.content or "404" in response.content)
+                ("Error:" in response.content or "API Error" in response.content) and 
+                ("403" in response.content or "404" in response.content or "API" in response.content)
             ):
                 self.logger.warning(f"Provider error: {response.content}. Attempting fallback to alternative provider.")
                 

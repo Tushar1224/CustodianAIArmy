@@ -638,8 +638,10 @@ async def _stream_with_fallback(
     if not target_agent:
         raise ValueError("target_agent is required")
     
-    providers_to_try = ["gemini", "anthropic"]
+    # Try active provider first, then fallbacks
     original_provider = agent_manager.active_provider
+    all_providers = ["gemini", "anthropic"]
+    providers_to_try = [original_provider] + [p for p in all_providers if p != original_provider]
     
     for provider in providers_to_try:
         try:
@@ -661,12 +663,21 @@ async def _stream_with_fallback(
             
             # Try to stream response
             has_streamed = False
+            got_error = False
             try:
                 async for chunk in current_agent.stream_message(agent_message):
                     if chunk:
+                        # Detect error chunks (agents yield "Error: ..." instead of raising)
+                        if chunk.startswith("Error:"):
+                            got_error = True
+                            logger.warning(f"Provider {provider} returned error: {chunk[:100]}")
+                            break
                         has_streamed = True
                         yield chunk
                 
+                if got_error:
+                    logger.warning(f"Provider {provider} failed with error, trying next provider")
+                    continue
                 if has_streamed:
                     logger.info(f"Successfully streamed with {provider} provider")
                     return
