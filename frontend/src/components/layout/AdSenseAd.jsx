@@ -1,6 +1,6 @@
 export default function AdSenseAd({ slot = '5335186375' }) {
   return (
-    <div style={{ maxWidth: '100%', background: 'rgba(10,10,15,0.95)', borderBottom: '1px solid rgba(77,171,247,0.1)' }}>
+    <div style={{ maxWidth: '100%', background: 'var(--bg2)', borderBottom: '1px solid var(--border)' }}>
       <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '0.5rem 1rem' }}>
         <ins className="adsbygoogle"
              style={{ display: 'block' }}

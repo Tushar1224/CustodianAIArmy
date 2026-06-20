@@ -1,6 +1,25 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import './NeuronBrain.css';
 
+function cssVar(name) {
+  if (typeof document === 'undefined') return '';
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function getThemeColors() {
+  const text = cssVar('--text');
+  const text2 = cssVar('--text-secondary');
+  const primary = cssVar('--primary');
+  const warning = cssVar('--warning');
+  const textMuted = cssVar('--text-muted');
+  return { text: text || '#1a2332', text2: text2 || '#475569', primary: primary || '#4dabf7', warning: warning || '#f59e0b', textMuted: textMuted || '#94a3b8' };
+}
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+  return `${r}, ${g}, ${b}`;
+}
+
 const CENTER_COL = { hex: '#8b5cf6', rgb: '139, 92, 246' };
 const FEATURE_COL = { hex: '#4dabf7', rgb: '77, 171, 247' };
 const COMING_COL = { hex: '#f59e0b', rgb: '245, 158, 11' };
@@ -480,7 +499,8 @@ export default function NeuronBrain({ features = [], onFeatureClick, topOffset =
           ctx.save();
           ctx.textAlign = 'center'; ctx.textBaseline = 'top';
           ctx.font = `${hov ? 'bold ' : ''}${10}px 'Inter','Segoe UI',sans-serif`;
-          ctx.fillStyle = hov ? '#0f172a' : 'rgba(71,85,105,0.5)';
+          const tc = getThemeColors();
+          ctx.fillStyle = hov ? tc.text : tc.text2;
           ctx.shadowColor = 'rgba(255,255,255,0.6)';
           ctx.shadowBlur = 4;
           ctx.fillText(n.feature.name, n.x, n.y + size * 1.1 + 16);

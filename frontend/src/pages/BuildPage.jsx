@@ -1058,7 +1058,7 @@ export default function BuildPage() {
               ) : (
                 <div style={{
                   height: '420px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: '#f8f8f8', color: '#999', fontSize: '.85rem'
+                  background: 'var(--bg2)', color: 'var(--text-muted)', fontSize: '.85rem'
                 }}>
                   <div style={{ textAlign: 'center' }}>
                     <i className="fas fa-eye" style={{ fontSize: '2.5rem', display: 'block', marginBottom: '12px', opacity: .4 }}></i>
