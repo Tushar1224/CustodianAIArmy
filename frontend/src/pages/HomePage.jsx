@@ -116,18 +116,29 @@ export default function HomePage() {
               Your student-friendly AI platform for learning, building, and creating. 
               Chat with specialized agents, build products, optimize resumes, and more — all in one place.
             </p>
-            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <button onClick={() => navigate('/dashboard')} style={{ background: 'var(--primary)', color: '#fff', padding: '0.75rem 1.75rem', borderRadius: '10px', fontSize: '0.95rem', fontWeight: 700, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', boxShadow: 'var(--shadow-hover)', transition: 'all 0.2s' }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px var(--primary-glow)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-hover)'; }}>
-                <i className="fas fa-rocket"></i> Start Free
+            {!user ? (
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <button onClick={() => navigate('/dashboard')} style={{ background: 'var(--primary)', color: '#fff', padding: '0.75rem 1.75rem', borderRadius: '10px', fontSize: '0.95rem', fontWeight: 700, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', boxShadow: 'var(--shadow-hover)', transition: 'all 0.2s' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px var(--primary-glow)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-hover)'; }}>
+                  <i className="fas fa-rocket"></i> Try for Free
+                </button>
+                <a href="/api/v1/auth/google" style={{ background: 'transparent', color: 'var(--primary)', border: '2px solid var(--primary)', padding: '0.75rem 1.75rem', borderRadius: '10px', fontSize: '0.95rem', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary-glow)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>
+                  <i className="fab fa-google"></i> Sign In
+                </a>
+                <a href="/api/v1/auth/google" style={{ background: 'transparent', color: 'var(--text)', border: '2px solid var(--border)', padding: '0.75rem 1.75rem', borderRadius: '10px', fontSize: '0.95rem', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.color = 'var(--primary)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text)'; }}>
+                  <i className="fas fa-user-plus"></i> Sign Up
+                </a>
+              </div>
+            ) : (
+              <button onClick={() => navigate('/dashboard')} style={{ background: 'var(--primary)', color: '#fff', padding: '0.75rem 1.75rem', borderRadius: '10px', fontSize: '0.95rem', fontWeight: 700, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', boxShadow: 'var(--shadow-hover)', transition: 'all 0.2s' }}>
+                <i className="fas fa-rocket"></i> Go to Dashboard
               </button>
-              <a href="/api/v1/auth/google" style={{ background: 'transparent', color: 'var(--primary)', border: '2px solid var(--primary)', padding: '0.75rem 1.75rem', borderRadius: '10px', fontSize: '0.95rem', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s' }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary-glow)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>
-                <i className="fab fa-google"></i> Sign In
-              </a>
-            </div>
+            )}
           </div>
           <div style={{ flex: '0 0 280px', textAlign: 'center' }}>
             <div style={{ width: '260px', height: '260px', background: 'linear-gradient(135deg, var(--primary-glow), rgba(124,58,237,0.08))', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--border-hover)', position: 'relative' }}>
@@ -322,21 +333,22 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ─── CTA Banner ─── */}
-      <section style={{ padding: '5rem 2rem', textAlign: 'center' }}>
-        <div style={{ maxWidth: '700px', margin: '0 auto', background: 'linear-gradient(135deg, var(--primary-glow), rgba(124,58,237,0.06))', border: '1px solid var(--border)', borderRadius: '20px', padding: '4rem 2rem' }}>
-          <h2 style={{ fontFamily: "'Orbitron', monospace", fontSize: 'clamp(1.5rem, 3vw, 2.2rem)', color: 'var(--primary)', marginBottom: '1rem' }}>Ready to Build Your AI Army?</h2>
-          <p style={{ color: 'var(--text2)', marginBottom: '2rem', fontSize: '1rem' }}>Join thousands of learners and builders using Custodian AI. Start free — no credit card required.</p>
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button onClick={() => navigate('/dashboard')} style={{ background: 'var(--primary)', color: '#fff', padding: '0.875rem 2rem', borderRadius: '10px', fontSize: '1rem', fontWeight: 700, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', boxShadow: 'var(--shadow-hover)' }}>
-              <i className="fas fa-rocket"></i> Start for Free
-            </button>
-            <a href="/api/v1/auth/google" style={{ background: 'transparent', color: 'var(--primary)', border: '2px solid var(--primary)', padding: '0.875rem 2rem', borderRadius: '10px', fontSize: '1rem', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-              <i className="fab fa-google"></i> Sign In with Google
-            </a>
+      {!user && (
+        <section style={{ padding: '5rem 2rem', textAlign: 'center' }}>
+          <div style={{ maxWidth: '700px', margin: '0 auto', background: 'linear-gradient(135deg, var(--primary-glow), rgba(124,58,237,0.06))', border: '1px solid var(--border)', borderRadius: '20px', padding: '4rem 2rem' }}>
+            <h2 style={{ fontFamily: "'Orbitron', monospace", fontSize: 'clamp(1.5rem, 3vw, 2.2rem)', color: 'var(--primary)', marginBottom: '1rem' }}>Ready to Build Your AI Army?</h2>
+            <p style={{ color: 'var(--text2)', marginBottom: '2rem', fontSize: '1rem' }}>Join thousands of learners and builders using Custodian AI. Start free — no credit card required.</p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button onClick={() => navigate('/dashboard')} style={{ background: 'var(--primary)', color: '#fff', padding: '0.875rem 2rem', borderRadius: '10px', fontSize: '1rem', fontWeight: 700, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', boxShadow: 'var(--shadow-hover)' }}>
+                <i className="fas fa-rocket"></i> Start for Free
+              </button>
+              <a href="/api/v1/auth/google" style={{ background: 'transparent', color: 'var(--primary)', border: '2px solid var(--primary)', padding: '0.875rem 2rem', borderRadius: '10px', fontSize: '1rem', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                <i className="fab fa-google"></i> Sign In with Google
+              </a>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <Footer />
     </div>
