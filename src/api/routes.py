@@ -18,7 +18,7 @@ from datetime import datetime
 from src.agents.agent_manager import AgentManager
 from src.core.database import (
     get_chats_for_user, save_chat_session, DB_PATH,
-    get_user_api_keys, get_user_api_keys_raw, save_user_api_keys, delete_user_api_key, get_user_github_token, save_custom_agent_config, get_custom_agent_config,
+    get_user_api_keys, get_user_api_keys_raw, save_user_api_keys, delete_user_api_key, get_user_github_token, save_custom_agent_config, get_custom_agent_config, delete_custom_agent_config,
     get_user_plan, check_and_increment_rate_limit, upgrade_user_plan, save_payment,
     save_resume, get_user_resumes, get_resume, get_resume_count, delete_resume, save_resume_chat_history,
     save_template, list_templates, get_template_by_name,
@@ -133,7 +133,14 @@ class CustomAgentConfigRequest(BaseModel):
     agent_id: Optional[str] = None
     name: str
     description: str
-    skills: List[str]
+    specialization: Optional[str] = ""
+    skills: List[str] = []
+    mcp_tools: List[str] = []
+    system_prompt: Optional[str] = ""
+
+class GenerateAgentPromptRequest(BaseModel):
+    base_idea: str
+    specialization: Optional[str] = ""
 
 # Pydantic models for API requests/responses
 class TaskRequest(BaseModel):
@@ -297,16 +304,11 @@ async def create_or_update_custom_agent(
     request: CustomAgentConfigRequest,
     current_user: User = Depends(get_current_user_from_cookies)
 ):
-    """
-    Create or update a custom agent configuration for the user.
-    This allows users to define skills and prompts for their agents.
-    """
+    """Create or update a custom agent configuration for the user."""
     try:
-        # Save the custom agent configuration to the database
         config_data = request.dict()
         config_data["user_email"] = current_user.email
         agent_id = save_custom_agent_config(config_data)
-
         return {
             "success": True,
             "message": f"Custom agent '{request.name}' saved successfully.",
@@ -314,6 +316,68 @@ async def create_or_update_custom_agent(
         }
     except Exception as e:
         logger.error(f"Error creating/updating custom agent: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/agents/custom/{agent_id}")
+async def delete_custom_agent(
+    agent_id: str,
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """Delete a custom agent configuration."""
+    try:
+        deleted = delete_custom_agent_config(agent_id, current_user.email)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        return {"success": True, "message": "Agent deleted successfully."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting custom agent: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/agents/generate-prompt")
+async def generate_agent_prompt(
+    request: GenerateAgentPromptRequest,
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """Generate an AI agent system prompt from a base idea using AI."""
+    try:
+        target = agent_manager.get_agent_by_name("TechnicalAI")
+        if not target:
+            target = agent_manager.get_agent_by_name("CustodianAI")
+        if not target:
+            raise HTTPException(status_code=503, detail="No AI agent available")
+
+        prompt = (
+            f"You are an expert AI prompt engineer. Based on the following idea, generate a detailed "
+            f"system prompt for a custom AI agent. The prompt should define the agent's role, behavior, "
+            f"capabilities, constraints, and output format.\n\n"
+            f"Base Idea: {request.base_idea}\n"
+        )
+        if request.specialization:
+            prompt += f"Specialization: {request.specialization}\n"
+        prompt += (
+            f"\nGenerate a comprehensive system prompt (300-500 words) that:\n"
+            f"1. Defines the agent's core identity and purpose\n"
+            f"2. Lists specific capabilities and tasks it can perform\n"
+            f"3. Sets boundaries and constraints\n"
+            f"4. Specifies output format preferences\n"
+            f"5. Includes any relevant domain knowledge\n"
+            f"Return ONLY the system prompt text, no additional commentary."
+        )
+
+        msg = {"role": "user", "content": prompt}
+        response = await agent_manager.send_message(msg, agent_override=target)
+
+        return {
+            "success": True,
+            "generated_prompt": response.get("text", response.get("content", "")),
+            "specialization": request.specialization or "General"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating agent prompt: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/tasks/execute")

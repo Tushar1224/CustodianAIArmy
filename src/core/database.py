@@ -664,35 +664,61 @@ def delete_user_github_connection(user_email: str) -> bool:
 # CUSTOM AGENT CONFIGURATION FUNCTIONS
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _migrate_custom_agent_configs():
+    """Add new columns to custom_agent_configs if they don't exist."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    for col, dtype in [
+        ("mcp_tools", "TEXT NOT NULL DEFAULT '[]'"),
+        ("system_prompt", "TEXT DEFAULT ''"),
+        ("specialization", "TEXT DEFAULT ''"),
+    ]:
+        try:
+            cursor.execute(f"ALTER TABLE custom_agent_configs ADD COLUMN {col} {dtype}")
+        except sqlite3.OperationalError:
+            pass
+    conn.commit()
+    conn.close()
+
+# Run migration on import
+_migrate_custom_agent_configs()
+
 def save_custom_agent_config(config_data: Dict[str, Any]) -> str:
     """Save or update a custom agent configuration."""
     conn = sqlite3.connect(DB_PATH, timeout=20)
     cursor = conn.cursor()
-    
+
     agent_id = config_data.get("agent_id")
     if not agent_id:
         agent_id = str(uuid.uuid4())
-        
+
     skills_str = json.dumps(config_data.get("skills", []))
+    mcp_str = json.dumps(config_data.get("mcp_tools", []))
     now = datetime.utcnow().isoformat()
-    
+
     cursor.execute('''
-        INSERT INTO custom_agent_configs (id, user_email, name, description, skills, last_updated)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO custom_agent_configs (id, user_email, name, description, specialization, skills, mcp_tools, system_prompt, last_updated)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             name=excluded.name,
             description=excluded.description,
+            specialization=excluded.specialization,
             skills=excluded.skills,
+            mcp_tools=excluded.mcp_tools,
+            system_prompt=excluded.system_prompt,
             last_updated=excluded.last_updated
     ''', (
-        agent_id, 
-        config_data.get("user_email"), 
-        config_data.get("name", "Unnamed Custom Agent"), 
-        config_data.get("description", ""), 
-        skills_str, 
+        agent_id,
+        config_data.get("user_email"),
+        config_data.get("name", "Unnamed Custom Agent"),
+        config_data.get("description", ""),
+        config_data.get("specialization", ""),
+        skills_str,
+        mcp_str,
+        config_data.get("system_prompt", ""),
         now
     ))
-    
+
     conn.commit()
     conn.close()
     return agent_id
@@ -701,11 +727,26 @@ def get_custom_agent_config(user_email: str) -> List[Dict[str, Any]]:
     """Get all custom agent configurations for a user."""
     conn = sqlite3.connect(DB_PATH, timeout=20)
     cursor = conn.cursor()
-    cursor.execute('SELECT id, name, description, skills, last_updated FROM custom_agent_configs WHERE user_email = ?', (user_email,))
+    cursor.execute('SELECT id, name, description, specialization, skills, mcp_tools, system_prompt, last_updated FROM custom_agent_configs WHERE user_email = ? ORDER BY last_updated DESC', (user_email,))
     rows = cursor.fetchall()
     conn.close()
-    
-    return [{"id": row[0], "name": row[1], "description": row[2], "skills": json.loads(row[3]), "last_updated": row[4]} for row in rows]
+
+    return [{
+        "id": row[0], "name": row[1], "description": row[2],
+        "specialization": row[3], "skills": json.loads(row[4]),
+        "mcp_tools": json.loads(row[5]), "system_prompt": row[6],
+        "last_updated": row[7]
+    } for row in rows]
+
+def delete_custom_agent_config(agent_id: str, user_email: str) -> bool:
+    """Delete a custom agent configuration."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM custom_agent_configs WHERE id = ? AND user_email = ?', (agent_id, user_email))
+    deleted = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return deleted
 
 def save_user_github_repo_permissions(user_email: str, repo_permissions: List[Dict[str, Any]]) -> bool:
     """Save repository permissions for a user."""

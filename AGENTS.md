@@ -836,6 +836,41 @@ Templates used on resumes are now automatically saved to the database, building 
 
 ---
 
+## Session: 2026-06-20 — React MCP Setup + Provider Fallback Fix
+
+### What was done
+
+#### Backend — Provider fallback fix
+| File | Change |
+|------|--------|
+| `src/api/routes.py` | **`_stream_with_fallback`**: Detects `"Error:"` chunks from agent streaming (e.g., `"Error: Gemini API returned 403"`) and tries next provider instead of treating error text as successful streaming; tries active provider first instead of always Gemini first |
+| `src/agents/agent_manager.py` | **`send_message`**: Broadened error detection from `startswith("Error:")` to `"Error:" in content or "API Error" in content` so non-streaming path also catches Gemini's `"API Error (Status: 403)"` |
+
+#### Frontend — Dark/Light theme fixes
+| File | Change |
+|------|--------|
+| `frontend/src/pages/BuildPage.css` | Replaced 60+ hardcoded `#555`, `#666`, `#0f172a`, `#f0f4ff`, `#ebf8ff`, `#d0d0d0`, `#111`, `#fff` → CSS variables (`var(--text-secondary)`, `var(--text-muted)`, `var(--text-primary)`, `var(--bg3)`, `var(--text-muted)`, `var(--text-primary)`, `var(--card)`) |
+| `frontend/src/pages/BuildPage.jsx` | Replaced `#f8f8f8` → `var(--bg2)`, `#999` → `var(--text-muted)` in inline styles |
+| `frontend/src/components/layout/AdSenseAd.jsx` | Fixed hardcoded near-black `rgba(10,10,15,0.95)` background → `var(--bg2)` (was a black bar in light mode) |
+| `frontend/src/components/NeuronBrain.jsx` | Canvas label text now reads CSS variables via `getComputedStyle` instead of hardcoded `#0f172a` (invisible in dark mode) |
+
+#### React MCP setup (new)
+| File | Change |
+|------|--------|
+| `.mcp.json` | Added `react-context` (component tree inspection via Chrome) and `react-devtools` (deep React DevTools MCP integration) servers |
+| `frontend/vite.config.js` | Added `@react-dev-inspector/babel-plugin` for accurate component source locations with `react-context-mcp` |
+| `frontend/package.json` | Added `@react-dev-inspector/babel-plugin` dev dependency |
+
+### Using React MCP
+- **react-context**: Connect AI assistant to running app in Chrome — inspect component trees, props, state, source locations. Tools: `get_component_map`, `take_snapshot`, `get_react_component_from_backend_node_id`, `list_pages`, `navigate_page`, etc.
+- **react-devtools**: Deeper React fiber tree inspection — component tree, props, state, hooks, profiler, state modification
+- **Source tracking**: `@react-dev-inspector/babel-plugin` adds `data-inspector-*` DOM attributes for accurate file:line:column in component maps (React 19 removed `_debugSource`)
+
+### Key Decisions
+- Provider fallback uses error prefix detection rather than changing agent error handling to avoid breaking existing error messaging patterns
+- Babel plugin runs in dev-only bundle (Vite strips during production build)
+- `react-context-mcp` runs headless Chrome automatically — no manual setup needed
+
 ## Session: 2026-06-20 — Theme Fix (All Pages Dark/Light Mode)
 
 ### What was done
