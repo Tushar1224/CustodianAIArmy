@@ -7,3 +7,6 @@
 [submodule "dependencies/python-sdk"]
 	path = dependencies/python-sdk
 	url = https://github.com/tushar1224/python-sdk.git
+[submodule "dependencies/jobspy-mcp-server"]
+	path = dependencies/jobspy-mcp-server
+	url = https://github.com/Tushar1224/jobspy-mcp-server.git

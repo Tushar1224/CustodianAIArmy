@@ -1160,6 +1160,67 @@ def delete_mvp_session(session_id: str, user_email: str) -> bool:
         return False
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB SEARCH FUNCTIONS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _migrate_job_searches():
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS job_searches (
+            id TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            resume_id TEXT,
+            resume_data TEXT NOT NULL,
+            jobs TEXT NOT NULL,
+            total_count INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+_migrate_job_searches()
+
+def save_job_search(user_email: str, resume_id: str, resume_data: dict, jobs: list, total_count: int) -> str:
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    search_id = str(uuid.uuid4())
+    now = datetime.utcnow().isoformat()
+    cursor.execute('''
+        INSERT INTO job_searches (id, user_email, resume_id, resume_data, jobs, total_count, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (search_id, user_email, resume_id, json.dumps(resume_data), json.dumps(jobs), total_count, now))
+    conn.commit()
+    conn.close()
+    return search_id
+
+def get_recent_job_search(user_email: str, resume_id: str) -> Optional[dict]:
+    """Get the most recent job search for a resume within the last 5 minutes."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, user_email, resume_id, resume_data, jobs, total_count, created_at
+        FROM job_searches
+        WHERE user_email = ? AND resume_id = ?
+        ORDER BY created_at DESC LIMIT 1
+    ''', (user_email, resume_id))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    created = datetime.fromisoformat(row[6])
+    now = datetime.utcnow()
+    if (now - created).total_seconds() > 300:
+        return None
+    return {
+        "id": row[0], "user_email": row[1], "resume_id": row[2],
+        "resume_data": json.loads(row[3]), "jobs": json.loads(row[4]),
+        "total_count": row[5], "created_at": row[6],
+    }
+
+
 # Initialize the database when this module is loaded
 try:
     init_db()

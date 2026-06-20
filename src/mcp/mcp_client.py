@@ -366,6 +366,61 @@ _OPENAI_TOOL_DEFINITIONS = _ToolDefinitionRegistry([
     },
     {
         "type": "function",
+        "name": "search_jobs",
+        "function": {
+            "name": "search_jobs",
+            "description": "Search for real job listings across multiple platforms (linkedin, indeed, zip_recruiter, glassdoor, google, bayt, naukri). Returns structured job data with titles, companies, locations, descriptions, apply URLs, and more.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "search_term": {
+                        "type": "string",
+                        "description": "Job title or search query (e.g. 'software engineer', 'data scientist')"
+                    },
+                    "location": {
+                        "type": "string",
+                        "description": "Job location (city, state or 'remote')"
+                    },
+                    "site_names": {
+                        "type": "string",
+                        "description": "Comma-separated list of job sites: indeed,linkedin,zip_recruiter,glassdoor,google,bayt,naukri",
+                        "default": "indeed"
+                    },
+                    "results_wanted": {
+                        "type": "integer",
+                        "description": "Number of results to return",
+                        "default": 20
+                    },
+                    "hours_old": {
+                        "type": "integer",
+                        "description": "Filter jobs by hours since posted",
+                        "default": 72
+                    },
+                    "is_remote": {
+                        "type": "boolean",
+                        "description": "Search for remote jobs only"
+                    },
+                    "job_type": {
+                        "type": "string",
+                        "description": "Type of job: fulltime, parttime, internship, contract"
+                    },
+                    "country_indeed": {
+                        "type": "string",
+                        "description": "Country for Indeed search",
+                        "default": "USA"
+                    },
+                    "linkedin_fetch_description": {
+                        "type": "boolean",
+                        "description": "Fetch LinkedIn job descriptions (slower but more detailed)",
+                        "default": False
+                    }
+                },
+                "required": ["search_term"]
+            }
+        }
+    },
+    {
+        "type": "function",
         "name": "read_file",
         "function": {
             "name": "read_file",

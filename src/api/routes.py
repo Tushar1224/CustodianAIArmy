@@ -22,7 +22,8 @@ from src.core.database import (
     get_user_plan, check_and_increment_rate_limit, upgrade_user_plan, save_payment,
     save_resume, get_user_resumes, get_resume, get_resume_count, delete_resume, save_resume_chat_history,
     save_template, list_templates, get_template_by_name,
-    delete_mvp_session, list_mvp_sessions
+    delete_mvp_session, list_mvp_sessions,
+    save_job_search, get_recent_job_search
 )
 from src.agents.astro_agent import AstroAgent # Import AstroAgent
 from src.agents.base_agent import AgentMessage, AgentCapability, BaseAgent
@@ -378,6 +379,202 @@ async def generate_agent_prompt(
         raise
     except Exception as e:
         logger.error(f"Error generating agent prompt: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class JobSearchRequest(BaseModel):
+    resume_id: Optional[str] = None
+    resume_data: Optional[Dict[str, Any]] = None
+    upload_file: Optional[str] = None
+    filters: Optional[Dict[str, Any]] = None
+    site_names: Optional[str] = None
+
+@router.post("/jobs/search")
+async def search_jobs(
+    request: JobSearchRequest,
+    current_user: User = Depends(get_current_user_from_cookies)
+):
+    """Search for real job listings via JobSpy MCP + AI fallback."""
+    try:
+        resume_data = None
+        resume_id = request.resume_id
+
+        if resume_id:
+            from src.core.database import get_resume as _get_resume
+            resume = _get_resume(resume_id, current_user.email)
+            if not resume:
+                raise HTTPException(status_code=404, detail="Resume not found")
+            resume_data = resume.get("data", {})
+            cached = get_recent_job_search(current_user.email, resume_id)
+            if cached:
+                return {"jobs": cached["jobs"], "total_count": cached["total_count"], "cached": True}
+        elif request.resume_data:
+            resume_data = request.resume_data
+        else:
+            raise HTTPException(status_code=400, detail="Provide resume_id or resume_data")
+
+        pi = resume_data.get("personal_info", {})
+        skills_list = [s.get("value", "") for s in resume_data.get("skills", [])]
+
+        jobs = None
+
+        # ── Primary: JobSpy MCP (scrapes real job listings) ──
+        try:
+            from src.mcp.mcp_client import MCPServerProcess
+            from src.mcp.mcp_config import MCP_SERVERS
+
+            spy_config = MCP_SERVERS.get("jobspy")
+            if spy_config:
+                server = MCPServerProcess(
+                    server_name="jobspy",
+                    command=spy_config["command"],
+                    args=spy_config["args"],
+                    env=spy_config.get("env", {})
+                )
+                started = await server.start()
+                if started:
+                    title = pi.get('title', '').strip() or "software engineer"
+                    location = pi.get('location', '').strip() or "remote"
+                    site_names = request.site_names or "indeed,linkedin,glassdoor"
+
+                    # Determine if remote filter is active
+                    is_remote = False
+                    hours_old = 168
+                    if request.filters:
+                        if request.filters.get("remote"):
+                            is_remote = True
+                            location = "remote"
+                        hours_old = 72
+
+                    search_kwargs = {
+                        "search_term": title,
+                        "location": location if not is_remote else "remote",
+                        "site_names": site_names,
+                        "results_wanted": 20,
+                        "hours_old": hours_old,
+                        "country_indeed": "USA",
+                        "format": "json",
+                    }
+                    if is_remote:
+                        search_kwargs["is_remote"] = True
+
+                    result = await server.call_tool("search_jobs", search_kwargs)
+                    await server.stop()
+
+                    if result and not result.is_error and result.content:
+                        import json as _json
+                        parsed = None
+                        try:
+                            parsed = _json.loads(result.content)
+                        except Exception:
+                            pass
+                        if parsed and isinstance(parsed, dict):
+                            raw_jobs = parsed.get("jobs") or parsed.get("data") or []
+                        elif parsed and isinstance(parsed, list):
+                            raw_jobs = parsed
+                        else:
+                            raw_jobs = []
+
+                        if raw_jobs:
+                            skill_lower = {s.lower() for s in skills_list[:15]}
+                            mapped = []
+                            for j in raw_jobs:
+                                if not isinstance(j, dict):
+                                    continue
+                                title_lower = (j.get("title") or "").lower()
+                                desc_text = (j.get("description") or (j.get("jobDescription") or ""))
+                                desc_lower = desc_text.lower()
+                                matched = sum(1 for sk in skill_lower if sk in title_lower or sk in desc_lower)
+                                base_score = 50
+                                if skill_lower:
+                                    base_score = min(95, 50 + int(matched / max(len(skill_lower), 1) * 45))
+
+                                emp_type = (j.get("employmentType") or j.get("jobType") or "").lower()
+                                if "remote" in emp_type or j.get("isRemote"):
+                                    wtype = "remote"
+                                elif "hybrid" in emp_type:
+                                    wtype = "hybrid"
+                                else:
+                                    wtype = "on_site"
+
+                                mapped.append({
+                                    "title": j.get("title", ""),
+                                    "company": j.get("company", ""),
+                                    "location": j.get("location", ""),
+                                    "type": wtype,
+                                    "description": desc_text[:200] if desc_text else "",
+                                    "apply_url": j.get("jobUrl") or j.get("applyUrl") or j.get("job_url", ""),
+                                    "date_posted": j.get("datePosted") or j.get("date_posted", ""),
+                                    "salary_range": j.get("salaryRange") or j.get("salary_range", ""),
+                                    "match_score": j.get("matchScore") or j.get("match_score", base_score),
+                                    "source": j.get("site") or j.get("source", ""),
+                                })
+                            if mapped:
+                                jobs = mapped
+        except Exception as mcp_err:
+            logger.warning(f"JobSpy MCP search failed (will use AI fallback): {mcp_err}")
+
+        # ── Fallback: AI-generated jobs ──
+        if not jobs:
+            target = agent_manager.get_agent_by_name("TechnicalAI")
+            if not target:
+                target = agent_manager.get_agent_by_name("CustodianAI")
+            if not target:
+                raise HTTPException(status_code=503, detail="No AI agent available")
+
+            filter_str = ""
+            if request.filters:
+                f = request.filters
+                types = []
+                if f.get("remote"): types.append("remote/WFH")
+                if f.get("hybrid"): types.append("hybrid")
+                if f.get("on_site"): types.append("on-site/WFO")
+                if types:
+                    filter_str = f"\nOnly include jobs with work type: {', '.join(types)}"
+
+            profile = f"""Role: {pi.get('title', 'N/A')}
+Skills: {', '.join(skills_list[:20])}
+Experience: {'; '.join([f"{e.get('role')} at {e.get('company')} ({e.get('start_date')}-{e.get('end_date')})" for e in resume_data.get('experience', [])][:5])}
+Education: {'; '.join([f"{e.get('degree')} at {e.get('institution')}" for e in resume_data.get('education', [])][:3])}"""
+
+            prompt = f"""You are a job search engine. Generate 500+ real, specific job listings matching:
+
+{profile}
+{filter_str}
+
+Return JSON array with: title, company, location, type (remote/hybrid/on-site), description, apply_url (real career portal URL), salary_range (optional), match_score (0-100).
+CRITICAL: Return ONLY valid JSON. No markdown, no code blocks. Aim for 500+ jobs."""
+
+            msg = {"role": "user", "content": prompt}
+            response = await agent_manager.send_message(msg, agent_override=target)
+            raw = response.get("text", response.get("content", ""))
+            import re
+            json_match = re.search(r'\[[\s\S]*\]', raw)
+            if json_match:
+                jobs = json.loads(json_match.group())
+            else:
+                jobs = json.loads(raw)
+
+        total = len(jobs) if jobs else 0
+
+        if request.filters:
+            f = request.filters
+            allowed = []
+            if f.get("remote"): allowed.append("remote")
+            if f.get("hybrid"): allowed.append("hybrid")
+            if f.get("on_site"): allowed.append("on_site")
+            if allowed:
+                jobs = [j for j in jobs if j.get("type") in allowed] if jobs else []
+                total = len(jobs)
+
+        if resume_id:
+            save_job_search(current_user.email, resume_id, resume_data, jobs or [], total)
+
+        return {"jobs": jobs or [], "total_count": total, "cached": False}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error searching jobs: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/tasks/execute")
