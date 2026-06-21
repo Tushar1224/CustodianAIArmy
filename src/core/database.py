@@ -1336,7 +1336,7 @@ def get_accumulated_jobs(limit: int = 500, offset: int = 0) -> list:
         SELECT title, company, location, type, description, apply_url, date_posted, salary_range, match_score, source, fetched_at
         FROM job_cache_accumulated
         WHERE (julianday('now') - julianday(fetched_at)) * 24 < ?
-        ORDER BY fetched_at DESC
+        ORDER BY date_posted DESC, fetched_at DESC
         LIMIT ? OFFSET ?
     ''', (ACCUMULATED_JOB_TTL_HOURS, limit, offset))
     rows = cursor.fetchall()

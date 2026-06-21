@@ -171,9 +171,9 @@ function JobCard({ job, onApply, hasResume, onOptimize }) {
   const sourceColor = PLATFORM_COLORS[job.source] || '#6b7280';
   const sourceIcon = PLATFORM_ICONS[job.source] || 'fas fa-globe';
   const [showScoreInfo, setShowScoreInfo] = useState(false);
-  const hasValidUrl = job.apply_url && job.apply_url.startsWith('http');
-  const searchUrl = hasValidUrl ? job.apply_url :
-    `https://www.google.com/search?q=${encodeURIComponent(`${job.title} ${job.company} apply`)}`;
+  const directUrl = job.apply_url && job.apply_url.startsWith('http') ? job.apply_url : (job.url && job.url.startsWith('http') ? job.url : null);
+  const applyUrl = directUrl || `https://www.google.com/search?q=${encodeURIComponent(`${job.title} ${job.company} career apply`)}`;
+  const hasDirectUrl = !!directUrl;
   const stripHtml = (s) => {
     if (!s) return '';
     return s
@@ -310,19 +310,19 @@ function JobCard({ job, onApply, hasResume, onOptimize }) {
             </button>
           )}
         </div>
-        <a href={searchUrl} target="_blank" rel="noopener noreferrer"
+        <a href={applyUrl} target="_blank" rel="noopener noreferrer"
           onClick={() => onApply?.(job)}
           style={{
-          background: hasValidUrl ? 'var(--primary)' : 'var(--text-muted)',
+          background: hasDirectUrl ? 'var(--primary)' : '#6b7280',
           color: '#fff', padding: '0.4rem 1rem',
           borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600,
           textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
           transition: 'all 0.2s',
         }}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = hasValidUrl ? '0 4px 12px var(--primary-glow)' : '0 4px 12px rgba(0,0,0,0.1)'; }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = hasDirectUrl ? '0 4px 12px var(--primary-glow)' : '0 4px 12px rgba(0,0,0,0.1)'; }}
           onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}>
-          {hasValidUrl ? 'Apply' : 'Search'}{' '}
-          <i className={`fas fa-${hasValidUrl ? 'external-link-alt' : 'search'}`} style={{ fontSize: '0.65rem' }}></i>
+          Apply{' '}
+          <i className={`fas fa-${hasDirectUrl ? 'external-link-alt' : 'search'}`} style={{ fontSize: '0.65rem' }}></i>
         </a>
       </div>
     </div>
@@ -577,8 +577,22 @@ export default function JobsPage() {
       });
       if (!r.ok) throw new Error('Search failed');
       const data = await r.json();
-      setJobs(sortJobsByDate(data.jobs || []).map(j => ({ ...j, match_score: 0 })));
-      setTotalCount(data.total_count || 0);
+      // Merge search results into accumulated jobs (dedup by title+company+source)
+      setJobs(prev => {
+        const existing = new Set(prev.map(j => `${j.title}|||${j.company}|||${j.source}`));
+        const newJobs = (data.jobs || []).filter(j => !existing.has(`${j.title}|||${j.company}|||${j.source}`));
+        const merged = sortJobsByDate([...prev, ...newJobs.map(j => ({ ...j, match_score: 0 }))]);
+        // Recompute match scores in next tick if resume active
+        setTimeout(() => {
+          if (selectedResumeId) {
+            const resume = resumes.find(r => String(r.id) === String(selectedResumeId));
+            if (resume?.data) computeResumeMatchScores(resume.data, merged);
+          } else if (uploadedResume?.data) {
+            computeResumeMatchScores(uploadedResume.data, merged);
+          }
+        }, 0);
+        return merged;
+      });
       setLastUpdated(new Date());
     } catch (e) {
       setError(e.message);
@@ -729,11 +743,15 @@ export default function JobsPage() {
     return () => clearInterval(accumulatedPollRef.current);
   }, [fetchAccumulatedJobs]);
 
-  // Auto-trigger real-time search when accumulated cache is empty (cold start)
+  // On cold start (no accumulated jobs), do a faster poll to pick up background fetcher results sooner
   useEffect(() => {
-    if (initialFetchDone && totalCount === 0 && !autoSearchRef.current && !searching && jobs.length === 0) {
+    if (initialFetchDone && totalCount === 0 && !autoSearchRef.current && jobs.length === 0) {
       autoSearchRef.current = true;
-      searchJobs(null, null, '', '');
+      // Poll every 15s for first 2 minutes to catch initial batch from background fetcher
+      const fastPoll = setInterval(() => {
+        fetchAccumulatedJobs();
+      }, 15000);
+      setTimeout(() => clearInterval(fastPoll), 120000);
     }
   }, [initialFetchDone, totalCount]);
 
