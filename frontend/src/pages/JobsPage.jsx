@@ -723,11 +723,15 @@ export default function JobsPage() {
       const r = await fetch(`${API_BASE}/jobs/accumulated`, { credentials: 'include' });
       if (r.ok) {
         const data = await r.json();
-        if (data.jobs) {
+        if (data.jobs && data.jobs.length > 0) {
           setJobs(sortJobsByDate(data.jobs).map(j => ({ ...j, match_score: 0 })));
           setTotalCount(data.total_count);
           setAccumulatedCount(data.total_count);
           setLastUpdated(new Date());
+        } else {
+          // Keep existing jobs (from search) if accumulated cache is empty
+          setTotalCount(data.total_count || 0);
+          setAccumulatedCount(data.total_count || 0);
         }
       }
     } catch {}
@@ -743,17 +747,13 @@ export default function JobsPage() {
     return () => clearInterval(accumulatedPollRef.current);
   }, [fetchAccumulatedJobs]);
 
-  // On cold start (no accumulated jobs), do a faster poll to pick up background fetcher results sooner
+  // On cold start (no accumulated jobs), trigger a real-time search to get jobs immediately
   useEffect(() => {
     if (initialFetchDone && totalCount === 0 && !autoSearchRef.current && jobs.length === 0) {
       autoSearchRef.current = true;
-      // Poll every 15s for first 2 minutes to catch initial batch from background fetcher
-      const fastPoll = setInterval(() => {
-        fetchAccumulatedJobs();
-      }, 15000);
-      setTimeout(() => clearInterval(fastPoll), 120000);
+      searchJobs(null, null, '', '');
     }
-  }, [initialFetchDone, totalCount]);
+  }, [initialFetchDone, totalCount, searchJobs]);
 
   // When tab regains focus, re-fetch accumulated jobs
   useEffect(() => {
@@ -1123,7 +1123,7 @@ export default function JobsPage() {
         <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
           <i className="fas fa-search-minus" style={{ fontSize: '2.5rem', color: 'var(--text-muted)', marginBottom: '1rem', opacity: 0.5 }}></i>
           <p style={{ color: 'var(--text-muted)' }}>No jobs found on the selected platforms. Try different keywords, location, or job sites.</p>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.7 }}>New postings appear every ~15s as background fetcher scans platforms. Auto-searching real-time now...</p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.7 }}>Fetching real-time jobs from platforms...</p>
         </div>
       )}
 
