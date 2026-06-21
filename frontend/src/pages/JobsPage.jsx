@@ -369,6 +369,8 @@ export default function JobsPage() {
   const [uploadedResume, setUploadedResume] = useState(null);
   const fileInputRef = useRef(null);
   const refreshTimerRef = useRef(null);
+  const autoSearchRef = useRef(false);
+  const [initialFetchDone, setInitialFetchDone] = useState(false);
   const [showAllPlatforms, setShowAllPlatforms] = useState(false);
   const [expandedCats, setExpandedCats] = useState(new Set());
   const [selectedPlatformCat, setSelectedPlatformCat] = useState('all');
@@ -715,6 +717,7 @@ export default function JobsPage() {
         }
       }
     } catch {}
+    setInitialFetchDone(true);
   }, []);
 
   // Initial fetch on mount
@@ -725,6 +728,14 @@ export default function JobsPage() {
     accumulatedPollRef.current = setInterval(fetchAccumulatedJobs, REFRESH_INTERVAL);
     return () => clearInterval(accumulatedPollRef.current);
   }, [fetchAccumulatedJobs]);
+
+  // Auto-trigger real-time search when accumulated cache is empty (cold start)
+  useEffect(() => {
+    if (initialFetchDone && totalCount === 0 && !autoSearchRef.current && !searching && jobs.length === 0) {
+      autoSearchRef.current = true;
+      searchJobs(null, null, '', '');
+    }
+  }, [initialFetchDone, totalCount]);
 
   // When tab regains focus, re-fetch accumulated jobs
   useEffect(() => {
@@ -1094,6 +1105,7 @@ export default function JobsPage() {
         <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
           <i className="fas fa-search-minus" style={{ fontSize: '2.5rem', color: 'var(--text-muted)', marginBottom: '1rem', opacity: 0.5 }}></i>
           <p style={{ color: 'var(--text-muted)' }}>No jobs found on the selected platforms. Try different keywords, location, or job sites.</p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.7 }}>New postings appear every ~15s as background fetcher scans platforms. Auto-searching real-time now...</p>
         </div>
       )}
 
