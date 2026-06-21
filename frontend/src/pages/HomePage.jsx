@@ -71,10 +71,10 @@ export default function HomePage() {
       name: 'Apply for Jobs',
       icon: 'fas fa-briefcase',
       href: '/jobs',
-      status: 'coming',
-      description: 'AI-powered job search assistant that matches your resume, finds relevant positions, and auto-tailors applications.',
-      color: '#f59e0b',
-      gradient: 'linear-gradient(135deg, #f59e0b, #d97706)',
+      status: 'working',
+      description: 'AI-powered job search that matches your resume across 86 platforms, scores postings by fit, and helps you tailor applications — all in one place.',
+      color: '#4dabf7',
+      gradient: 'linear-gradient(135deg, #4dabf7, #3b8ad9)',
     },
     {
       id: 'portfolio',
@@ -186,6 +186,17 @@ export default function HomePage() {
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
+              {f.id === 'jobs' && (
+                <div style={{
+                  position: 'absolute', top: '12px', right: '12px',
+                  background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: '#fff',
+                  fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.5px',
+                  padding: '0.15rem 0.5rem', borderRadius: '6px',
+                  boxShadow: '0 2px 8px rgba(34,197,94,0.3)',
+                }}>
+                  HOT
+                </div>
+              )}
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
                 <div style={{
                   width: '56px', height: '56px',
@@ -202,7 +213,11 @@ export default function HomePage() {
                     {f.name}
                   </h3>
                   {f.status === 'working' ? (
-                    <span style={{ fontSize: '0.7rem', background: 'var(--primary-glow)', color: 'var(--primary)', padding: '0.15rem 0.5rem', borderRadius: '8px', fontWeight: 600 }}>Available</span>
+                    f.id === 'jobs' ? (
+                      <span style={{ fontSize: '0.7rem', background: '#22c55e', color: '#fff', padding: '0.15rem 0.5rem', borderRadius: '8px', fontWeight: 700, letterSpacing: '0.5px' }}>NEW</span>
+                    ) : (
+                      <span style={{ fontSize: '0.7rem', background: 'var(--primary-glow)', color: 'var(--primary)', padding: '0.15rem 0.5rem', borderRadius: '8px', fontWeight: 600 }}>Available</span>
+                    )
                   ) : (
                     <span style={{ fontSize: '0.7rem', background: 'rgba(245,158,11,0.1)', color: 'var(--warning)', padding: '0.15rem 0.5rem', borderRadius: '8px', fontWeight: 600 }}>Coming Soon</span>
                   )}
@@ -309,17 +324,7 @@ export default function HomePage() {
           <div style={{ width: '50px', height: '3px', background: 'var(--primary)', margin: '0.75rem auto', borderRadius: '2px' }}></div>
           <p style={{ color: 'var(--text2)', fontSize: '0.95rem', maxWidth: '500px', margin: '0 auto' }}>The next major features we're building for you.</p>
         </div>
-        <div className="coming-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', maxWidth: '700px', margin: '0 auto' }}>
-          <div style={{ background: 'var(--card)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '16px', padding: '2.5rem 2rem', textAlign: 'center', position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(90deg, var(--warning), #d97706)' }}></div>
-            <i className="fas fa-briefcase" style={{ fontSize: '3rem', color: 'var(--warning)', marginBottom: '1rem', display: 'block' }}></i>
-            <h3 style={{ fontFamily: "'Orbitron', monospace", fontSize: '1.1rem', color: 'var(--text)', marginBottom: '0.75rem' }}>Apply for Jobs with AI</h3>
-            <p style={{ color: 'var(--text2)', fontSize: '0.9rem', lineHeight: 1.6, margin: '0 0 1rem' }}>
-              AI-powered job search assistant that matches your resume, finds relevant positions, 
-              and auto-tailors applications — all from your profile.
-            </p>
-            <span style={{ display: 'inline-block', background: 'rgba(245,158,11,0.1)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.3)', fontSize: '0.75rem', padding: '0.2rem 0.75rem', borderRadius: '10px', fontWeight: 600 }}>Coming Soon</span>
-          </div>
+        <div className="coming-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', maxWidth: '400px', margin: '0 auto' }}>
           <div style={{ background: 'var(--card)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '16px', padding: '2.5rem 2rem', textAlign: 'center', position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(90deg, var(--warning), #d97706)' }}></div>
             <i className="fas fa-layer-group" style={{ fontSize: '3rem', color: 'var(--warning)', marginBottom: '1rem', display: 'block' }}></i>

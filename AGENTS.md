@@ -1167,3 +1167,16 @@ Vercel (React) ──proxies /api/*──> EC2 (FastAPI) ──> RDS (PostgreSQL
 | **Low match pagination** | Replaced `Array.from({length: Math.min(lowPageCount, 15)})` with `getPageNumbers(lowMatchPage, lowPageCount, 5)` — shows 5 pages before and after current |
 | **<< / >> jump buttons** | << appears when current > 6 (jumps to page 1), >> appears when current < total-5 (jumps to last page) |
 | **Current page highlight** | 2px `var(--primary)` border, primary background, white text, bold |
+
+## Session: 2026-06-21 — HomePage Update + English-Only Filter + Sidebar Close Fix
+
+### What was done
+| File | Change |
+|------|--------|
+| `frontend/src/pages/HomePage.jsx` | Changed **Apply for Jobs** from `status: 'coming'` → `status: 'working'` with primary-blue theme; added green "NEW" badge on card + "HOT" ribbon on top-right; removed from "Coming Next" section |
+| `frontend/src/pages/JobsPage.jsx` | Added `isEnglish()` filter — strips CJK/Arabic/Cyrillic job listings from results |
+| `frontend/src/pages/JobsPage.jsx` | Scoring capped denominator at 8 (`Math.min(kwArray.length, 8)`) so match scores are higher (1 keyword match = 12.5% instead of 5%) |
+| `frontend/src/pages/JobsPage.jsx` | Applied jobs section: deduplicated (title+company), compact collapsible rows, removed full JobCards |
+| `frontend/src/pages/JobsPage.jsx` | Description formatting: strips HTML tags + markdown `**bold**`/`*italic*` + truncates to 220 chars |
+| `frontend/src/components/layout/Sidebar.jsx` + `index.css` | Close button: removed `btn-close-white`, uses CSS `filter: invert(1)` in dark mode via `[data-theme="dark"]` |
+| `src/agents/agent_manager.py` | `send_message()` signature unchanged (no `agent_override` param — prod needed restart after git pull) |
