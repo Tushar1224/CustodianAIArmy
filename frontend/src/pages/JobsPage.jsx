@@ -750,7 +750,14 @@ export default function JobsPage() {
     return () => document.removeEventListener('visibilitychange', handle);
   }, [fetchAccumulatedJobs]);
 
+  const isEnglish = (text) => {
+    if (!text) return true;
+    return !/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u0600-\u06ff\u0400-\u04ff]/.test(text);
+  };
+
   const filteredJobs = jobs.filter(j => {
+    if (!isEnglish(j.title)) return false;
+    if (!isEnglish(j.description)) return false;
     const jobKey = `${j.title || ''}|||${j.company || ''}|||${j.source || ''}`;
     if (hiddenJobKeys.has(jobKey)) return false;
     if (keywordFilter) {
