@@ -13,6 +13,11 @@
       "type": "local",
       "command": ["python", "scripts/crawl_course_pathway_mcp.py"],
       "enabled": true
+    },
+    "react-mcp": {
+      "type": "local",
+      "command": ["node", "dependencies/react-mcp/index.js"],
+      "enabled": true
     }
   }
 }

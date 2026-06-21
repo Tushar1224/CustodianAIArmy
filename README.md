@@ -16,7 +16,8 @@ A futuristic multi-agent AI orchestration system — chat with specialized AI ag
 | Database | SQLite |
 | MCP | fetch, duckduckgo, filesystem, memory, sequential_thinking, **crawl_course_pathway** |
 | Agent Skills | Ollama tool-use models (qwen2.5-coder, qwen3-coder) |
-| Deployment | Vercel (Python serverless) |
+| Deployment | Vercel (frontend), local server (backend) |
+| Database | SQLite (custodian.db) |
 
 ---
 
@@ -54,7 +55,7 @@ CustodianAIArmy/
 │       ├── App.jsx             # Router (7 routes via react-router-dom)
 │       ├── pages/              # HomePage, DashboardPage, LearnPage,
 │       │                       # PortfolioPage, BuildPage,
-│       │                       # CustomAgentsPage, PaymentPage
+│       │                       # CustomAgentsPage, JobsPage, PaymentPage
 │       ├── components/
 │       │   ├── layout/         # Header, Sidebar, Footer, MainLayout
 │       │   ├── NeuronBrain.jsx # Interactive neuron visualization
@@ -91,6 +92,8 @@ CustodianAIArmy/
 │   │   └── ...
 │   └── css/
 ├── dependencies/               # Legacy git submodules (deprecated)
+├── dependencies/               # Legacy git submodules (deprecated)
+├── AWS_MIGRATION_INFO           # Archived AWS CDK deployment guide
 └── install.sh                  # Automated setup script
 ```
 
@@ -124,6 +127,13 @@ CustodianAIArmy/
 |---------|-------------|
 | `python main.py` | Start production server (port 8000) |
 | `uvicorn main:app --reload` | Dev server with auto-reload |
+
+### Deploy to Production
+
+| Method | Stack | Instructions |
+|--------|-------|-------------|
+| Frontend (Vercel) | React SPA | Push to GitHub → Vercel auto-deploys |
+| Backend + Database (AWS) | EC2 + RDS | See [`AWS_MIGRATION_INFO`](AWS_MIGRATION_INFO) |
 
 ### Python Environment
 
@@ -267,6 +277,7 @@ cd frontend && npm run build && cd .. && python main.py
 | `/build` | BuildPage | 5-phase MVP Builder pipeline |
 | `/agents` | CustomAgentsPage | Create/manage custom agents |
 | `/resume` | ResumePage | Resume Optimizer — upload, edit, ATS-optimize, multi-template |
+| `/jobs` | JobsPage | Job search across 7 platforms (LinkedIn, Indeed, Glassdoor, ZipRecruiter, Google Jobs, Bayt, Naukri) |
 | `/payment` | PaymentPage | Upgrade to Pro plan |
 
 ---
@@ -307,6 +318,11 @@ All endpoints under `/api/v1/`. Swagger docs at `/api/docs`.
 | POST | `/mvp/advance-phase` | Next phase |
 | POST | `/mvp/publish` | Push to GitHub |
 | GET | `/mvp/sessions` | List user sessions |
+
+### Jobs
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/jobs/search` | Search jobs across 7 platforms: LinkedIn, Indeed, Glassdoor, ZipRecruiter, Google Jobs, Bayt, Naukri |
 
 ### Courses & Learning
 | Method | Path | Description |
@@ -409,6 +425,7 @@ All agents use either **Google** (`gemini-2.5-flash`) or **Anthropic** (`claude-
 | **memory** | Knowledge graph (entities, relations, observations) | Coordinator, researcher |
 | **sequential_thinking** | `sequentialthinking` | Coordinator, analyst, technical, researcher |
 | **crawl_course_pathway** | `crawl_course_pathway` — crawl tutorial sites into markdown pathways | Tutor, researcher, coder |
+| **jobspy** | `search_jobs` — real job scraping from 7 platforms | Coordinator, researcher, job_finder |
 
 ### Agent-to-Tools Mapping
 

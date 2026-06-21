@@ -43,6 +43,7 @@ AGENT_ROLES = [
     {"name": "ResearchAI",     "specialization": "researcher",    "type": AgentType.MAIN},
     {"name": "FactCheckerAI",  "specialization": "fact_checker",  "type": AgentType.SUB},
     {"name": "TrendAnalystAI", "specialization": "trend_analyst", "type": AgentType.SUB},
+    {"name": "JobFinderAI",    "specialization": "job_finder",    "type": AgentType.MAIN},
 ]
 
 # Sub-agent parent relationships

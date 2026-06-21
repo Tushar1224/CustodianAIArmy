@@ -372,6 +372,7 @@ class GeminiAgent(BaseAgent):
             "trend_analyst": "trend_analyst.md",
             "tutor": "tutor.md",
             "coordinator": "coordinator.md",
+            "job_finder": "job_finder.md",
         }
         filename = prompt_file_map.get(self.specialization)
         if filename:

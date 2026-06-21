@@ -73,19 +73,22 @@ MCP_SERVERS: Dict[str, Dict[str, Any]] = {
         "env": {},
         "tools": ["search_jobs"],
     },
-    "firecrawl": {
-        "name": "firecrawl",
-        "description": "Web search, scrape, and crawl via Firecrawl. Keyless mode: firecrawl_search and firecrawl_scrape are free (rate-limited per IP). Set FIRECRAWL_API_KEY env var for full access (crawl, extract, agent).",
+    "autoapply": {
+        "name": "autoapply",
+        "description": "Auto-fill job application forms on Greenhouse, Lever, Workday, Ashby, LinkedIn using a real Playwright browser. Takes screenshots after each step for review before submitting.",
         "command": "npx",
-        "args": ["-y", "firecrawl-mcp"],
+        "args": ["-y", "mcp-remote", "https://autoapply-mcp.onrender.com/sse"],
         "env": {},
         "tools": [
-            "firecrawl_search",
-            "firecrawl_scrape",
-            "firecrawl_map",
-            "firecrawl_crawl",
-            "firecrawl_extract",
-            "firecrawl_agent",
+            "register",
+            "upload_resume",
+            "save_profile",
+            "get_profile",
+            "save_field_mapping",
+            "open_job_application",
+            "fill_known_fields",
+            "fill_answer",
+            "take_screenshot",
         ],
     },
 }
@@ -104,8 +107,6 @@ AGENT_TOOLS: Dict[str, List[str]] = {
         "fetch",
         "duckduckgo_web_search",
         "duckduckgo_news_search",
-        "firecrawl_search",
-        "firecrawl_scrape",
         "search_jobs",
         "create_entities",
         "add_observations",
@@ -119,10 +120,6 @@ AGENT_TOOLS: Dict[str, List[str]] = {
         "fetch",
         "duckduckgo_web_search",
         "duckduckgo_news_search",
-        "firecrawl_search",
-        "firecrawl_scrape",
-        "firecrawl_map",
-        "firecrawl_crawl",
         "search_jobs",
         "create_entities",
         "add_observations",
@@ -135,13 +132,11 @@ AGENT_TOOLS: Dict[str, List[str]] = {
         "fetch",
         "duckduckgo_web_search",
         "duckduckgo_news_search",
-        "firecrawl_search",
     ],
     "trend_analyst": [
         "fetch",
         "duckduckgo_web_search",
         "duckduckgo_news_search",
-        "firecrawl_search",
     ],
 
     # Analyst cluster — search + reasoning
@@ -213,6 +208,13 @@ AGENT_TOOLS: Dict[str, List[str]] = {
         "duckduckgo_web_search",
         "read_file",
         "crawl_course_pathway",
+    ],
+
+    # Job Finder — job search
+    "job_finder": [
+        "fetch",
+        "duckduckgo_web_search",
+        "search_jobs",
     ],
 }
 

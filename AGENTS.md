@@ -916,3 +916,254 @@ Templates used on resumes are now automatically saved to the database, building 
 - Resume optimizer page NOVA preview in viewer mode uses `var(--card)`/`var(--text)` which may appear different from the previous hardcoded white/black appearance; user may need to verify it looks correct in both themes
 - `rgba(245,158,11,0.1)` and `rgba(245,158,11,0.3)` on HomePage "coming soon" badges are hardcoded but acceptable since `--warning-rgb` was just added and could be used if desired
 - `#fbbf24` review mode borders on ResumePage could be changed to `var(--warning)` for theme awareness
+
+## Session: 2026-06-21 — JobSpy Real Job Scraping (7 Platforms) + Apply for Jobs Page
+
+### What was done
+
+#### Git Submodule — JobSpy MCP Server
+| File | Change |
+|------|--------|
+| `.gitmodules` | Added `dependencies/jobspy-mcp-server` submodule pointing to `Tushar1224/jobspy-mcp-server` |
+| `dependencies/jobspy-mcp-server/src/tools/search-jobs.js` | Replaced `docker run --rm jobspy` with direct `python` subprocess call using `fileURLToPath()` for correct Windows paths; added `JOBSPY_CMD` env var support |
+| `dependencies/jobspy-mcp-server/jobspy/main.py` | Removed default `google_search_term` (was triggering slow Google searches), wrapped in try/except, changed default `location` to `None` |
+
+#### Backend — MCP Integration (`src/mcp/mcp_config.py`, `src/mcp/mcp_client.py`)
+| File | Change |
+|------|--------|
+| `src/mcp/mcp_config.py` | Registered `jobspy` MCP server: `node dependencies/jobspy-mcp-server/src/index.js`; added `search_jobs` tool to `coordinator` and `researcher` specializations |
+| `src/mcp/mcp_client.py` | Added `search_jobs` OpenAI-format tool definition with 9 parameters; fixed JS-style `false` → Python `False` that caused `NameError` |
+
+#### Backend — Jobs API (`src/api/routes.py`)
+| File | Change |
+|------|--------|
+| `src/api/routes.py` | Added `POST /jobs/search` with 3-tier fallback: (1) direct `jobspy.scrape_jobs()`, (2) JobSpy MCP server, (3) AI-generated listings via TechnicalAI/CustodianAI |
+| | Added `_map_jobspy_results()` shared helper to normalize jobspy response fields (jobUrl, employmentType, site → source) and compute match_score from skill overlap |
+| | Added `site_names` (multi-platform filter), `search_term`, `location` to `JobSearchRequest` Pydantic model |
+| | Fixed `is_remote` logic: only sent to JobSpy when `only_remote = filters.remote and not filters.hybrid and not filters.on_site` |
+| | Added `sys.executable` passthrough via `JOBSPY_CMD` env var; added `import sys` |
+| | Added `exc_info=True` on logger.error in outer except block for full traceback debugging |
+
+#### Frontend — JobsPage (`frontend/src/pages/JobsPage.jsx`)
+| Change | Detail |
+|--------|--------|
+| 7 platform toggle buttons | LinkedIn, Indeed, Glassdoor, ZipRecruiter, Google Jobs, Bayt, Naukri with color-coded active states; "show more" expand for platforms beyond first 4 |
+| Quick search | Title + location inputs at top of controls bar; auto-searches "software engineer, remote" on mount |
+| Jobs display without resume | All results sections use `hasQuery` instead of `hasResume` so jobs render with just a search |
+| Source badges | Each `JobCard` shows colored platform badge (source) and `date_posted` when available |
+| Naukri icon | `fas fa-briefcase` (no Naukri brand icon in FA free) |
+| "Apply with Resume" button | Added to each job card — opens mailto with pre-filled subject/body when no resume selected, or generates tailored application when resume is selected |
+
+### Key Design Decisions
+- Direct `jobspy.scrape_jobs()` is primary path (no Docker, no Node.js — fewer failure points); MCP server is secondary fallback because Node.js bridge adds Windows subprocess/PATH issues
+- `_map_jobspy_results()` extracted as shared function to avoid duplication between direct and MCP paths
+- `is_remote` param only sent to JobSpy when **only** remote is selected and hybrid/on-site are not
+- Naukri uses generic FA `fa-briefcase` since no Naukri brand icon exists in FontAwesome free tier
+- `exc_info=True` on outer handler ensures stack traces visible in server logs
+- `import sys` added for `sys.executable` in MCP env vars
+
+### Known Issues
+- `pip install python-jobspy` is in user site-packages, not `.venv` — `sys.executable` passthrough ensures correct Python for subprocess
+- Docker daemon not running on dev machine — all jobspy calls use direct Python, never Docker
+- MCP `search_jobs` on Windows must use `fileURLToPath()` not `.pathname` (`.pathname` returns `/D:/...` which is invalid)
+
+## Session: 2026-06-21 — Accumulated Job Board + Applied Tracker + Always-Show Jobs
+
+### What was done
+
+#### Backend — Background job rotation (`src/api/routes.py`)
+| Change | Detail |
+|--------|--------|
+| Replaced one-shot pre-fetch with continuous background rotation | `_background_job_fetcher()` loops through 25 fetch groups on a 60s interval with 0.3-2s random jitter per group |
+| Added `_fetch_job_group()` | Dispatches to real API fetchers (RemoteOK, Remotive, Arbeitnow), direct JobSpy, and AI fallback per group |
+| Added real API fetchers | `_fetch_remoteok_jobs()`, `_fetch_remotive_jobs()`, `_fetch_arbeitnow_jobs()` — all free, no API key |
+| Added `GET /jobs/accumulated` | Lightweight endpoint — reads from `job_cache_accumulated` table only, no JobSpy/AI/MCP involved |
+| Added `JOB_FETCH_GROUPS` list | 25 groups covering 58 curated platforms across 4 tiers |
+| Fixed AI JSON parsing | Strips ```json/``` code fences before `json.loads()` |
+| Fixed NoneType crash | Initialized `jobs = []` before jobspy block |
+| Fixed CareerBuilder | Removed from JobSpy (unsupported) → added to CUSTOM_PLATFORMS |
+| Fixed arbeitnow URL | Added `www.` + `follow_redirects=True` |
+| Updated default site_names | `remoteok,remotive,arbeitnow,linkedin,indeed,google,weworkremotely,wellfound,aijobs,dice,upwork` |
+
+#### Backend — Applied jobs API (`src/api/routes.py`)
+| Change | Detail |
+|--------|--------|
+| `POST /jobs/search` | Reduced `hours_old` defaults; AI fallback prompt updated with `date_posted` within 2 weeks |
+| `POST /jobs/applied` | Saves applied job by `{title, company}` with source, URL, applied_at |
+| `GET /jobs/applied` | Returns all applied jobs for current user (guest email or authenticated) |
+| `DELETE /jobs/applied/{id}` | Removes by row ID |
+| `POST /jobs/applied/sync` | Batch upsert — sends full list of applied jobs; backend dedupes by `{title, company}` |
+
+#### Backend — Database (`src/core/database.py`)
+| Change | Detail |
+|--------|--------|
+| `job_cache_accumulated` table | Columns: `id`, `title`, `company`, `source`, `url`, `description`, `location`, `salary`, `job_type`, `date_posted`, `logo`, `hash`, `created_at` |
+| `job_fetch_state` table | Tracks per-group last-fetch timestamp for rotation continuity |
+| `add_jobs_to_accumulated()` | Bulk upsert by md5 hash of `{title, company, source}` |
+| `get_accumulated_jobs(limit=1000)` | Returns newest-first with 48-hour TTL |
+| `applied_jobs` table | Columns: `id`, `user_email`, `title`, `company`, `source`, `url`, `applied_at` |
+| `save_applied_job()`, `get_applied_jobs()`, `delete_applied_job()`, `has_applied_job()`, `sync_applied_jobs()` | Full CRUD for applied jobs |
+| `get_fetch_state()`, `set_fetch_state()` | Fetch rotation state tracking |
+
+#### Frontend — Curated platform list (`JobsPage.jsx`)
+| Change | Detail |
+|--------|--------|
+| `PLATFORM_OPTIONS` replaced | 58 curated platforms across 4 tiers (Primary APIs, Startup, AI/ML & Tech, Remote) + Aggregators + Freelance |
+| Platform icons | All use safe FontAwesome 6 Free icons (no Pro) |
+| Color-coded toggle buttons | Platform buttons with brand-like colors and active highlight |
+
+#### Frontend — Applied tracker (`JobsPage.jsx`)
+| Change | Detail |
+|--------|--------|
+| "Did you apply?" modal | On return to tab, checks `localStorage('custodian_pending_apply')` for timestamped job → shows Yes/Not Yet modal |
+| Applied Jobs section | Collapsible accordion in sidebar, shows count, list with remove button |
+| `hiddenJobKeys` Set | Seeded from both `custodian_hidden_jobs` and backend applied jobs on mount; persisted to localStorage; hides applied cards instantly |
+| `onApply` prop on JobCard | Stores job in localStorage for pending-apply flow |
+| Applied job sync on mount | `POST /jobs/applied/sync` sends full localStorage list to backend |
+
+#### Frontend — Always-show jobs + local filtering (`JobsPage.jsx`)
+| Change | Detail |
+|--------|--------|
+| Accumulated poll unconditional | Polls `GET /jobs/accumulated` every 5 min regardless of search/resume state |
+| Initial page load | Silently fetches accumulated cache — no skeleton, no loading |
+| `searching` removed from empty state | Jobs always visible; search box becomes a client-side keyword filter |
+| `hasQuery` variable removed | No gate on results rendering |
+| Visibilitychange handler | When tab regains focus, re-fetches accumulated jobs to check for fresh postings |
+| Type filters (remote/hybrid/on-site) | Removed from search debounce — toggle filters locally only, no backend call |
+| Platform toggle filters | Same — client-side filtering only |
+| Keyword filter input | Client-side filter on accumulated jobs |
+| Pagination | 9 per page, always visible when filteredJobs > 0 |
+| Refresh message | "New postings appear every ~15s" updated to match background rotation pace |
+
+### Key Design Decisions
+- Background rotation over one-shot pre-fetch: 25 groups × 60s = full cycle every 25 minutes, each group scrapes 3-5 platforms with `results_wanted=30`, random jitter prevents rate-limit blocks
+- Applied jobs in both localStorage (instant UI hide) and backend DB (permanent storage) with auto-sync on mount
+- Applied cards removed from results via `hiddenJobKeys` — hidden before render, not just visually
+- `hasQuery` removed entirely — jobs page always shows accumulated jobs; search box is a convenience filter, not a gate
+- 5-minute frontend poll matches user's explicit preference; no loading spinners during poll
+- Real API fetchers (RemoteOK, Remotive, Arbeitnow) preferred over AI generation — they return real jobs with valid apply URLs
+- Type filter changes are client-side only — no backend call, instant UI feedback
+
+### Known Issues
+- MCP jobspy server still fails on Windows (`MCP server closed connection`) — primary direct-JobSpy path works without it
+
+## Session: 2026-06-21 — Firecrawl Removal + Job Recency Fix + JobFinderAI Prompt
+
+### What was done
+
+#### Backend — MCP Config (`src/mcp/mcp_config.py`)
+| Change | Detail |
+|--------|--------|
+| Removed `firecrawl` server | `npx` not available in backend process — server was failing to start. Removed entire server definition and all `firecrawl_*` tool references from coordinator, researcher, fact_checker, trend_analyst, job_finder specializations |
+| Removed `job_automator` server | `job_application_automator` package not installed. Removed server definition and `simple_form_*` / `create_cover_letter` / `get_applied_jobs` tools from job_finder specialization |
+| Simplified `job_finder` tools | Now only has: `fetch`, `duckduckgo_web_search`, `search_jobs` |
+
+#### New — `job_finder.md` prompt (`src/agents/prompts/job_finder.md`)
+- **Current date awareness**: Prompt explicitly states "Current date: June 2026" so AI generates correct dates in search queries and output
+- **No year in search queries**: Instructs AI to NOT include a year in web search queries (sites return current results automatically)
+- **Fresh results**: Tells AI to search for jobs posted within the last 2 weeks
+- **Tool context**: Lists available tools and their usage
+
+#### Backend — Agent prompt maps
+| File | Change |
+|------|--------|
+| `src/agents/claude_agent.py` | Added `"job_finder": "job_finder.md"` to `prompt_file_map` |
+| `src/agents/gemini_agent.py` | Added `"job_finder": "job_finder.md"` to `prompt_file_map` |
+
+Previously `job_finder` had no entry and silently fell back to the generic "general" prompt — now it gets dedicated job search instructions.
+
+#### Backend — Job search recency (`src/api/routes.py`)
+| Change | Detail |
+|--------|--------|
+| Default `hours_old` reduced | Unfiltered: 168→72 (7 days → 3 days); Filtered: 72→48 (3 days → 2 days) |
+| Pre-fetch `hours_old` reduced | 168→72 |
+| AI fallback prompt updated | Added "RECENT job listings posted within the last 2 weeks" + `date_posted` field constraint (ISO date within last 14 days) |
+
+### Caching & DB Plans (noted for future)
+User plans:
+1. **Job cache TTL**: Lower to 5 min (currently 900s/15min default in `get_global_job_cache`)
+2. **Cache merge strategy**: Add new results alongside cached ones rather than replacing; keep freshest in memory cache, push older to DB table
+3. **DB initialization**: Already done on startup via `database.py` — all tables created
+4. **RDS migration**: SQLite → PostgreSQL/MySQL for persistent storage across server restarts
+
+## Session: 2026-06-21 — AWS CDK Infrastructure Scaffolding
+
+### What was done
+
+#### New — `infra/` directory with CDK stacks
+| File | Purpose |
+|------|---------|
+| `infra/app.py` | Entry point wiring VPC → RDS → Backend stacks |
+| `infra/cdk.json` | CDK configuration |
+| `infra/requirements.txt` | CDK Python dependencies |
+| `infra/README.md` | Full deployment guide + lifecycle management |
+| `infra/stacks/vpc_stack.py` | VPC + public/isolated subnets, 0 NAT gateways ($0) |
+| `infra/stacks/rds_stack.py` | RDS PostgreSQL 16 on db.t3.micro (free tier eligible) |
+| `infra/stacks/backend_stack.py` | EC2 t3.micro with FastAPI, systemd service, auto-setup UserData |
+
+#### Architecture (Vercel + AWS)
+```
+Vercel (React) ──proxies /api/*──> EC2 (FastAPI) ──> RDS (PostgreSQL)
+```
+- **Frontend**: Vercel (unchanged, already working)
+- **Backend**: EC2 t3.micro running uvicorn via systemd
+- **Database**: RDS PostgreSQL (replaces local SQLite)
+- **Auth**: SSM Session Manager for EC2 shell (free, no SSH key needed)
+- **No paid services**: No NAT gateway, no Secrets Manager, no ALB
+
+#### Key Design Decisions
+- `CfnInstance` used instead of `ec2.Instance` to allow `Fn::Sub` in UserData — injects RDS endpoint token at deploy time
+- DB password passed via `cdk deploy -c db_password=...` — no Secrets Manager ($0)
+- API keys (Anthropic, Gemini, JWT) also passed via CDK context
+- IAM role: least privilege — only SSM ManagedInstanceCore + rds:DescribeDBInstances
+- 8 GB gp3 root volume (encrypted), RDS in isolated subnet (no public internet)
+- EC2 user data: installs Python → clones GitHub repo → venv + pip install → writes .env → systemd service
+- Cross-stack references: `rds_stack.db_endpoint` passed directly (same CDK app)
+
+#### Lifecycle Rules
+| Change | How | Downtime | Data risk |
+|--------|-----|----------|-----------|
+| Frontend code | Push → Vercel auto-deploys | None | None |
+| Backend code | SSH → `git pull` → `systemctl restart` | ~3s | None |
+| API keys | Edit `.env` → restart | ~3s | None |
+| EC2 type/storage | Edit CDK → `cdk deploy` | ~2min (replace) | EBS preserved |
+| RDS storage | Edit CDK → `cdk deploy` | None | None |
+| Destroy all | `cdk destroy CustodianBackend` → `CustodianRds` → `CustodianVpc` | Permanent | **All data lost** |
+
+### Files changed/created
+| File | Type |
+|------|------|
+| `infra/README.md` | Created — full guide |
+| `infra/app.py` | Created |
+| `infra/cdk.json` | Created |
+| `infra/requirements.txt` | Created |
+| `infra/stacks/__init__.py` | Created |
+| `infra/stacks/vpc_stack.py` | Created |
+| `infra/stacks/rds_stack.py` | Created |
+| `infra/stacks/backend_stack.py` | Created |
+
+### Noted for future
+- Add CodePipeline + CodeDeploy for automated backend deployments from GitHub
+- Add CloudFront for CDN + HTTPS on backend API
+- Switch to ECS Fargate when leaving free tier
+- Add ElastiCache Redis for job cache + sessions
+- Add Route53 + ACM for custom domain with HTTPS
+
+## Session: 2026-06-21 — Match Scoring Fixes + Sliding Window Pagination
+
+### Frontend — Match scoring fixes (`JobsPage.jsx`)
+| Change | Detail |
+|--------|--------|
+| **COMMON_WORDS trimmed** | Removed ~50 technical/role words (`software`, `engineer`, `developer`, `python`, `react`, etc.) — was filtering out critical matching signal; now only truly generic words (`the`, `and`, `for`, etc.) remain |
+| **`computeSemanticScores` removed** | Was overwriting keyword scores with broken backend response (no `match_score` returned), nuking all matches to zero |
+| **Word-boundary matching** | `\bkw\b` prevents false positives like `sql` matching `sqlalchemy` |
+| **Normalization** | `c#` → `csharp`, `node.js` → `nodejs`, `react.js` → `react` |
+
+### Frontend — Sliding window pagination (`JobsPage.jsx`)
+| Change | Detail |
+|--------|--------|
+| **`getPageNumbers(current, total, range=5)`** | New helper — returns page numbers ±5 around current, clamped to 1..total |
+| **High match pagination removed** | Dead code — `highMatchJobs` is always capped at 9 (`PAGE_SIZE`), so the `> PAGE_SIZE` conditional never triggered |
+| **Low match pagination** | Replaced `Array.from({length: Math.min(lowPageCount, 15)})` with `getPageNumbers(lowMatchPage, lowPageCount, 5)` — shows 5 pages before and after current |
+| **<< / >> jump buttons** | << appears when current > 6 (jumps to page 1), >> appears when current < total-5 (jumps to last page) |
+| **Current page highlight** | 2px `var(--primary)` border, primary background, white text, bold |

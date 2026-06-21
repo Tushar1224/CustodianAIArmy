@@ -1,9 +1,24 @@
 import { useState, useEffect, useCallback } from 'react';
 
+const GUEST_NAME_KEY = 'custodian_guest_name';
+
 export function useAuth() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState('guest');
+  const [guestName, setGuestNameState] = useState(() => localStorage.getItem(GUEST_NAME_KEY) || '');
+
+  const setGuestName = useCallback((name) => {
+    const trimmed = (name || '').trim();
+    setGuestNameState(trimmed);
+    if (trimmed) {
+      localStorage.setItem(GUEST_NAME_KEY, trimmed);
+    } else {
+      localStorage.removeItem(GUEST_NAME_KEY);
+    }
+  }, []);
+
+  const displayName = user ? (user.name || 'User') : (guestName || 'Guest');
 
   const fetchUser = useCallback(async () => {
     try {
@@ -35,5 +50,5 @@ export function useAuth() {
     window.location.href = '/';
   }, []);
 
-  return { user, loading, plan, logout, refetch: fetchUser };
+  return { user, loading, plan, logout, refetch: fetchUser, guestName, setGuestName, displayName };
 }

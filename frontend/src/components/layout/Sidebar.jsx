@@ -20,8 +20,7 @@ const bottomItems = [
 export default function Sidebar({ id = 'sidebarOffcanvas', showPricingRoadmap = true, showHome = true }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, plan } = useAuth();
-  const displayName = user ? (user.name || user.email || 'User') : 'Guest';
+  const { user, plan, displayName } = useAuth();
   const planLabel = { guest: 'GUEST', free: 'FREE', pro: 'PRO' }[plan] || 'FREE';
   const planColor = plan === 'pro' ? 'var(--warning-color)' : plan === 'free' ? 'var(--primary-color)' : 'var(--text-muted)';
 
@@ -47,7 +46,7 @@ export default function Sidebar({ id = 'sidebarOffcanvas', showPricingRoadmap = 
          data-bs-scroll="true" data-bs-backdrop="false">
       <div className="offcanvas-header">
         <h5 className="offcanvas-title" style={{ color: 'var(--primary-color, #4dabf7)' }}>Menu</h5>
-        <button type="button" className="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        <button type="button" className="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
       </div>
       <div className="offcanvas-body p-0">
         <div className="px-3 py-2 d-flex align-items-center gap-2" style={{ borderBottom: '1px solid var(--border-color)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>

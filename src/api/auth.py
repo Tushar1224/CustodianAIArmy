@@ -115,6 +115,27 @@ class User(BaseModel):
     created_at: Optional[datetime] = None
 
 
+# Guest-friendly auth dependency (returns None instead of 401)
+async def get_optional_user(
+    session_id: Optional[str] = Cookie(None),
+    access_token: Optional[str] = Cookie(None)
+) -> Optional[User]:
+    """Like get_current_user_from_cookies but returns None instead of raising 401."""
+    user = None
+    if session_id:
+        user = get_user_from_session(session_id)
+    if not user and access_token:
+        payload = decode_jwt_token(access_token)
+        if payload:
+            user = User(
+                id=payload["sub"],
+                email=payload["email"],
+                name=payload["name"],
+                picture=payload.get("picture"),
+                created_at=datetime.utcnow()
+            )
+    return user
+
 # Authentication dependency for reusable authentication
 async def get_current_user_from_cookies(
     session_id: Optional[str] = Cookie(None),
@@ -287,7 +308,7 @@ init_session_storage()
 load_sessions_from_db()
 
 @router.get("/google")
-async def google_login():
+async def google_login(request: Request):
     """
     Initiate Google OAuth flow.
     Redirects user to Google's OAuth consent screen.
@@ -306,29 +327,25 @@ async def google_login():
             ),
         )
 
-    # Debug: print the credentials being used
+    redirect_uri = str(request.base_url) + "api/v1/auth/google/callback"
     print(f"DEBUG: GOOGLE_CLIENT_ID = {settings.GOOGLE_CLIENT_ID}")
-    print(f"DEBUG: GOOGLE_REDIRECT_URI = {settings.GOOGLE_REDIRECT_URI}")
-    
-    # Build Google OAuth URL
+    print(f"DEBUG: GOOGLE_REDIRECT_URI (dynamic) = {redirect_uri}")
+
     google_auth_url = "https://accounts.google.com/o/oauth2/v2/auth"
     params = {
         "client_id": settings.GOOGLE_CLIENT_ID,
-        "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+        "redirect_uri": redirect_uri,
         "response_type": "code",
         "scope": "openid email profile",
         "access_type": "offline",
         "prompt": "consent"
     }
-    
-    # Construct URL with query parameters
     from urllib.parse import urlencode
     auth_url = f"{google_auth_url}?{urlencode(params)}"
-    
     return RedirectResponse(url=auth_url)
 
 @router.get("/github/login")
-async def github_login(session_id: Optional[str] = None):
+async def github_login(request: Request, session_id: Optional[str] = None):
     """
     Initiate GitHub OAuth flow.
     Redirects user to GitHub's OAuth consent screen.
@@ -338,11 +355,12 @@ async def github_login(session_id: Optional[str] = None):
     if session_id:
         state = f"{session_id}:{state}"
 
+    redirect_uri = str(request.base_url) + "api/v1/auth/github/callback"
     github_auth_url = "https://github.com/login/oauth/authorize"
     params = {
         "client_id": settings.GITHUB_CLIENT_ID,
-        "redirect_uri": settings.GITHUB_REDIRECT_URI,
-        "scope": "repo user:email",  # Request access to repos and user email
+        "redirect_uri": redirect_uri,
+        "scope": "repo user:email",
         "state": state,
     }
     from urllib.parse import urlencode
@@ -365,6 +383,8 @@ async def github_callback(request: Request, code: str = None, state: str = None,
     if not code:
         raise HTTPException(status_code=400, detail="No authorization code provided")
 
+    redirect_uri = str(request.base_url) + "api/v1/auth/github/callback"
+
     try:
         async with httpx.AsyncClient() as client:
             # Exchange authorization code for an access token
@@ -374,7 +394,7 @@ async def github_callback(request: Request, code: str = None, state: str = None,
                     "client_id": settings.GITHUB_CLIENT_ID,
                     "client_secret": settings.GITHUB_CLIENT_SECRET,
                     "code": code,
-                    "redirect_uri": settings.GITHUB_REDIRECT_URI,
+                    "redirect_uri": redirect_uri,
                 },
                 headers={"Accept": "application/json"}
             )
@@ -433,17 +453,15 @@ async def github_callback(request: Request, code: str = None, state: str = None,
 async def google_callback(request: Request, code: str = None, error: str = None):
     """
     Handle Google OAuth callback.
-    
-    Args:
-        code: Authorization code from Google
-        error: OAuth error if any
     """
     if error:
         raise HTTPException(status_code=400, detail=f"OAuth error: {error}")
-    
+
     if not code:
         raise HTTPException(status_code=400, detail="No authorization code provided")
-    
+
+    redirect_uri = str(request.base_url) + "api/v1/auth/google/callback"
+
     try:
         # Exchange authorization code for tokens
         async with httpx.AsyncClient() as client:
@@ -454,12 +472,11 @@ async def google_callback(request: Request, code: str = None, error: str = None)
                     "client_secret": settings.GOOGLE_CLIENT_SECRET,
                     "code": code,
                     "grant_type": "authorization_code",
-                    "redirect_uri": settings.GOOGLE_REDIRECT_URI
+                    "redirect_uri": redirect_uri
                 }
             )
-            
+
             if token_response.status_code != 200:
-                # Log the error response from Google for debugging
                 error_detail = token_response.text
                 print(f"DEBUG: Token exchange failed with status {token_response.status_code}")
                 print(f"DEBUG: Response body: {error_detail}")

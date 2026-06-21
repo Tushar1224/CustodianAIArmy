@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import LoadingOverlay from '../components/shared/LoadingOverlay';
 
@@ -237,13 +238,15 @@ function getChangedFields(optimizedData, originalData) {
 }
 
 export default function ResumePage() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState('list');
   const [resumes, setResumes] = useState([]);
   const [currentResume, setCurrentResume] = useState(null);
   const [activeTab, setActiveTab] = useState('personal');
-  const [jdText, setJdText] = useState('');
-  const [showJdInput, setShowJdInput] = useState(false);
+  const [jdText, setJdText] = useState(searchParams.get('jd') || '');
+  const [showJdInput, setShowJdInput] = useState(!!searchParams.get('jd'));
   const [optimizationResult, setOptimizationResult] = useState(null);
   const [chatMessage, setChatMessage] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
@@ -352,6 +355,78 @@ export default function ResumePage() {
   }, []);
 
   useEffect(() => { loadResumes(); }, [loadResumes]);
+
+  // Load resume from URL search param (e.g. from JobsPage optimize CTA)
+  useEffect(() => {
+    const resumeId = searchParams.get('resume');
+    const jdParam = searchParams.get('jd');
+    if (resumeId && resumes.length > 0) {
+      const found = resumes.find(r => String(r.id) === String(resumeId));
+      if (found) {
+        setCurrentResume(found);
+        setView('viewer');
+      }
+    }
+  }, [searchParams, resumes]);
+
+  // Auto-optimize when returning from JobsPage optimize CTA
+  useEffect(() => {
+    if (!searchParams.get('optimizeJob') || !currentResume?.id || !jdText) return;
+    const autoOptimize = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/resumes/${currentResume.id}/optimize`, {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resume_id: currentResume.id, jd: jdText }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.optimization?.optimized_data) return;
+        const mergedData = {
+          ...currentResume.data,
+          ...data.optimization.optimized_data,
+          personal_info: {
+            ...(currentResume.data?.personal_info || {}),
+            ...(data.optimization.optimized_data?.personal_info || {}),
+          },
+          education: data.optimization.optimized_data.education || currentResume.data?.education || [],
+          experience: data.optimization.optimized_data.experience || currentResume.data?.experience || [],
+          skills: data.optimization.optimized_data.skills || currentResume.data?.skills || [],
+          certifications: data.optimization.optimized_data.certifications || currentResume.data?.certifications || [],
+          projects: data.optimization.optimized_data.projects || currentResume.data?.projects || [],
+          achievements: data.optimization.optimized_data.achievements || currentResume.data?.achievements || [],
+        };
+        const saveRes = await fetch(`${API_BASE}/resumes/${currentResume.id}`, {
+          method: 'PUT', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: mergedData, title: currentResume.title, template_name: currentResume.template_name || null }),
+        });
+        const saveData = saveRes.ok ? await saveRes.json() : null;
+        const resumeText = [
+          mergedData.personal_info?.full_name || '',
+          mergedData.personal_info?.title || '',
+          '',
+          ...(mergedData.education || []).map(e => `${e.degree} at ${e.institution} (${e.dates})`),
+          ...(mergedData.experience || []).map(e => `${e.role} at ${e.company} (${e.dates}): ${e.description || ''}`),
+          ...(mergedData.skills || []).map(s => s.value || s),
+          ...(mergedData.certifications || []).map(c => `${c.name} - ${c.issuer}`),
+          ...(mergedData.projects || []).map(p => `${p.name}: ${p.description || ''}`),
+        ].filter(Boolean).join('\n');
+        const blob = new Blob([resumeText], { type: 'text/plain' });
+        const downloadUrl = URL.createObjectURL(blob);
+        const jobInfo = JSON.parse(sessionStorage.getItem('custodian_optimize_job') || '{}');
+        sessionStorage.setItem('custodian_optimize_result', JSON.stringify({
+          title: jobInfo.title || '', company: jobInfo.company || '',
+          url: jobInfo.url || '', downloadUrl,
+        }));
+        sessionStorage.removeItem('custodian_optimize_job');
+        navigate('/jobs');
+      } catch (e) { console.error('Auto-optimize failed', e); }
+      setLoading(false);
+    };
+    autoOptimize();
+  }, [searchParams, currentResume?.id, jdText, navigate]);
 
   // Load chat history when entering viewer
   useEffect(() => {

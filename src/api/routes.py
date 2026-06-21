@@ -3,6 +3,7 @@ API Routes for Custodian AI Army
 """
 import json
 import asyncio
+import sys
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request, WebSocket, WebSocketDisconnect, Query, UploadFile, File, Form
 from fastapi.responses import JSONResponse, StreamingResponse
 import subprocess
@@ -23,12 +24,14 @@ from src.core.database import (
     save_resume, get_user_resumes, get_resume, get_resume_count, delete_resume, save_resume_chat_history,
     save_template, list_templates, get_template_by_name,
     delete_mvp_session, list_mvp_sessions,
-    save_job_search, get_recent_job_search
+    save_job_search, get_recent_job_search, save_global_job_cache, get_global_job_cache,
+    add_jobs_to_accumulated, get_accumulated_jobs, get_accumulated_job_count,
+    get_fetch_state, set_fetch_state, clear_stale_accumulated,
 )
 from src.agents.astro_agent import AstroAgent # Import AstroAgent
 from src.agents.base_agent import AgentMessage, AgentCapability, BaseAgent
 from src.core.logging_config import get_logger
-from src.api.auth import get_current_user_from_cookies, User
+from src.api.auth import get_current_user_from_cookies, get_optional_user, User
 from src.api.build import get_mvp_builder, MVPBuilder
 from src.core.document_extractor import extract_text
 
@@ -38,6 +41,27 @@ logger = get_logger("api")
 
 # Global agent manager instance
 agent_manager = AgentManager()
+
+# Feature-to-agent mapping: each page/feature uses its dedicated agent
+FEATURE_AGENTS = {
+    "job_search":       "JobFinderAI",
+    "resume_optimizer": "TechnicalAI",
+    "resume_chat":      "TechnicalAI",
+    "build_app":        "TechnicalAI",
+    "build_chat":       "TechnicalAI",
+    "dashboard":        "AnalystAI",
+    "learn":            "ResearchAI",
+    "agent_prompt":     "TechnicalAI",
+    "custom_agent":     "TechnicalAI",
+}
+
+def _get_agent_for_feature(feature: str) -> Optional[BaseAgent]:
+    name = FEATURE_AGENTS.get(feature)
+    if name:
+        agent = agent_manager.get_agent_by_name(name)
+        if agent:
+            return agent
+    return agent_manager.get_agent_by_name("CustodianAI")
 
 # Chat compaction: when total message characters exceed this, compact old messages
 CHAT_COMPACTION_CHAR_THRESHOLD = 8000
@@ -343,9 +367,7 @@ async def generate_agent_prompt(
 ):
     """Generate an AI agent system prompt from a base idea using AI."""
     try:
-        target = agent_manager.get_agent_by_name("TechnicalAI")
-        if not target:
-            target = agent_manager.get_agent_by_name("CustodianAI")
+        target = _get_agent_for_feature("agent_prompt")
         if not target:
             raise HTTPException(status_code=503, detail="No AI agent available")
 
@@ -367,12 +389,16 @@ async def generate_agent_prompt(
             f"Return ONLY the system prompt text, no additional commentary."
         )
 
-        msg = {"role": "user", "content": prompt}
-        response = await agent_manager.send_message(msg, agent_override=target)
+        msg = AgentMessage(
+            sender_id="user",
+            receiver_id=target.agent_id,
+            content=prompt
+        )
+        response = await agent_manager.send_message(msg)
 
         return {
             "success": True,
-            "generated_prompt": response.get("text", response.get("content", "")),
+            "generated_prompt": response.content,
             "specialization": request.specialization or "General"
         }
     except HTTPException:
@@ -393,14 +419,15 @@ class JobSearchRequest(BaseModel):
 @router.post("/jobs/search")
 async def search_jobs(
     request: JobSearchRequest,
-    current_user: User = Depends(get_current_user_from_cookies)
+    current_user: Optional[User] = Depends(get_optional_user)
 ):
-    """Search for real job listings via JobSpy MCP + AI fallback."""
+    """Search for real job listings via JobSpy MCP + direct jobspy + AI fallback."""
     try:
+        user_email = current_user.email if current_user else "guest"
         resume_data = None
         resume_id = request.resume_id
 
-        if resume_id:
+        if resume_id and current_user:
             from src.core.database import get_resume as _get_resume
             resume = _get_resume(resume_id, current_user.email)
             if not resume:
@@ -414,150 +441,285 @@ async def search_jobs(
         elif request.search_term:
             resume_data = {"personal_info": {"title": request.search_term, "location": request.location or ""}, "skills": []}
         else:
-            raise HTTPException(status_code=400, detail="Provide resume_id, resume_data, or search_term")
+            resume_data = {"personal_info": {"title": "software engineer", "location": "remote"}, "skills": []}
 
         pi = resume_data.get("personal_info", {})
         skills_list = [s.get("value", "") for s in resume_data.get("skills", [])]
 
+        # Check global pre-fetch cache for quick searches
+        fake_resume_id = f"__global__:{pi.get('title', '')}"
+        cached = get_global_job_cache(pi.get('title', ''))
+        if cached:
+            logger.info(f"Serving {len(cached['jobs'])} pre-fetched jobs for '{pi.get('title')}'")
+            return {"jobs": cached["jobs"], "total_count": cached["total_count"], "cached": True}
+
         jobs = None
 
-        # ── Primary: JobSpy MCP (scrapes real job listings) ──
-        try:
-            from src.mcp.mcp_client import MCPServerProcess
-            from src.mcp.mcp_config import MCP_SERVERS
+        import math
+        def _v(v, default=""):
+            return "" if (isinstance(v, float) and math.isnan(v)) else (v or default)
 
-            spy_config = MCP_SERVERS.get("jobspy")
-            if spy_config:
-                server = MCPServerProcess(
-                    server_name="jobspy",
-                    command=spy_config["command"],
-                    args=spy_config["args"],
-                    env=spy_config.get("env", {})
+        def _map_jobspy_results(raw_jobs, skills):
+            skill_lower = {s.lower() for s in skills[:15]}
+            mapped = []
+            for j in raw_jobs:
+                if not isinstance(j, dict):
+                    continue
+                title_lower = _v(j.get("title")).lower()
+                desc_text = _v(j.get("description")) or _v(j.get("jobDescription"))
+                desc_lower = desc_text.lower()
+                matched = sum(1 for sk in skill_lower if sk in title_lower or sk in desc_lower)
+                base_score = 50
+                if skill_lower:
+                    base_score = min(95, 50 + int(matched / max(len(skill_lower), 1) * 45))
+
+                emp_type = _v(j.get("employmentType") or j.get("jobType")).lower()
+                loc_lower = _v(j.get("location")).lower()
+                title_lower_full = _v(j.get("title")).lower()
+                is_remote_field = j.get("isRemote") in (True, "true", "True", 1)
+                is_remote_flag = is_remote_field or "remote" in emp_type or "remote" in loc_lower or "remote" in title_lower_full or "(remote)" in title_lower_full
+                if is_remote_flag and ("hybrid" in emp_type or "hybrid" in loc_lower or "hybrid" in title_lower_full):
+                    wtype = "hybrid"
+                elif is_remote_flag:
+                    wtype = "remote"
+                else:
+                    wtype = "on_site"
+
+                raw_url = _v(j.get("jobUrl") or j.get("applyUrl") or j.get("job_url", ""))
+                apply_url = raw_url.strip()
+                if apply_url and not apply_url.startswith(("http://", "https://")):
+                    apply_url = "https://" + apply_url
+                if apply_url and not apply_url.startswith("http"):
+                    apply_url = ""
+
+                mapped.append({
+                    "title": _v(j.get("title")),
+                    "company": _v(j.get("company")),
+                    "location": _v(j.get("location")),
+                    "type": wtype,
+                    "description": desc_text[:200] if desc_text else "",
+                    "apply_url": apply_url,
+                    "date_posted": _v(j.get("datePosted") or j.get("date_posted")),
+                    "salary_range": _v(j.get("salaryRange") or j.get("salary_range")),
+                    "match_score": j.get("matchScore") or j.get("match_score", base_score),
+                    "source": _v(j.get("site") or j.get("source")),
+                })
+            return mapped
+
+        JOBSPY_PLATFORMS = {'linkedin','indeed','glassdoor','zip_recruiter','google','monster'}
+        CUSTOM_PLATFORMS = {
+            'remoteok','remotive','arbeitnow','adzuna','jooble','jsearch',
+            'wellfound','ycombinator','ventureloop','f6s','startupjobs',
+            'upwork','freelancer','contra','braintrust','truelancer','workana','guru',
+            'peopleperhour','servicescape','hubstaff_talent','yunojuno',
+            'peopleperhour','servicescape','hubstaff_talent','yunojuno',
+            'freelancemyway','bark','zeerk','legiit','twine',
+            'gun_io','lemon_io','turing','flexiple','arc',
+            'codementor','clouddevs','revelo','upstack','topcoder',
+            'crossover','x_team','gigster',
+            'kolabtree','zindi','kaggle','huggingface',
+            'dataannotation','alignerr','outlier','toptal',
+            'design_99','designcrowd','dribbble','behance',
+            'crowdspring','workingnotworking',
+            'writeraccess','verblio','scripted','textbroker',
+            'constant_content','crowd_content','composely',
+            'weworkremotely','dynamitejobs','workingnomads','jobspresso',
+            'nodesk','remoteleaf','pangian',
+            'gitcoin','dework','onlydust','bountysource',
+            'codetriage','algora','polar_sh','issuehunt',
+            'laborx','cryptojobs','web3career','useweb3',
+            'careerbuilder',
+        }
+        all_site_names = (request.site_names or "remoteok,remotive,arbeitnow,linkedin,indeed,google,weworkremotely,wellfound,aijobs,dice,upwork")
+        jobspy_sites = [s.strip() for s in all_site_names.split(',') if s.strip() in JOBSPY_PLATFORMS]
+        custom_sites = [s.strip() for s in all_site_names.split(',') if s.strip() in CUSTOM_PLATFORMS]
+
+        # ── Primary: Direct jobspy call (no Docker, no Node.js) ──
+        jobs = []
+        if jobspy_sites:
+            try:
+                from jobspy import scrape_jobs
+                title = pi.get('title', '').strip() or "software engineer"
+                location = pi.get('location', '').strip()
+
+                is_remote = False
+                hours_old = 72
+                if request.filters:
+                    only_remote = request.filters.get("remote") and not request.filters.get("hybrid") and not request.filters.get("on_site")
+                    if only_remote:
+                        is_remote = True
+                    hours_old = 48
+
+                kwargs = dict(
+                    site_name=jobspy_sites,
+                    search_term=title,
+                    location=location,
+                    results_wanted=500,
+                    hours_old=hours_old,
+                    verbose=0,
                 )
-                started = await server.start()
-                if started:
-                    title = pi.get('title', '').strip() or "software engineer"
-                    location = pi.get('location', '').strip() or "remote"
-                    site_names = request.site_names or "indeed,linkedin,glassdoor"
+                if is_remote:
+                    kwargs["is_remote"] = True
+                df = scrape_jobs(**kwargs)
+                if df is not None and not df.empty:
+                    raw = df.to_dict(orient="records")
+                    mapped = _map_jobspy_results(raw, skills_list)
+                    if mapped:
+                        jobs = mapped
+                        logger.info(f"Direct jobspy returned {len(jobs)} jobs from {jobspy_sites}")
+            except Exception as direct_err:
+                logger.warning(f"Direct jobspy call failed: {direct_err}")
 
-                    # Determine if remote filter is active
-                    is_remote = False
-                    hours_old = 168
-                    if request.filters:
-                        only_remote = request.filters.get("remote") and not request.filters.get("hybrid") and not request.filters.get("on_site")
-                        if only_remote:
-                            is_remote = True
-                            location = "remote"
-                        hours_old = 72
+        # ── Secondary: JobSpy MCP server (Node.js bridge) ──
+        if jobspy_sites and not jobs:
+            try:
+                from src.mcp.mcp_client import MCPServerProcess
+                from src.mcp.mcp_config import MCP_SERVERS
 
-                    search_kwargs = {
-                        "search_term": title,
-                        "location": location if not is_remote else "remote",
-                        "site_names": site_names,
-                        "results_wanted": 20,
-                        "hours_old": hours_old,
-                        "country_indeed": "USA",
-                        "format": "json",
-                    }
-                    if is_remote:
-                        search_kwargs["is_remote"] = True
+                spy_config = MCP_SERVERS.get("jobspy")
+                if spy_config:
+                    server = MCPServerProcess(
+                        server_name="jobspy",
+                        command=spy_config["command"],
+                        args=spy_config["args"],
+                        env={**spy_config.get("env", {}), "JOBSPY_CMD": sys.executable}
+                    )
+                    started = await server.start()
+                    if started:
+                        title = pi.get('title', '').strip() or "software engineer"
+                        location = pi.get('location', '').strip() or "remote"
 
-                    result = await server.call_tool("search_jobs", search_kwargs)
-                    await server.stop()
+                        is_remote = False
+                        hours_old = 168
+                        if request.filters:
+                            only_remote = request.filters.get("remote") and not request.filters.get("hybrid") and not request.filters.get("on_site")
+                            if only_remote:
+                                is_remote = True
+                                location = "remote"
+                            hours_old = 72
 
-                    if result and not result.is_error and result.content:
-                        import json as _json
-                        parsed = None
-                        try:
-                            parsed = _json.loads(result.content)
-                        except Exception:
-                            pass
-                        if parsed and isinstance(parsed, dict):
-                            raw_jobs = parsed.get("jobs") or parsed.get("data") or []
-                        elif parsed and isinstance(parsed, list):
-                            raw_jobs = parsed
-                        else:
-                            raw_jobs = []
+                        search_kwargs = {
+                            "search_term": title,
+                            "location": location if not is_remote else "remote",
+                            "site_names": ','.join(jobspy_sites),
+                            "results_wanted": 500,
+                            "hours_old": hours_old,
+                            "format": "json",
+                        }
+                        if is_remote:
+                            search_kwargs["is_remote"] = True
 
-                        if raw_jobs:
-                            skill_lower = {s.lower() for s in skills_list[:15]}
-                            mapped = []
-                            for j in raw_jobs:
-                                if not isinstance(j, dict):
-                                    continue
-                                title_lower = (j.get("title") or "").lower()
-                                desc_text = (j.get("description") or (j.get("jobDescription") or ""))
-                                desc_lower = desc_text.lower()
-                                matched = sum(1 for sk in skill_lower if sk in title_lower or sk in desc_lower)
-                                base_score = 50
-                                if skill_lower:
-                                    base_score = min(95, 50 + int(matched / max(len(skill_lower), 1) * 45))
+                        result = await server.call_tool("search_jobs", search_kwargs)
+                        await server.stop()
 
-                                emp_type = (j.get("employmentType") or j.get("jobType") or "").lower()
-                                if "remote" in emp_type or j.get("isRemote"):
-                                    wtype = "remote"
-                                elif "hybrid" in emp_type:
-                                    wtype = "hybrid"
-                                else:
-                                    wtype = "on_site"
+                        if result and not result.is_error and result.content:
+                            import json as _json
+                            parsed = None
+                            try:
+                                parsed = _json.loads(result.content)
+                            except Exception:
+                                pass
+                            if parsed and isinstance(parsed, dict):
+                                raw_jobs = parsed.get("jobs") or parsed.get("data") or []
+                            elif parsed and isinstance(parsed, list):
+                                raw_jobs = parsed
+                            else:
+                                raw_jobs = []
 
-                                mapped.append({
-                                    "title": j.get("title", ""),
-                                    "company": j.get("company", ""),
-                                    "location": j.get("location", ""),
-                                    "type": wtype,
-                                    "description": desc_text[:200] if desc_text else "",
-                                    "apply_url": j.get("jobUrl") or j.get("applyUrl") or j.get("job_url", ""),
-                                    "date_posted": j.get("datePosted") or j.get("date_posted", ""),
-                                    "salary_range": j.get("salaryRange") or j.get("salary_range", ""),
-                                    "match_score": j.get("matchScore") or j.get("match_score", base_score),
-                                    "source": j.get("site") or j.get("source", ""),
-                                })
-                            if mapped:
-                                jobs = mapped
-        except Exception as mcp_err:
-            logger.warning(f"JobSpy MCP search failed (will use AI fallback): {mcp_err}")
+                            if raw_jobs:
+                                mapped = _map_jobspy_results(raw_jobs, skills_list)
+                                if mapped:
+                                    jobs = mapped
+                                    logger.info(f"JobSpy MCP returned {len(jobs)} jobs")
+            except Exception as mcp_err:
+                logger.warning(f"JobSpy MCP server failed: {mcp_err}")
 
+        # ── Custom platforms (remotely, instahyre) via AI ──
         # ── Fallback: AI-generated jobs ──
-        if not jobs:
-            target = agent_manager.get_agent_by_name("TechnicalAI")
+        if custom_sites or not jobs:
+            target = _get_agent_for_feature("job_search")
             if not target:
-                target = agent_manager.get_agent_by_name("CustodianAI")
-            if not target:
-                raise HTTPException(status_code=503, detail="No AI agent available")
+                if not jobs:
+                    raise HTTPException(status_code=503, detail="No AI agent available")
+            else:
+                filter_str = ""
+                if request.filters:
+                    f = request.filters
+                    types = []
+                    if f.get("remote"): types.append("remote/WFH")
+                    if f.get("hybrid"): types.append("hybrid")
+                    if f.get("on_site"): types.append("on-site/WFO")
+                    if types:
+                        filter_str = f"\nOnly include jobs with work type: {', '.join(types)}"
 
-            filter_str = ""
-            if request.filters:
-                f = request.filters
-                types = []
-                if f.get("remote"): types.append("remote/WFH")
-                if f.get("hybrid"): types.append("hybrid")
-                if f.get("on_site"): types.append("on-site/WFO")
-                if types:
-                    filter_str = f"\nOnly include jobs with work type: {', '.join(types)}"
+                platform_str = ""
+                if custom_sites:
+                    platform_str = f"\nSource platforms: {', '.join(custom_sites)}. Set the `source` field to the platform name."
 
-            profile = f"""Role: {pi.get('title', 'N/A')}
+                profile = f"""Role: {pi.get('title', 'N/A')}
 Skills: {', '.join(skills_list[:20])}
 Experience: {'; '.join([f"{e.get('role')} at {e.get('company')} ({e.get('start_date')}-{e.get('end_date')})" for e in resume_data.get('experience', [])][:5])}
 Education: {'; '.join([f"{e.get('degree')} at {e.get('institution')}" for e in resume_data.get('education', [])][:3])}"""
 
-            prompt = f"""You are a job search engine. Generate 500+ real, specific job listings matching:
+                prompt = f"""You are a job finder AI. Based on this candidate profile, generate RECENT job listings posted within the last 2 weeks. Generate at least 80 job listings, spread evenly across the available source platforms.
 
 {profile}
 {filter_str}
+{platform_str}
 
-Return JSON array with: title, company, location, type (remote/hybrid/on-site), description, apply_url (real career portal URL), salary_range (optional), match_score (0-100).
-CRITICAL: Return ONLY valid JSON. No markdown, no code blocks. Aim for 500+ jobs."""
+For each job, provide: title, company, location, type (remote/hybrid/on-site), description, apply_url, salary_range (optional), match_score (0-100 based on skill overlap with the candidate), date_posted (ISO date string within the last 14 days), source (platform name).
 
-            msg = {"role": "user", "content": prompt}
-            response = await agent_manager.send_message(msg, agent_override=target)
-            raw = response.get("text", response.get("content", ""))
-            import re
-            json_match = re.search(r'\[[\s\S]*\]', raw)
-            if json_match:
-                jobs = json.loads(json_match.group())
-            else:
-                jobs = json.loads(raw)
+Return ONLY a JSON array of job objects — no markdown, no explanations, no code fences."""
+
+                msg = AgentMessage(
+                    sender_id="user",
+                    receiver_id=target.agent_id,
+                    content=prompt
+                )
+                response = await agent_manager.send_message(msg)
+                raw = (response.content or "").strip()
+
+                ai_jobs = []
+                if raw:
+                    import re
+                    # Strip markdown code fences
+                    cleaned = re.sub(r'^```(?:json)?\s*', '', raw.strip())
+                    cleaned = re.sub(r'\s*```$', '', cleaned)
+                    try:
+                        ai_jobs = json.loads(cleaned)
+                    except json.JSONDecodeError:
+                        m = re.search(r'\[[\s\S]*\]', cleaned)
+                        if m:
+                            try:
+                                ai_jobs = json.loads(m.group())
+                            except json.JSONDecodeError:
+                                logger.warning(f"AI bracket JSON failed: {raw[:200]}")
+                        else:
+                            logger.warning(f"No JSON array in AI response: {raw[:200]}")
+                else:
+                    logger.warning("AI response was empty")
+
+                if ai_jobs:
+                    if jobs:
+                        existing_sources = {j.get('source') for j in jobs}
+                        jobs.extend(j for j in ai_jobs if j.get('source') in custom_sites or j.get('source') not in existing_sources)
+                    else:
+                        jobs = ai_jobs
+                    logger.info(f"AI generated {len(ai_jobs)} jobs (total: {len(jobs or [])})")
+
+        # Merge in accumulated jobs from background fetcher
+        acc = get_accumulated_jobs(limit=500)
+        if acc:
+            seen = set()
+            if jobs:
+                for j in jobs:
+                    seen.add(f"{j.get('title','')}|{j.get('company','')}|{j.get('source','')}")
+            for j in acc:
+                key = f"{j.get('title','')}|{j.get('company','')}|{j.get('source','')}"
+                if key not in seen:
+                    jobs.append(j)
+                    seen.add(key)
+            logger.info(f"Merged {len(acc)} accumulated jobs (total: {len(jobs)})")
 
         total = len(jobs) if jobs else 0
 
@@ -579,8 +741,192 @@ CRITICAL: Return ONLY valid JSON. No markdown, no code blocks. Aim for 500+ jobs
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error searching jobs: {str(e)}")
+        logger.error(f"Error searching jobs: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Lightweight accumulated jobs endpoint ──────────────────────────────────
+
+@router.get("/jobs/accumulated")
+async def get_accumulated_jobs_endpoint(
+    remote: Optional[bool] = Query(None),
+    hybrid: Optional[bool] = Query(None),
+    on_site: Optional[bool] = Query(None),
+    keyword: Optional[str] = Query(None),
+):
+    """Lightweight — DB read only, no JobSpy/AI calls."""
+    try:
+        jobs = get_accumulated_jobs(limit=1000)
+        if jobs:
+            allowed = set()
+            if remote: allowed.add("remote")
+            if hybrid: allowed.add("hybrid")
+            if on_site: allowed.add("on_site")
+            if allowed:
+                jobs = [j for j in jobs if j.get("type") in allowed]
+            if keyword:
+                kw = keyword.lower()
+                jobs = [j for j in jobs if kw in (j.get("title") or "").lower() or kw in (j.get("company") or "").lower()]
+        return {"jobs": jobs or [], "total_count": len(jobs)}
+    except Exception as e:
+        logger.error(f"Accumulated jobs error: {e}")
+        return {"jobs": [], "total_count": 0}
+
+
+class MatchScoresRequest(BaseModel):
+    resume_data: Dict[str, Any]
+    jobs: List[Dict[str, Any]]
+
+
+@router.post("/jobs/match-scores")
+async def compute_match_scores(request: MatchScoresRequest):
+    """Use AI to compute semantic match scores between a resume and job listings."""
+    agent = agent_manager.get_agent_by_name("TechnicalAI") or agent_manager.get_agent_by_name("CustodianAI")
+    if not agent:
+        for j in request.jobs:
+            j["match_score"] = 50
+        return {"jobs": request.jobs, "debug": "no_agent"}
+
+    try:
+        pi = request.resume_data.get("personal_info", {})
+        skills_list = [s.get("value", "") for s in request.resume_data.get("skills", [])]
+        resume_context = f"""
+Title/Role: {pi.get('title', '')}
+Summary: {pi.get('summary', '')}
+Skills: {', '.join(skills_list[:20])}
+Education: {', '.join(set(
+    str(e.get('degree', '')) + ' at ' + str(e.get('institution', ''))
+    for e in request.resume_data.get('education', [])
+))}
+Experience: {', '.join(set(
+    str(e.get('role', '')) + ' at ' + str(e.get('company', ''))
+    for e in request.resume_data.get('experience', [])
+)[:5])}
+"""
+        BATCH_SIZE = 25
+        MAX_JOBS = 100
+        scored_jobs = []
+        agent = agent_manager.get_agent_by_name("TechnicalAI") or agent_manager.get_agent_by_name("CustodianAI")
+        if not agent:
+            return {"jobs": request.jobs}
+
+        for batch_start in range(0, min(len(request.jobs), MAX_JOBS), BATCH_SIZE):
+            batch = request.jobs[batch_start:batch_start + BATCH_SIZE]
+            jobs_text = "\n\n".join(
+                f"JOB_{i}:\nTitle: {j.get('title','')}\nCompany: {j.get('company','')}\nDescription: {j.get('description','')[:500]}"
+                for i, j in enumerate(batch)
+            )
+            prompt = f"""You are an expert ATS and job-matching analyst. Given a candidate's resume context and a list of jobs, assign each job a match score from 0-100 based on semantic fit (skills overlap, experience relevance, career trajectory alignment).
+
+Resume:
+{resume_context}
+
+Jobs to score:
+{jobs_text}
+
+Return ONLY a valid JSON object with keys JOB_0 through JOB_{len(batch)-1}, each with an integer "score" (0-100). Example:
+{{"JOB_0": {{"score": 85}}, "JOB_1": {{"score": 32}}}}
+Do NOT include any other text, markdown, or explanation."""
+
+            msg = AgentMessage(
+                content=prompt,
+                sender_id="system",
+                receiver_id=agent.agent_id,
+                metadata={"task": "job_match_scoring"}
+            )
+            result = await agent.process_message(msg)
+            raw = result.content.strip()
+            if raw.startswith("```"): raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+            try:
+                parsed = json.loads(raw)
+                for i, job in enumerate(batch):
+                    key = f"JOB_{i}"
+                    score = parsed.get(key, {}).get("score", 50)
+                    job["match_score"] = max(0, min(100, int(score)))
+                    scored_jobs.append(job)
+            except (json.JSONDecodeError, ValueError, TypeError):
+                for job in batch:
+                    scored_jobs.append(job)
+
+        return {"jobs": scored_jobs}
+    except Exception as e:
+        logger.error(f"Match scores error: {e}", exc_info=True)
+        return {"jobs": request.jobs}
+
+
+# ── Applied Jobs API ──────────────────────────────────────────────────────────
+
+class SaveAppliedJobRequest(BaseModel):
+    title: str
+    company: str
+    location: str = ""
+    source: str = ""
+    apply_url: str = ""
+    salary_range: str = ""
+    match_score: int = 0
+    date_posted: str = ""
+
+
+@router.post("/jobs/applied")
+async def save_applied_job_endpoint(
+    request: SaveAppliedJobRequest,
+    current_user: Optional[User] = Depends(get_optional_user)
+):
+    user_email = current_user.email if current_user else "guest"
+    from src.core.database import save_applied_job as _save, has_applied_job
+    if has_applied_job(user_email, request.title, request.company):
+        return {"status": "exists"}
+    job_id = _save(user_email, {
+        "title": request.title, "company": request.company,
+        "location": request.location, "source": request.source,
+        "apply_url": request.apply_url, "salary_range": request.salary_range,
+        "match_score": request.match_score, "date_posted": request.date_posted,
+    })
+    return {"status": "saved", "id": job_id}
+
+
+@router.get("/jobs/applied")
+async def list_applied_jobs(
+    current_user: Optional[User] = Depends(get_optional_user)
+):
+    user_email = current_user.email if current_user else "guest"
+    from src.core.database import get_applied_jobs
+    return {"applied_jobs": get_applied_jobs(user_email)}
+
+
+@router.delete("/jobs/applied/{job_id}")
+async def delete_applied_job_endpoint(
+    job_id: str,
+    current_user: Optional[User] = Depends(get_optional_user)
+):
+    user_email = current_user.email if current_user else "guest"
+    from src.core.database import delete_applied_job
+    deleted = delete_applied_job(job_id, user_email)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Applied job not found")
+    return {"status": "deleted"}
+
+
+@router.post("/jobs/applied/sync")
+async def sync_applied_jobs(
+    jobs: List[SaveAppliedJobRequest],
+    current_user: Optional[User] = Depends(get_optional_user)
+):
+    """Bulk-sync frontend localStorage applied jobs to backend (one-shot migration)."""
+    user_email = current_user.email if current_user else "guest"
+    from src.core.database import save_applied_job as _save, has_applied_job
+    saved = 0
+    for j in jobs:
+        if not has_applied_job(user_email, j.title, j.company):
+            _save(user_email, {
+                "title": j.title, "company": j.company,
+                "location": j.location, "source": j.source,
+                "apply_url": j.apply_url, "salary_range": j.salary_range,
+                "match_score": j.match_score, "date_posted": j.date_posted,
+            })
+            saved += 1
+    return {"status": "synced", "saved": saved}
+
 
 @router.post("/tasks/execute")
 async def execute_task(task_request: TaskRequest, background_tasks: BackgroundTasks):
@@ -1564,9 +1910,7 @@ async def course_chat(
                 }
 
         # Get or create tutor agent
-        tutor_agent = agent_manager.get_agent_by_name("TechnicalAI")
-        if not tutor_agent:
-            tutor_agent = agent_manager.get_agent_by_name("CustodianAI")
+        tutor_agent = _get_agent_for_feature("learn")
         if not tutor_agent:
             raise HTTPException(status_code=404, detail="No suitable agent found")
 
@@ -1776,14 +2120,261 @@ async def delete_my_api_key(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STARTUP / SHUTDOWN
+# STARTUP / SHUTDOWN + BACKGROUND JOB FETCHER
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Startup and shutdown events
+# Platform groups for 30s rotation (keeps each platform scraped ~every 10 min)
+JOB_FETCH_GROUPS = [
+    # ── Tier 1: Real API calls (free, no key) ──
+    {"sites": ["remoteok"], "type": "api_remoteok", "hours": 24},
+    {"sites": ["remotive"], "type": "api_remotive", "hours": 24},
+    {"sites": ["arbeitnow"], "type": "api_arbeitnow", "hours": 24},
+    # ── JobSpy aggregators ──
+    {"sites": ["linkedin", "indeed"], "type": "jobspy", "hours": 48},
+    {"sites": ["google", "glassdoor"], "type": "jobspy", "hours": 48},
+    {"sites": ["zip_recruiter", "monster"], "type": "jobspy", "hours": 72},
+    # ── Freelance Marketplaces ──
+    {"sites": ["upwork", "freelancer", "guru"], "type": "custom", "hours": 168},
+    {"sites": ["peopleperhour", "workana", "truelancer"], "type": "custom", "hours": 168},
+    {"sites": ["contra", "braintrust", "twine"], "type": "custom", "hours": 168},
+    {"sites": ["servicescape", "hubstaff_talent", "yunojuno", "freelancemyway"], "type": "custom", "hours": 168},
+    {"sites": ["bark", "zeerk", "legiit"], "type": "custom", "hours": 168},
+    # ── Developer Freelance ──
+    {"sites": ["gun_io", "lemon_io", "turing"], "type": "custom", "hours": 168},
+    {"sites": ["flexiple", "arc", "codementor"], "type": "custom", "hours": 168},
+    {"sites": ["clouddevs", "revelo", "upstack"], "type": "custom", "hours": 168},
+    {"sites": ["topcoder", "crossover", "x_team", "gigster"], "type": "custom", "hours": 168},
+    # ── AI / Data Science ──
+    {"sites": ["kolabtree", "zindi", "kaggle", "huggingface"], "type": "custom", "hours": 168},
+    {"sites": ["dataannotation", "alignerr", "outlier", "toptal"], "type": "custom", "hours": 168},
+    # ── Design Freelance ──
+    {"sites": ["design_99", "designcrowd", "crowdspring"], "type": "custom", "hours": 168},
+    {"sites": ["dribbble", "behance", "workingnotworking"], "type": "custom", "hours": 168},
+    # ── Content / Marketing ──
+    {"sites": ["writeraccess", "verblio", "scripted"], "type": "custom", "hours": 168},
+    {"sites": ["textbroker", "constant_content", "crowd_content", "composely"], "type": "custom", "hours": 168},
+    # ── Remote Contract & Gig Boards ──
+    {"sites": ["weworkremotely", "dynamitejobs", "workingnomads"], "type": "custom", "hours": 168},
+    {"sites": ["jobspresso", "nodesk", "remoteleaf", "pangian"], "type": "custom", "hours": 168},
+    # ── Startup / Contract ──
+    {"sites": ["wellfound", "ycombinator", "ventureloop"], "type": "custom", "hours": 168},
+    {"sites": ["f6s", "startupjobs"], "type": "custom", "hours": 168},
+    # ── Open Source Bounties ──
+    {"sites": ["gitcoin", "dework", "onlydust", "bountysource"], "type": "custom", "hours": 168},
+    {"sites": ["codetriage", "algora", "polar_sh", "issuehunt"], "type": "custom", "hours": 168},
+    # ── Web3 ──
+    {"sites": ["laborx", "cryptojobs", "web3career", "useweb3"], "type": "custom", "hours": 168},
+    # ── Legacy / misc ──
+    {"sites": ["careerbuilder"], "type": "custom", "hours": 168},
+]
+
+_job_fetcher_running = False
+
 @router.on_event("startup")
 async def startup_event():
-    """Initialize the agent manager on startup"""
-    logger.info("API startup - Agent Manager initialized")
+    """Initialize and start background job fetcher."""
+    logger.info("API startup - starting background job fetcher")
+    asyncio.create_task(_background_job_fetcher())
+
+
+async def _background_job_fetcher():
+    """Rotate through platform groups every 5 minutes, accumulating jobs in DB."""
+    global _job_fetcher_running
+    if _job_fetcher_running:
+        return
+    _job_fetcher_running = True
+    try:
+        await asyncio.sleep(15)  # initial delay after startup
+        while True:
+            try:
+                clear_stale_accumulated()
+                group_idx = int(get_fetch_state("job_fetch_group_index", "0"))
+                group = JOB_FETCH_GROUPS[group_idx % len(JOB_FETCH_GROUPS)]
+                await _fetch_job_group(group)
+                next_idx = (group_idx + 1) % len(JOB_FETCH_GROUPS)
+                set_fetch_state("job_fetch_group_index", str(next_idx))
+                total = get_accumulated_job_count()
+                logger.info(f"Job cache: {total} accumulated after group {group_idx} ({group['sites']})")
+            except Exception as e:
+                logger.warning(f"Background fetch round failed: {e}")
+            await asyncio.sleep(60)  # 1 minute between platform group fetches
+    except asyncio.CancelledError:
+        pass
+    finally:
+        _job_fetcher_running = False
+
+
+async def _fetch_job_group(group: dict):
+    """Fetch jobs for one platform group and add to accumulated cache."""
+    sites = group["sites"]
+    gtype = group["type"]
+    hours = group["hours"]
+    import random, math
+
+    def _norm(j):
+        def _v(v, d=""):
+            return "" if (isinstance(v, float) and math.isnan(v)) else (v or d)
+        raw_url = _v(j.get("jobUrl") or j.get("applyUrl") or j.get("job_url", ""))
+        apply_url = raw_url.strip()
+        if apply_url and not apply_url.startswith(("http://", "https://")):
+            apply_url = "https://" + apply_url
+        if apply_url and not apply_url.startswith("http"):
+            apply_url = ""
+        emp_type = _v(j.get("employmentType") or j.get("jobType")).lower()
+        loc_lower = _v(j.get("location")).lower()
+        title_lower = _v(j.get("title")).lower()
+        is_remote_field = j.get("isRemote") in (True, "true", "True", 1)
+        is_remote_flag = is_remote_field or "remote" in emp_type or "remote" in loc_lower or "remote" in title_lower
+        if is_remote_flag and ("hybrid" in emp_type or "hybrid" in loc_lower or "hybrid" in title_lower):
+            wtype = "hybrid"
+        elif is_remote_flag:
+            wtype = "remote"
+        else:
+            wtype = "on_site"
+        return {
+            "title": _v(j.get("title")),
+            "company": _v(j.get("company")),
+            "location": _v(j.get("location")),
+            "type": wtype,
+            "description": _v(j.get("description") or j.get("jobDescription"))[:300],
+            "apply_url": apply_url,
+            "date_posted": _v(j.get("datePosted") or j.get("date_posted")),
+            "salary_range": _v(j.get("salaryRange") or j.get("salary_range")),
+            "match_score": j.get("matchScore") or j.get("match_score", 75),
+            "source": _v(j.get("site") or j.get("source")),
+        }
+
+    if gtype == "jobspy":
+        await asyncio.sleep(random.uniform(0.5, 2.0))
+        try:
+            from jobspy import scrape_jobs
+            df = scrape_jobs(
+                site_name=sites,
+                search_term="software engineer",
+                results_wanted=30,
+                hours_old=hours,
+                verbose=0,
+            )
+            if df is not None and not df.empty:
+                raw = df.to_dict(orient="records")
+                mapped = [_norm(j) for j in raw if isinstance(j, dict)]
+                if mapped:
+                    add_jobs_to_accumulated(mapped)
+                    logger.info(f"Fetched {len(mapped)} jobs from {sites}")
+        except Exception as e:
+            logger.warning(f"JobSpy fetch failed for {sites}: {e}")
+
+    elif gtype.startswith("api_"):
+        await asyncio.sleep(random.uniform(0.3, 1.0))
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=15) as client:
+                if gtype == "api_remoteok":
+                    resp = await client.get("https://remoteok.com/api")
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        if isinstance(data, list):
+                            # RemoteOK returns [{...}, {...}, ...] with first item as placeholder
+                            jobs_raw = [j for j in data if isinstance(j, dict) and j.get("id")]
+                            mapped = []
+                            for j in jobs_raw:
+                                salary = j.get("salary") or j.get("salary_range") or ""
+                                mapped.append(_norm({
+                                    "title": j.get("position", ""),
+                                    "company": j.get("company", ""),
+                                    "location": "Remote",
+                                    "description": j.get("description", ""),
+                                    "apply_url": j.get("url", ""),
+                                    "date_posted": j.get("date", ""),
+                                    "salary_range": salary,
+                                    "source": "remoteok",
+                                    "site": "remoteok",
+                                }))
+                            if mapped:
+                                add_jobs_to_accumulated(mapped)
+                                logger.info(f"RemoteOK API: {len(mapped)} jobs")
+
+                elif gtype == "api_remotive":
+                    resp = await client.get("https://remotive.com/api/remote-jobs")
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        jobs_raw = data.get("jobs", []) if isinstance(data, dict) else []
+                        mapped = []
+                        for j in jobs_raw:
+                            mapped.append(_norm({
+                                "title": j.get("title", ""),
+                                "company": j.get("company_name", ""),
+                                "location": j.get("candidate_required_location", "Remote"),
+                                "description": j.get("description", ""),
+                                "apply_url": j.get("url", ""),
+                                "date_posted": j.get("publication_date", ""),
+                                "salary_range": j.get("salary", ""),
+                                "source": "remotive",
+                                "site": "remotive",
+                            }))
+                        if mapped:
+                            add_jobs_to_accumulated(mapped)
+                            logger.info(f"Remotive API: {len(mapped)} jobs")
+
+                elif gtype == "api_arbeitnow":
+                    resp = await client.get("https://www.arbeitnow.com/api/job-board-api", follow_redirects=True)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        jobs_raw = data.get("data", []) if isinstance(data, dict) else []
+                        mapped = []
+                        for j in jobs_raw:
+                            remote = j.get("remote", False)
+                            wtype = "remote" if remote else ("hybrid" if j.get("hybrid", False) else "on_site")
+                            mapped.append({
+                                "title": j.get("title", ""),
+                                "company": j.get("company_name", ""),
+                                "location": j.get("location", ""),
+                                "type": wtype,
+                                "description": (j.get("description", "") or "")[:300],
+                                "apply_url": j.get("url", ""),
+                                "date_posted": j.get("created_at", ""),
+                                "salary_range": j.get("salary", ""),
+                                "match_score": 75,
+                                "source": "arbeitnow",
+                            })
+                        if mapped:
+                            add_jobs_to_accumulated(mapped)
+                            logger.info(f"Arbeitnow API: {len(mapped)} jobs")
+        except Exception as e:
+            logger.warning(f"API fetch failed for {gtype}: {e}")
+
+    elif gtype == "custom":
+        await asyncio.sleep(random.uniform(0.3, 1.5))
+        try:
+            # Use AI to generate job listings for custom platforms
+            target = _get_agent_for_feature("job_search")
+            if not target:
+                return
+            prompt = f"""You are a job finder AI. Generate realistic job listings from the following platforms: {', '.join(sites)}.
+
+Create 5-10 diverse job listings spread across these platforms. For each job provide:
+title, company, location, type (remote/hybrid/on-site), description (1-2 sentences),
+apply_url, salary_range (optional), match_score (70-95), date_posted (ISO date within last 2 weeks), source (which platform from the list).
+
+Return ONLY a JSON array of job objects — no markdown, no explanations."""
+            msg = AgentMessage(sender_id="user", receiver_id=target.agent_id, content=prompt)
+            resp = await agent_manager.send_message(msg)
+            raw = (resp.content or "").strip()
+            if raw:
+                import re
+                m = re.search(r'\[[\s\S]*\]', raw)
+                if m:
+                    try:
+                        ai_jobs = json.loads(m.group())
+                        if ai_jobs:
+                            normed = [_norm(j) if isinstance(j, dict) else j for j in ai_jobs]
+                            add_jobs_to_accumulated(normed)
+                            logger.info(f"AI generated {len(normed)} jobs for {sites}")
+                    except json.JSONDecodeError:
+                        pass
+        except Exception as e:
+            logger.warning(f"AI fetch failed for {sites}: {e}")
+
 
 @router.on_event("shutdown")
 async def shutdown_event():
@@ -2306,9 +2897,7 @@ async def compact_resume_chat(
         return {"chat_history": chat_history_raw, "compacted": False}
 
     try:
-        agent = agent_manager.get_agent_by_name("TechnicalAI")
-        if not agent:
-            agent = agent_manager.get_agent_by_name("CustodianAI")
+        agent = _get_agent_for_feature("resume_optimizer")
 
         compact_text = "\n".join(
             f"{m.get('role', 'unknown')}: {m.get('content', '')}" for m in to_compact
@@ -2484,9 +3073,7 @@ async def parse_resume_document(
 ):
     """Parse uploaded resume document text and extract structured data using AI."""
     try:
-        agent = agent_manager.get_agent_by_name("TechnicalAI")
-        if not agent:
-            agent = agent_manager.get_agent_by_name("CustodianAI")
+        agent = _get_agent_for_feature("resume_optimizer")
 
         temperature = 0.7
         prompt = f"""You are an expert resume parser. Analyze the following raw resume text and extract all information into a structured JSON object. Be thorough — capture every detail you find.
@@ -2600,9 +3187,7 @@ async def upload_resume_document(
 
         contents = await file.read()
 
-        agent = agent_manager.get_agent_by_name("TechnicalAI")
-        if not agent:
-            agent = agent_manager.get_agent_by_name("CustodianAI")
+        agent = _get_agent_for_feature("resume_optimizer")
 
         # Use Claude's native document parsing (base64 content block) when available,
         # which provides better accuracy than local PyPDF2/python-docx extraction.
@@ -2860,9 +3445,7 @@ IMPORTANT: Keep your output SMALL. Only include data that actually changed from 
             try:
                 if agent_manager.active_provider != provider:
                     agent_manager.switch_provider(provider)
-                    agent = agent_manager.get_agent_by_name("TechnicalAI")
-                    if not agent:
-                        agent = agent_manager.get_agent_by_name("CustodianAI")
+                    agent = _get_agent_for_feature("resume_optimizer")
 
                 msg = AgentMessage(sender_id="api", receiver_id=agent.agent_id, content=prompt)
                 result_msg = await agent.process_message(msg)

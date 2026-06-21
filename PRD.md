@@ -748,84 +748,60 @@ curl http://localhost:8000/api/v1/army/status
 
 ## 11. Production Deployment
 
-### 11.1 Vercel Deployment
+### 11.1 Architecture (Vercel + AWS Free Tier)
 
-The project is configured for Vercel (Python runtime via `vercel.json`):
+```
+┌──────────┐     /api/*     ┌──────────────┐    TCP:5432    ┌──────────┐
+│  Vercel  │ ────────────▶  │  EC2 t3.micro │ ────────────▶  │ RDS (PG) │
+│ (React)  │               │  FastAPI      │               │ custodian│
+└──────────┘               └──────────────┘               └──────────┘
+```
+
+| Component | Service | Cost | Free Tier |
+|-----------|---------|------|-----------|
+| Frontend | Vercel (Hobby) | $0/mo | Always free |
+| Backend | EC2 t3.micro | ~$8/mo after year 1 | 12 months |
+| Database | RDS db.t3.micro | ~$17/mo after year 1 | 12 months |
+| Network | VPC + subnets | $0/mo | Always free |
+
+### 11.2 CDK Deployment (recommended)
+
+The `infra/` directory contains AWS CDK stacks for one-command deployment:
+
+```bash
+cd infra
+cdk deploy --all ^
+  -c db_password=YourPassword123 ^
+  -c anthropic_key=sk-ant-... ^
+  -c gemini_key=AI...
+```
+
+This provisions:
+- **VPC** with public + isolated subnets (0 NAT gateways = $0)
+- **RDS PostgreSQL 16** on db.t3.micro in isolated subnet
+- **EC2 t3.micro** with auto-setup: Python → clone repo → venv → systemd service
+
+See `infra/README.md` for full deployment guide and lifecycle management.
+
+### 11.3 Connecting Vercel to Backend
+
+In `vercel.json`, proxy `/api/*` to the EC2 instance:
 
 ```json
 {
-  "version": 2,
-  "builds": [{ "src": "main.py", "use": "@vercel/python" }],
-  "routes": [{ "src": "/(.*)", "dest": "main.py" }],
-  "env": { "DATABASE_PATH": "/tmp/custodian.db" }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "http://EC2_PUBLIC_IP:8000/api/$1" }
+  ]
 }
 ```
 
-**Important Limitations:**
-- SQLite on Vercel uses `/tmp/` — data persists only during active deployment; lost on cold starts
-- File-based MCP tools (`filesystem`, `memory`) may not work in serverless environment
-- Streaming responses may have timeout limits (Vercel Hobby: 10s, Pro: 60s)
+### 11.4 Old Deployment Methods (no longer recommended)
 
-### 11.2 Deployment Steps
+#### Vercel-only (deprecated)
+SQLite on Vercel uses `/tmp/` — data lost on cold starts. Not suitable for production.
 
-```bash
-# Install Vercel CLI
-npm install -g vercel
-
-# Deploy
-vercel --prod
-
-# Set environment variables in Vercel Dashboard:
-# - GEMINI_API_KEY / ANTHROPIC_API_KEY
-# - GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
-# - GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET
-# - JWT_SECRET (random, long string)
-# - SECRET_KEY (random, long string)
-# - PRIMARY_LLM_PROVIDER
-```
-
-### 11.3 Self-Hosted / VPS Deployment
-
-For persistent storage, deploy on a VPS (DigitalOcean, AWS EC2, etc.):
-
-```bash
-# Using systemd service
-cat > /etc/systemd/system/custodian-ai.service << 'EOF'
-[Unit]
-Description=Custodian AI Army
-After=network.target
-
-[Service]
-Type=simple
-User=www-data
-WorkingDirectory=/opt/CustodianAIArmy
-ExecStart=/opt/CustodianAIArmy/.venv/bin/python main.py
-Restart=always
-EnvironmentFile=/opt/CustodianAIArmy/.env
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl enable custodian-ai
-systemctl start custodian-ai
-```
-
-### 11.4 Using Docker
-
-```dockerfile
-FROM python:3.11-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-CMD ["python", "main.py"]
-```
-
-```bash
-docker build -t custodian-ai .
-docker run -p 8000:8000 --env-file .env custodian-ai
-```
+#### Pure VPS / Docker
+For custom VPS setups, see `infra/README.md` for the systemd service template. Docker instructions removed — prefer CDK for AWS or Vercel for serverless.
 
 ---
 

@@ -1,6 +1,7 @@
 import sqlite3
 import json
 import uuid
+import hashlib
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Iterator
 import os
@@ -1178,6 +1179,52 @@ def _migrate_job_searches():
             created_at TEXT NOT NULL
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS global_job_cache (
+            id TEXT PRIMARY KEY,
+            search_query TEXT NOT NULL,
+            jobs TEXT NOT NULL,
+            total_count INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS job_cache_accumulated (
+            job_key TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            company TEXT NOT NULL,
+            location TEXT DEFAULT '',
+            type TEXT DEFAULT '',
+            description TEXT DEFAULT '',
+            apply_url TEXT DEFAULT '',
+            date_posted TEXT DEFAULT '',
+            salary_range TEXT DEFAULT '',
+            match_score INTEGER DEFAULT 0,
+            source TEXT DEFAULT '',
+            fetched_at TEXT NOT NULL
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS job_fetch_state (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS applied_jobs (
+            id TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            title TEXT NOT NULL,
+            company TEXT NOT NULL,
+            location TEXT DEFAULT '',
+            source TEXT DEFAULT '',
+            apply_url TEXT DEFAULT '',
+            salary_range TEXT DEFAULT '',
+            match_score INTEGER DEFAULT 0,
+            date_posted TEXT DEFAULT '',
+            applied_at TEXT NOT NULL
+        )
+    ''')
     conn.commit()
     conn.close()
 
@@ -1219,6 +1266,188 @@ def get_recent_job_search(user_email: str, resume_id: str) -> Optional[dict]:
         "resume_data": json.loads(row[3]), "jobs": json.loads(row[4]),
         "total_count": row[5], "created_at": row[6],
     }
+
+
+def save_global_job_cache(search_query: str, jobs: list, total_count: int):
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cache_id = str(uuid.uuid4())
+    now = datetime.utcnow().isoformat()
+    cursor.execute('DELETE FROM global_job_cache WHERE search_query = ?', (search_query,))
+    cursor.execute('''
+        INSERT INTO global_job_cache (id, search_query, jobs, total_count, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (cache_id, search_query, json.dumps(jobs), total_count, now))
+    conn.commit()
+    conn.close()
+
+
+def get_global_job_cache(search_query: str, max_age_seconds: int = 900) -> Optional[dict]:
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, search_query, jobs, total_count, created_at
+        FROM global_job_cache
+        WHERE search_query = ?
+        ORDER BY created_at DESC LIMIT 1
+    ''', (search_query,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    created = datetime.fromisoformat(row[4])
+    if (datetime.utcnow() - created).total_seconds() > max_age_seconds:
+        return None
+    return {"jobs": json.loads(row[2]), "total_count": row[3], "created_at": row[4]}
+
+
+# ── Accumulated Job Cache (background rotation) ───────────────────────────
+ACCUMULATED_JOB_TTL_HOURS = 48
+
+def add_job_to_accumulated(job: dict):
+    """Upsert a single job into the accumulated cache (dedup by title+company+source)."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    job_key = hashlib.md5(f"{job.get('title','')}|{job.get('company','')}|{job.get('source','')}".encode()).hexdigest()
+    now = datetime.utcnow().isoformat()
+    cursor.execute('''
+        INSERT OR REPLACE INTO job_cache_accumulated
+        (job_key, title, company, location, type, description, apply_url, date_posted, salary_range, match_score, source, fetched_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (job_key, job.get('title',''), job.get('company',''), job.get('location',''),
+          job.get('type',''), job.get('description','')[:500] if job.get('description') else '',
+          job.get('apply_url',''), job.get('date_posted',''), job.get('salary_range',''),
+          job.get('match_score',0), job.get('source',''), now))
+    conn.commit()
+    conn.close()
+
+
+def add_jobs_to_accumulated(jobs: list):
+    for j in jobs:
+        add_job_to_accumulated(j)
+
+
+def get_accumulated_jobs(limit: int = 500, offset: int = 0) -> list:
+    """Return accumulated jobs, newest first, up to `limit`."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cutoff = (datetime.utcnow().timestamp() - ACCUMULATED_JOB_TTL_HOURS * 3600)
+    cursor.execute('''
+        SELECT title, company, location, type, description, apply_url, date_posted, salary_range, match_score, source, fetched_at
+        FROM job_cache_accumulated
+        WHERE (julianday('now') - julianday(fetched_at)) * 24 < ?
+        ORDER BY fetched_at DESC
+        LIMIT ? OFFSET ?
+    ''', (ACCUMULATED_JOB_TTL_HOURS, limit, offset))
+    rows = cursor.fetchall()
+    conn.close()
+    return [{
+        "title": r[0], "company": r[1], "location": r[2], "type": r[3],
+        "description": r[4], "apply_url": r[5], "date_posted": r[6],
+        "salary_range": r[7], "match_score": r[8], "source": r[9],
+        "fetched_at": r[10],
+    } for r in rows]
+
+
+def get_accumulated_job_count() -> int:
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cutoff = (datetime.utcnow().timestamp() - ACCUMULATED_JOB_TTL_HOURS * 3600)
+    cursor.execute('''
+        SELECT COUNT(*) FROM job_cache_accumulated
+        WHERE (julianday('now') - julianday(fetched_at)) * 24 < ?
+    ''', (ACCUMULATED_JOB_TTL_HOURS,))
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
+
+
+def get_fetch_state(key: str, default: str = "0") -> str:
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute('SELECT value FROM job_fetch_state WHERE key = ?', (key,))
+    row = cursor.fetchone()
+    conn.close()
+    return row[0] if row else default
+
+
+def set_fetch_state(key: str, value: str):
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute('INSERT OR REPLACE INTO job_fetch_state (key, value) VALUES (?, ?)', (key, value))
+    conn.commit()
+    conn.close()
+
+
+def clear_stale_accumulated():
+    """Remove entries older than TTL."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute('''
+        DELETE FROM job_cache_accumulated
+        WHERE (julianday('now') - julianday(fetched_at)) * 24 >= ?
+    ''', (ACCUMULATED_JOB_TTL_HOURS,))
+    deleted = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return deleted
+
+
+# ── Applied Jobs ──────────────────────────────────────────────────────────────
+def save_applied_job(user_email: str, job: dict) -> str:
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    job_id = str(uuid.uuid4())
+    now = datetime.utcnow().isoformat()
+    cursor.execute('''
+        INSERT INTO applied_jobs (id, user_email, title, company, location, source, apply_url, salary_range, match_score, date_posted, applied_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (job_id, user_email, job.get('title',''), job.get('company',''), job.get('location',''),
+          job.get('source',''), job.get('apply_url',''), job.get('salary_range',''),
+          job.get('match_score',0), job.get('date_posted',''), now))
+    conn.commit()
+    conn.close()
+    return job_id
+
+
+def get_applied_jobs(user_email: str) -> list:
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, user_email, title, company, location, source, apply_url, salary_range, match_score, date_posted, applied_at
+        FROM applied_jobs
+        WHERE user_email = ?
+        ORDER BY applied_at DESC
+    ''', (user_email,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [{
+        "id": r[0], "user_email": r[1], "title": r[2], "company": r[3],
+        "location": r[4], "source": r[5], "apply_url": r[6],
+        "salary_range": r[7], "match_score": r[8], "date_posted": r[9],
+        "applied_at": r[10],
+    } for r in rows]
+
+
+def delete_applied_job(job_id: str, user_email: str) -> bool:
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM applied_jobs WHERE id = ? AND user_email = ?', (job_id, user_email))
+    deleted = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return deleted
+
+
+def has_applied_job(user_email: str, title: str, company: str) -> bool:
+    """Check if a job with the same title+company was already applied to (dedup)."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) FROM applied_jobs WHERE user_email = ? AND title = ? AND company = ?',
+                   (user_email, title, company))
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count > 0
 
 
 # Initialize the database when this module is loaded

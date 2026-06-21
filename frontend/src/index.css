@@ -235,6 +235,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
   font-family: 'Orbitron', monospace;
 }
 .offcanvas .btn-close { opacity: 0.6; }
+[data-theme="dark"] .offcanvas .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
 .offcanvas .nav-link {
   color: var(--text) !important;
   padding: 0.65rem 1rem;
@@ -769,6 +770,7 @@ a:hover { color: var(--primary); filter: brightness(0.9); }
 .modal-footer { border-top-color: var(--border) !important; }
 .modal-title { color: var(--primary) !important; }
 .btn-close { opacity: 0.6; }
+[data-theme="dark"] .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
 
 /* ── Form Controls ── */
 .form-control, .form-select {

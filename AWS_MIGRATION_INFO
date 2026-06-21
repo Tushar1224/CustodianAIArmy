@@ -1,0 +1,81 @@
+AWS CDK Infrastructure — Custodian AI Army (ARCHIVED)
+======================================================
+
+This file documents the AWS CDK infrastructure that was set up and tested but
+ultimately removed in favor of a simpler local-only setup using SQLite
+(custodian.db). Keep this as a reference if you want to migrate back to AWS.
+
+Account: 394820919743
+Region:  us-east-1
+
+Architecture
+------------
+
+    Vercel (React)  --/api/*-->  EC2 t3.micro (FastAPI)  --TCP:5432-->  RDS PostgreSQL
+
+Stacks (created via infra/ CDK):
+
+  Stack              | Service            | Cost           | Free Tier
+  -------------------|--------------------|----------------|-----------------------
+  CustodianVpc       | VPC + subnets      | $0/mo          | Always free
+  CustodianRds       | PostgreSQL 16      | ~$17/mo yr 2+  | db.t3.micro (12 mo)
+  CustodianBackend   | EC2 t3.micro       | ~$8/mo yr 2+   | t3.micro (12 mo)
+
+Files that were in infra/ (for reference):
+
+  infra/app.py                 # CDK entry point — wires VPC -> RDS -> Backend
+  infra/cdk.json               # CDK config ("app": ".venv\\Scripts\\python.exe app.py")
+  infra/requirements.txt       # aws-cdk-lib, constructs, boto3
+  infra/README.md              # Full deploy + lifecycle guide (see summary below)
+  infra/stacks/vpc_stack.py    # VPC: 2 AZs, public + isolated subnets, 0 NAT gateways
+  infra/stacks/rds_stack.py    # RDS: PostgreSQL 16, db.t3.micro, 20GB gp3, backup=1d
+  infra/stacks/backend_stack.py# EC2: t3.micro, Amazon Linux 2023, systemd, UserData
+
+Prerequisites (if re-deploying)
+-------------------------------
+  1. Install AWS CLI: winget install Amazon.AWSCLI
+  2. Configure: aws configure (Access Key ID, Secret Key, us-east-1)
+  3. Install CDK: npm install -g aws-cdk
+  4. Bootstrap: cdk bootstrap aws://394820919743/us-east-1
+
+Deploy (if re-deploying)
+------------------------
+  cdk deploy --all --require-approval never ^
+    -c db_password=<password> ^
+    -c anthropic_key=sk-ant-... ^
+    -c gemini_key=AI... ^
+    -c jwt_secret=<hex> ^
+    -c github_url=https://github.com/Tushar1224/CustodianAIArmy.git
+
+Known issues from deploy attempt (2026-06-21):
+  - RDS backup_retention must be 1 day (free tier max, not 7)
+  - SG descriptions must be ASCII only (no em dashes/en dashes)
+  - Cross-stack dependency cycle: CfnSecurityGroupIngress owned by BackendStack
+    to avoid RDS SG -> Backend SG -> RDS cycle
+  - CDK must use .venv Python: set "app" to ".venv\\Scripts\\python.exe app.py"
+
+Lifecycle (if re-deployed)
+--------------------------
+  | Scenario                     | Action                               | Downtime  |
+  |------------------------------|--------------------------------------|-----------|
+  | Change backend code          | SSH -> git pull -> systemctl restart  | 2-5s      |
+  | Change API keys              | Edit .env -> systemctl restart        | 2-5s      |
+  | Change EC2 type/storage      | Edit CDK -> cdk deploy                | 2-3 min   |
+  | Change RDS storage           | Edit CDK -> cdk deploy                | None      |
+  | Full destroy                 | cdk destroy -> cdk destroy -> destroy | Permanent |
+
+  Connect: aws ssm start-session --target <InstanceId>
+  View logs: sudo journalctl -u custodian -f
+
+Outputs (from successful deploy)
+---------------------------------
+  BackendIp   = EC2 public IP (set in Vercel vercel.json rewrites)
+  BackendUrl  = http://<IP>:8000
+  InstanceId  = EC2 instance ID (for SSM)
+  DbEndpoint  = RDS hostname
+
+Local SQLite Setup (current)
+-----------------------------
+  Database file: custodian.db (auto-created in project root)
+  No AWS services needed. Backend uses SQLite via sqlite3.
+  DB is ephemeral between restarts if using in-memory; otherwise persists.
