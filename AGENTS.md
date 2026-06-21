@@ -1156,7 +1156,7 @@ Vercel (React) ──proxies /api/*──> EC2 (FastAPI) ──> RDS (PostgreSQL
 |--------|--------|
 | **COMMON_WORDS trimmed** | Removed ~50 technical/role words (`software`, `engineer`, `developer`, `python`, `react`, etc.) — was filtering out critical matching signal; now only truly generic words (`the`, `and`, `for`, etc.) remain |
 | **`computeSemanticScores` removed** | Was overwriting keyword scores with broken backend response (no `match_score` returned), nuking all matches to zero |
-| **Word-boundary matching** | `\bkw\b` prevents false positives like `sql` matching `sqlalchemy` |
+| **Word-boundary matching → `includes()`** | Switched from `\bkw\b` to `includes()` — more lenient (sql→sqlalchemy false positives OK) but dramatically higher match rates; fewer missed matches from non-standard delimiters |
 | **Normalization** | `c#` → `csharp`, `node.js` → `nodejs`, `react.js` → `react` |
 
 ### Frontend — Sliding window pagination (`JobsPage.jsx`)
@@ -1176,7 +1176,23 @@ Vercel (React) ──proxies /api/*──> EC2 (FastAPI) ──> RDS (PostgreSQL
 | `frontend/src/pages/HomePage.jsx` | Changed **Apply for Jobs** from `status: 'coming'` → `status: 'working'` with primary-blue theme; added green "NEW" badge on card + "HOT" ribbon on top-right; removed from "Coming Next" section |
 | `frontend/src/pages/JobsPage.jsx` | Added `isEnglish()` filter — strips CJK/Arabic/Cyrillic job listings from results |
 | `frontend/src/pages/JobsPage.jsx` | Scoring capped denominator at 8 (`Math.min(kwArray.length, 8)`) so match scores are higher (1 keyword match = 12.5% instead of 5%) |
+| `frontend/src/pages/JobsPage.jsx` | Scoring floor of `Math.max(1, score)` — every accumulated job gets `match_score >= 1`, guaranteeing Top Matches always populated |
 | `frontend/src/pages/JobsPage.jsx` | Applied jobs section: deduplicated (title+company), compact collapsible rows, removed full JobCards |
 | `frontend/src/pages/JobsPage.jsx` | Description formatting: strips HTML tags + markdown `**bold**`/`*italic*` + truncates to 220 chars |
 | `frontend/src/components/layout/Sidebar.jsx` + `index.css` | Close button: removed `btn-close-white`, uses CSS `filter: invert(1)` in dark mode via `[data-theme="dark"]` |
 | `src/agents/agent_manager.py` | `send_message()` signature unchanged (no `agent_override` param — prod needed restart after git pull) |
+
+## Session: 2026-06-21 — Documentation Sync (README + PRD)
+
+### What was done
+| File | Change |
+|------|--------|
+| `README.md` | Updated `/jobs` route description to "86 platforms + background accumulation + resume match scoring"; expanded Jobs API table with 6 endpoints (accumulated, search, applied CRUD, sync); added full **Jobs Board** section with features table, API endpoints, background fetch architecture, DB tables, and key files |
+| `PRD.md` | Added `/jobs` route to UI routes table; added **§8.6 Jobs Board** section with views, match scoring, applied tracking, background fetch architecture, client-side filtering, pagination, English-only filter, description formatting, API endpoints, DB tables, key files, and known limitations; bumped version 1.5.0 → 1.6.0 |
+| `AGENTS.md` | Updated `\b` → `includes()` in Match Scoring session; added scoring floor of 1 to HomePage session; appended this session log |
+
+### Key Details
+- README Jobs Board section includes: 86 platforms, features table, 6 API endpoints, 28-group background architecture, 3 DB tables
+- PRD §8.6 covers: match scoring internals (`includes()`, `normalizeWord()`, capped denominator, floor of 1), applied tracking flow (localStorage + backend sync, pending-apply modal), sliding window pagination, English filter regex, description formatting pipeline
+- Updated word-boundary session to reflect the `\bkw\b` → `includes()` change (was logged inaccurately before)
+- MCP tools table updated to mention "7 major platforms + AI fallback for 86 total" |

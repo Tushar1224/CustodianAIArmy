@@ -277,7 +277,7 @@ cd frontend && npm run build && cd .. && python main.py
 | `/build` | BuildPage | 5-phase MVP Builder pipeline |
 | `/agents` | CustomAgentsPage | Create/manage custom agents |
 | `/resume` | ResumePage | Resume Optimizer — upload, edit, ATS-optimize, multi-template |
-| `/jobs` | JobsPage | Job search across 7 platforms (LinkedIn, Indeed, Glassdoor, ZipRecruiter, Google Jobs, Bayt, Naukri) |
+| `/jobs` | JobsPage | Job search across 86 platforms + background accumulation + resume match scoring |
 | `/payment` | PaymentPage | Upgrade to Pro plan |
 
 ---
@@ -322,7 +322,12 @@ All endpoints under `/api/v1/`. Swagger docs at `/api/docs`.
 ### Jobs
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/jobs/search` | Search jobs across 7 platforms: LinkedIn, Indeed, Glassdoor, ZipRecruiter, Google Jobs, Bayt, Naukri |
+| GET | `/jobs/accumulated` | List accumulated jobs (newest-first, 48h TTL, no AI/JobSpy) |
+| POST | `/jobs/search` | Real-time search across 86 platforms via JobSpy + 3 API fetchers + AI fallback |
+| POST | `/jobs/applied` | Mark job as applied |
+| GET | `/jobs/applied` | List applied jobs for current user |
+| DELETE | `/jobs/applied/{id}` | Remove applied job by row ID |
+| POST | `/jobs/applied/sync` | Batch upsert applied jobs (deduped by title+company) |
 
 ### Courses & Learning
 | Method | Path | Description |
@@ -425,7 +430,7 @@ All agents use either **Google** (`gemini-2.5-flash`) or **Anthropic** (`claude-
 | **memory** | Knowledge graph (entities, relations, observations) | Coordinator, researcher |
 | **sequential_thinking** | `sequentialthinking` | Coordinator, analyst, technical, researcher |
 | **crawl_course_pathway** | `crawl_course_pathway` — crawl tutorial sites into markdown pathways | Tutor, researcher, coder |
-| **jobspy** | `search_jobs` — real job scraping from 7 platforms | Coordinator, researcher, job_finder |
+| **jobspy** | `search_jobs` — real job scraping from 7 major platforms + AI fallback for 86 total | Coordinator, researcher, job_finder |
 
 ### Agent-to-Tools Mapping
 
@@ -639,6 +644,59 @@ A full-featured resume builder with AI-powered ATS optimization, document upload
 | Guest | 3 | 3 optimizations/day |
 | Free | 3 | 20/day |
 | Pro | Unlimited | 50/day |
+
+---
+
+## Jobs Board
+
+A real-time job aggregator that accumulates listings from 86 platforms in the background, with resume-based match scoring, applied job tracking, and client-side filtering.
+
+### Features
+| Feature | Description |
+|---------|-------------|
+| **86 Platforms** | Curated across 12 categories (Primary APIs, Startup, AI/ML & Tech, Remote, Aggregators, Freelance, etc.) with color-coded toggle buttons and category tab bar |
+| **Background Accumulation** | 28 fetch groups rotating every 60s with random jitter (0.3–2s); full cycle every ~28 min; real API fetchers (RemoteOK, Remotive, Arbeitnow) + JobSpy + AI fallback |
+| **Resume Match Scoring** | Client-side keyword extraction with `includes()` matching, capped denominator (max 8 keywords), minimum score floor of 1; green "Match scores active" badge when resume selected |
+| **Two-Section Results** | **Top Matches** (top 9 jobs with `match_score > 0`, sorted descending) and **Improvement Required** (remaining); "All Jobs" when no resume (sorted by `date_posted`) |
+| **English-Only Filter** | `isEnglish()` strips CJK/Arabic/Cyrillic job listings by title and description |
+| **Client-Side Filtering** | Keyword search box, type toggles (remote/hybrid/on-site), platform toggles — all local, no backend calls |
+| **Sliding Window Pagination** | ±5 pages around current with `<<`/`>>` jump buttons and highlighted current page |
+| **Applied Tracker** | Collapsible compact section (title @ company rows, deduped); localStorage instant hide + backend DB persistence with auto-sync on mount; "Did you apply?" modal on tab return |
+| **Job Card Details** | Colored source badge, relative date (`2d ago`), HTML/markdown-stripped description truncated to 220 chars, "Apply with Resume" button |
+| **Description Formatting** | Strips HTML tags + markdown `**bold**`/`*italic*`/`__underline__` + truncates to 220 chars |
+| **5-Minute Poll** | Lightweight `/jobs/accumulated` poll every 5 min, no loading spinners; re-fetches on `visibilitychange` |
+
+### API Endpoints
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/jobs/accumulated` | Lightweight — reads from `job_cache_accumulated` only, no JobSpy/AI/MCP |
+| POST | `/jobs/search` | 3-tier fallback: direct JobSpy → MCP JobSpy → AI-generated (TechnicalAI/CustodianAI) |
+| POST | `/jobs/applied` | Save applied job `{title, company, source, url}` |
+| GET | `/jobs/applied` | All applied jobs for current user (guest email or authenticated) |
+| DELETE | `/jobs/applied/{id}` | Remove by row ID |
+| POST | `/jobs/applied/sync` | Batch upsert — dedupes by `{title, company}` |
+
+### Background Fetch Architecture
+- 28 fetch groups × 60s interval = full rotation every ~28 minutes
+- Each group scrapes 3–5 platforms with `results_wanted=30`
+- Random jitter (0.3–2s) prevents rate-limit blocks
+- Real API fetchers: RemoteOK (free), Remotive (free), Arbeitnow (free)
+- JobSpy: Python library scraping LinkedIn, Indeed, Glassdoor, Google, etc.
+- AI fallback: TechnicalAI or CustodianAI generates listings when real APIs fail
+
+### Database Tables
+| Table | Purpose |
+|-------|---------|
+| `job_cache_accumulated` | All accumulated jobs (hash-deduped by title+company+source) |
+| `job_fetch_state` | Per-group last-fetch timestamp for rotation continuity |
+| `applied_jobs` | Per-user applied jobs with source and URL |
+
+### Key Files
+| File | Purpose |
+|------|---------|
+| `frontend/src/pages/JobsPage.jsx` | Main jobs page — match scoring, platform toggles, applied tracker, pagination |
+| `src/api/routes.py` | Jobs endpoints — search, accumulate, applied CRUD, background fetcher |
+| `src/core/database.py` | Job DB tables and CRUD functions |
 
 ---
 

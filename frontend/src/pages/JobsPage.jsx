@@ -551,21 +551,6 @@ export default function JobsPage() {
       .catch(() => {});
   }, []);
 
-  // Silent initial load from accumulated cache (no loading state)
-  useEffect(() => {
-    fetch(`${API_BASE}/jobs/accumulated`, { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (d && d.jobs) {
-          setJobs(d.jobs.map(j => ({ ...j, match_score: 0 })));
-          setTotalCount(d.total_count);
-          setAccumulatedCount(d.total_count);
-          setLastUpdated(new Date());
-        }
-      })
-      .catch(() => {});
-  }, []);
-
   const getSiteNames = useCallback(() => {
     return PLATFORM_OPTIONS.filter(p => platformFilters[p.id]).map(p => p.id).join(',');
   }, [platformFilters]);
@@ -722,7 +707,7 @@ export default function JobsPage() {
       const r = await fetch(`${API_BASE}/jobs/accumulated`, { credentials: 'include' });
       if (r.ok) {
         const data = await r.json();
-        if (data.jobs && data.total_count !== accumulatedCount) {
+        if (data.jobs) {
           setJobs(sortJobsByDate(data.jobs).map(j => ({ ...j, match_score: 0 })));
           setTotalCount(data.total_count);
           setAccumulatedCount(data.total_count);
@@ -730,7 +715,7 @@ export default function JobsPage() {
         }
       }
     } catch {}
-  }, [accumulatedCount]);
+  }, []);
 
   // Initial fetch on mount
   useEffect(() => { fetchAccumulatedJobs(); }, [fetchAccumulatedJobs]);
@@ -752,7 +737,7 @@ export default function JobsPage() {
 
   const isEnglish = (text) => {
     if (!text) return true;
-    return !/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u0600-\u06ff\u0400-\u04ff]/.test(text);
+    return !/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u0600-\u06ff\u0400-\u04ff\u0590-\u05ff\u0e00-\u0e7f\uac00-\ud7af\u3040-\u309f\u30a0-\u30ff\u0900-\u097f]/.test(text);
   };
 
   const filteredJobs = jobs.filter(j => {
@@ -826,6 +811,52 @@ export default function JobsPage() {
           <p>Real job listings scraped from multiple platforms in real-time.</p>
         </div>
       </div>
+
+      {/* Applied Jobs Section — always first */}
+      {appliedJobs.length > 0 && (
+        <div style={{
+          background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '12px',
+          padding: '0.75rem 1.25rem', marginBottom: '1rem',
+        }}>
+          <div
+            onClick={() => setShowAppliedSection(!showAppliedSection)}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <i className="fas fa-check-circle" style={{ color: '#22c55e' }}></i>
+              <span style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.85rem' }}>
+                Applied ({appliedJobs.length})
+              </span>
+            </div>
+            <i className={`fas fa-chevron-${showAppliedSection ? 'up' : 'down'}`} style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}></i>
+          </div>
+          {showAppliedSection && (
+            <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {appliedJobs.map((job, i) => (
+                <div key={i} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '0.5rem 0.75rem', background: 'var(--card)', borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text)' }}>{job.title}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <span>{job.company}</span>
+                      {job.source && <span style={{ background: `${PLATFORM_COLORS[job.source] || '#6b7280'}15`, color: PLATFORM_COLORS[job.source] || '#6b7280', padding: '0.05rem 0.35rem', borderRadius: '4px', fontWeight: 600 }}>{job.source}</span>}
+                    </div>
+                  </div>
+                  <button onClick={() => removeAppliedJob(i)} title="Remove" style={{
+                    background: 'none', border: 'none', color: 'var(--text-muted)',
+                    cursor: 'pointer', padding: '0.25rem', fontSize: '0.8rem', flexShrink: 0,
+                  }}>
+                    <i className="fas fa-times"></i>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Controls Bar */}
       <div style={{
@@ -969,52 +1000,6 @@ export default function JobsPage() {
           </div>
         </div>
       </div>
-
-      {/* Applied Jobs Section */}
-      {appliedJobs.length > 0 && (
-        <div style={{
-          background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '12px',
-          padding: '0.75rem 1.25rem', marginBottom: '1.5rem',
-        }}>
-          <div
-            onClick={() => setShowAppliedSection(!showAppliedSection)}
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <i className="fas fa-check-circle" style={{ color: '#22c55e' }}></i>
-              <span style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.85rem' }}>
-                Applied ({appliedJobs.length})
-              </span>
-            </div>
-            <i className={`fas fa-chevron-${showAppliedSection ? 'up' : 'down'}`} style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}></i>
-          </div>
-          {showAppliedSection && (
-            <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {appliedJobs.map((job, i) => (
-                <div key={i} style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '0.5rem 0.75rem', background: 'var(--card)', borderRadius: '8px',
-                  border: '1px solid var(--border)',
-                }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text)' }}>{job.title}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <span>{job.company}</span>
-                      {job.source && <span style={{ background: `${PLATFORM_COLORS[job.source] || '#6b7280'}15`, color: PLATFORM_COLORS[job.source] || '#6b7280', padding: '0.05rem 0.35rem', borderRadius: '4px', fontWeight: 600 }}>{job.source}</span>}
-                    </div>
-                  </div>
-                  <button onClick={() => removeAppliedJob(i)} title="Remove" style={{
-                    background: 'none', border: 'none', color: 'var(--text-muted)',
-                    cursor: 'pointer', padding: '0.25rem', fontSize: '0.8rem', flexShrink: 0,
-                  }}>
-                    <i className="fas fa-times"></i>
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Results Header — always visible */}
       <div style={{

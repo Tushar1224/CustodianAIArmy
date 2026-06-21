@@ -1,6 +1,6 @@
 # Custodian AI Army — Product Requirements Document
 
-> **Version:** 1.5.0 · **Last Updated:** 2026-06-13  
+> **Version:** 1.6.0 · **Last Updated:** 2026-06-21  
 > **Project:** Custodian AI Army — A futuristic multi-agent AI orchestration system
 
 ---
@@ -444,6 +444,7 @@ sessions            -- Persistent auth sessions
 | `/build`         | `pages/BuildPage.jsx`         | Build Your Product (MVP)        |
 | `/agents`        | `pages/CustomAgentsPage.jsx`  | Custom Agent management         |
 | `/resume`        | `pages/ResumePage.jsx`        | Resume Optimizer — upload, ATS-optimize, multi-template |
+| `/jobs`          | `pages/JobsPage.jsx`          | Jobs Board — 86 platforms, background accumulation, resume match scoring |
 | `/payment`       | `pages/PaymentPage.jsx`       | Payment/upgrade page            |
 | `/api/docs`      | —                             | Swagger UI (auto-generated)     |
 | `/api/redoc`     | —                             | ReDoc UI (auto-generated)       |
@@ -626,7 +627,89 @@ The JD (Job Description) is central to the resume optimizer — it tailors the r
 | `check_resume.py` | Resume-specific test/helper script |
 | `check_build.py` | Build verification helper |
 
-### 8.6 Known Issues & Fixes
+### 8.6 Jobs Board (`/jobs`)
+
+A real-time job aggregator that accumulates listings from 86 platforms in the background, with resume-based match scoring, applied job tracking, and client-side filtering.
+
+#### Views
+1. **Jobs List** — All accumulated jobs displayed; two-section split when resume selected: **Top Matches** (top 9 scored jobs) and **Improvement Required** (remaining); **All Jobs** sorted by `date_posted` descending when no resume
+2. **Category Tabs** — 12 platform categories with per-category show less/more (8 platform limit), icon+label toggle buttons with hover titles
+3. **Applied Tracker** — Compact collapsible accordion above results with title @ company rows, count badge, remove button
+4. **Resume Upload** — Always-visible upload/select section with green "Match scores active" badge
+
+#### Resume Match Scoring
+- `extractResumeKeywords()` — extracts non-common words from resume data (personal info + all section text)
+- `computeResumeMatchScores()` — client-side keyword matching via `includes()` (lenient: `react` matches `reactjs`)
+- `normalizeWord()` — handles `c#`→`csharp`, `c++`→`cpp`, `.net`→`dotnet` before stripping special chars
+- **Denominator capped** at `Math.min(kwArray.length, 8)` — 1 keyword match = 12.5% minimum
+- **Floor of 1** — every job gets `match_score >= 1`, guaranteeing Top Matches always populated
+- `COMMON_WORDS` trimmed to ~20 pure-filler words (`the`, `and`, `for`) — `software`, `engineer`, `python`, `react` are valid match keywords
+
+#### Applied Job Tracking
+- **Instant hide**: Applied jobs hidden from results immediately via `hiddenJobKeys` Set (persisted in `localStorage('custodian_hidden_jobs')`)
+- **Backend sync**: `POST /jobs/applied/sync` sends full localStorage list on mount — backend dedupes by `{title, company}`
+- **Pending apply flow**: "Apply with Resume" stores job in `localStorage('custodian_pending_apply')` → on tab return, shows "Did you apply?" modal
+- **Compact display**: Applied jobs shown as collapsible rows (title @ company, source badge, date, remove button) — no full JobCards
+
+#### Background Fetch Architecture
+- **28 fetch groups** rotating every 60s with 0.3–2s random jitter per group
+- **Full cycle**: ~28 minutes to hit all 86 platforms
+- **3 real API fetchers**: RemoteOK (free), Remotive (free), Arbeitnow (free) — return valid apply URLs
+- **JobSpy**: Python library scraping LinkedIn, Indeed, Glassdoor, Google Jobs, ZipRecruiter, Bayt, Naukri
+- **AI fallback**: TechnicalAI/CustodianAI generates listings when real APIs fail
+- **Cache**: `job_cache_accumulated` table with 48-hour TTL, `job_fetch_state` for rotation continuity
+
+#### Client-Side Filtering (no backend calls)
+| Filter | Behavior |
+|--------|----------|
+| **Keyword** | `useMemo` filter on job title + description against `quickSearch` |
+| **Type** | Remote / Hybrid / On-site toggle buttons |
+| **Platform** | Color-coded toggle buttons per platform, category tab bar |
+
+#### Sliding Window Pagination
+- Helper `getPageNumbers(current, total, 5)` — returns ±5 pages around current, clamped to 1..total
+- `<<` jump button appears when current > 6; `>>` when current < total-5
+- Current page highlighted with `var(--primary)` border + background
+
+#### English-Only Filter
+- `isEnglish()` strips jobs by title and description containing CJK (`\u4e00-\u9fff`), Arabic (`\u0600-\u06ff`), or Cyrillic (`\u0400-\u04ff`) characters
+
+#### Job Description Formatting
+- Strips HTML tags via regex
+- Strips markdown: `**bold**`, `*italic*`, `__underline__`
+- Truncates to 220 characters with `…`
+
+#### API Endpoints
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/jobs/accumulated` | Lightweight — reads `job_cache_accumulated` only, no JobSpy/AI/MCP involved |
+| POST | `/jobs/search` | 3-tier fallback: direct JobSpy → MCP JobSpy → AI-generated |
+| POST | `/jobs/applied` | Save applied job `{title, company, source, url}` |
+| GET | `/jobs/applied` | All applied jobs for current user (guest email or authenticated) |
+| DELETE | `/jobs/applied/{id}` | Remove by row ID |
+| POST | `/jobs/applied/sync` | Batch upsert — deduplicates by `{title, company}` |
+
+#### Database Tables
+| Table | Purpose |
+|-------|---------|
+| `job_cache_accumulated` | `id, title, company, source, url, description, location, salary, job_type, date_posted, logo, hash, created_at` — 48h TTL, upsert by md5 hash |
+| `job_fetch_state` | Per-group last-fetch timestamp for rotation continuity |
+| `applied_jobs` | `id, user_email, title, company, source, url, applied_at` — full CRUD |
+
+#### Key Files
+| File | Purpose |
+|------|---------|
+| `frontend/src/pages/JobsPage.jsx` | Main jobs page — ~1300 lines covering match scoring, platform toggles, applied tracker, pagination, keyword filter, English filter |
+| `src/api/routes.py` | Jobs endpoints + background `_background_job_fetcher()` loop + 3 real API fetchers + AI fallback |
+| `src/core/database.py` | `job_cache_accumulated`, `job_fetch_state`, `applied_jobs` tables + CRUD functions |
+
+#### Known Limitations
+- MCP jobspy server fails on Windows (`MCP server closed connection`) — primary direct-JobSpy path works without it
+- Semantic scoring endpoint (`POST /match-scores`) not returning updated `match_score` — keyword-only scoring on frontend
+- No CloudFront/HTTPS on backend API yet
+- Guest users work via email + session, but applied jobs are per-session only (no account merge)
+
+### 8.7 Known Issues & Fixes
 
 | Issue | Fix |
 |-------|-----|
