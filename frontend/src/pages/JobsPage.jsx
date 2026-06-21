@@ -737,7 +737,14 @@ export default function JobsPage() {
 
   const isEnglish = (text) => {
     if (!text) return true;
-    return !/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u0600-\u06ff\u0400-\u04ff\u0590-\u05ff\u0e00-\u0e7f\uac00-\ud7af\u3040-\u309f\u30a0-\u30ff\u0900-\u097f]/.test(text);
+    // Block non-Latin scripts
+    if (/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u0600-\u06ff\u0400-\u04ff\u0590-\u05ff\u0e00-\u0e7f\uac00-\ud7af\u3040-\u309f\u30a0-\u30ff\u0900-\u097f]/.test(text)) return false;
+    // Block non-English European languages by checking accented Latin density
+    // English rarely uses accented characters (only in loanwords like café, résumé)
+    const accented = (text.match(/[\u00c0-\u024f]/g) || []).length;
+    const letters = (text.match(/[a-zA-Z\u00c0-\u024f]/g) || []).length;
+    if (letters > 0 && accented / letters > 0.1) return false;
+    return true;
   };
 
   const filteredJobs = jobs.filter(j => {
