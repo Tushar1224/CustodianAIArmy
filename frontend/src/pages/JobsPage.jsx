@@ -369,8 +369,6 @@ export default function JobsPage() {
   const [uploadedResume, setUploadedResume] = useState(null);
   const fileInputRef = useRef(null);
   const refreshTimerRef = useRef(null);
-  const autoSearchRef = useRef(false);
-  const [initialFetchDone, setInitialFetchDone] = useState(false);
   const [showAllPlatforms, setShowAllPlatforms] = useState(false);
   const [expandedCats, setExpandedCats] = useState(new Set());
   const [selectedPlatformCat, setSelectedPlatformCat] = useState('all');
@@ -719,50 +717,43 @@ export default function JobsPage() {
   };
 
   const fetchAccumulatedJobs = useCallback(async () => {
+    // Background refresh — only updates jobs if accumulated cache has data,
+    // never clears existing jobs. On serverless (Vercel), this is a no-op
+    // but doesn't disrupt the real-time search results.
     try {
       const r = await fetch(`${API_BASE}/jobs/accumulated`, { credentials: 'include' });
       if (r.ok) {
         const data = await r.json();
         if (data.jobs && data.jobs.length > 0) {
-          setJobs(sortJobsByDate(data.jobs).map(j => ({ ...j, match_score: 0 })));
-          setTotalCount(data.total_count);
-          setAccumulatedCount(data.total_count);
+          setJobs(prev => {
+            const existing = new Set(prev.map(j => `${j.title}|||${j.company}|||${j.source}`));
+            const newOnes = data.jobs.filter(j => !existing.has(`${j.title}|||${j.company}|||${j.source}`));
+            if (newOnes.length === 0) return prev;
+            return sortJobsByDate([...prev, ...newOnes.map(j => ({ ...j, match_score: 0 }))]);
+          });
           setLastUpdated(new Date());
-        } else {
-          // Keep existing jobs (from search) if accumulated cache is empty
-          setTotalCount(data.total_count || 0);
-          setAccumulatedCount(data.total_count || 0);
         }
       }
     } catch {}
-    setInitialFetchDone(true);
   }, []);
 
-  // Initial fetch on mount
-  useEffect(() => { fetchAccumulatedJobs(); }, [fetchAccumulatedJobs]);
+  // Initial load — always call real-time search for instant results
+  useEffect(() => { searchJobs(null, null, '', ''); }, [searchJobs]);
 
-  // Silent accumulated job poll — no loading state, always runs
+  // Background accumulated poll — merges new jobs silently without disrupting display
   useEffect(() => {
     accumulatedPollRef.current = setInterval(fetchAccumulatedJobs, REFRESH_INTERVAL);
     return () => clearInterval(accumulatedPollRef.current);
   }, [fetchAccumulatedJobs]);
 
-  // On cold start (no accumulated jobs), trigger a real-time search to get jobs immediately
-  useEffect(() => {
-    if (initialFetchDone && totalCount === 0 && !autoSearchRef.current && jobs.length === 0) {
-      autoSearchRef.current = true;
-      searchJobs(null, null, '', '');
-    }
-  }, [initialFetchDone, totalCount, searchJobs]);
-
-  // When tab regains focus, re-fetch accumulated jobs
+  // When tab regains focus, run search again for fresh results
   useEffect(() => {
     const handle = () => {
-      if (document.visibilityState === 'visible') fetchAccumulatedJobs();
+      if (document.visibilityState === 'visible') searchJobs(null, null, '', '');
     };
     document.addEventListener('visibilitychange', handle);
     return () => document.removeEventListener('visibilitychange', handle);
-  }, [fetchAccumulatedJobs]);
+  }, [searchJobs]);
 
   const isEnglish = (text) => {
     if (!text) return true;
