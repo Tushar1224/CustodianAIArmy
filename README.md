@@ -310,6 +310,20 @@ All endpoints under `/api/v1/`. Swagger docs at `/api/docs`.
 | GET | `/auth/me` | Get current user |
 | POST | `/auth/logout` | Logout |
 
+#### OAuth Production Setup & Security
+
+- Configure provider redirect URIs to the exact production callback URLs (scheme + domain + path). Examples:
+  - `https://your-domain.com/api/v1/auth/google/callback`
+  - `https://your-domain.com/api/v1/auth/github/callback`
+- Set the following environment variables in production (values must exactly match provider settings):
+  - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+  - `GOOGLE_REDIRECT_URI`
+  - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
+  - `GITHUB_REDIRECT_URI`
+- Never commit secrets or configuration files (e.g., `opencode.json`). `opencode.json` is added to `.gitignore`.
+- If a secret was committed and pushed, rotate/revoke it immediately and consider scrubbing history with `git filter-repo` or BFG.
+- Troubleshooting: a `redirect_uri_mismatch` means the redirect URI registered at the provider does not exactly match the value used by the server; verify both sides (including trailing slashes).
+
 ### MVP Builder
 | Method | Path | Description |
 |--------|------|-------------|
