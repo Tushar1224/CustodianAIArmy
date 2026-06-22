@@ -299,6 +299,10 @@ export default function BuildPage() {
   const [toasts, setToasts] = useState([]);
   const chatEndRef = useRef(null);
 
+  // New UX state for phase guidance and transition messages
+  const [phaseDetails, setPhaseDetails] = useState(null);
+  const [transitionMessage, setTransitionMessage] = useState(null);
+
   const addToast = (message, type = 'info') => {
     const id = Date.now() + Math.random();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -377,6 +381,12 @@ export default function BuildPage() {
         setChatHistory(data.session.chat_history || []);
         const phaseModes = (PHASES[data.session.current_phase_index] || PHASES[0]).modes;
         setMode(phaseModes[0]);
+
+        // Initialize phase details
+        const pd = (data.session.phases && data.session.phases[data.session.current_phase_index]) || null;
+        setPhaseDetails(pd);
+        setTransitionMessage(null);
+
         setView('session');
         setShowCreateForm(false);
         setNewIdea('');
@@ -455,6 +465,20 @@ export default function BuildPage() {
         setChatHistory(data.session.chat_history || []);
         const newPhaseModes = (PHASES[data.session.current_phase_index] || PHASES[0]).modes;
         setMode(newPhaseModes[0]);
+
+        // Capture transition message and phase guidance if provided by the backend
+        if (data.result) {
+          if (data.result.transition_message) setTransitionMessage(data.result.transition_message);
+          if (data.result.phase_details) setPhaseDetails(data.result.phase_details);
+          // Also accept UI prompt returned directly
+          if (data.result.ui_prompt && !data.result.transition_message) setTransitionMessage(data.result.ui_prompt);
+        } else {
+          // Fallback: derive phase details from the session payload
+          const pd = (data.session.phases && data.session.phases[data.session.current_phase_index]) || null;
+          setPhaseDetails(pd);
+          setTransitionMessage(null);
+        }
+
         addToast(`Advanced to ${PHASES[data.session.current_phase_index]?.name || 'next phase'}`, 'success');
         if (data.session.current_phase_index >= 4) {
           loadPreview(currentSession.session_id);
@@ -758,6 +782,34 @@ export default function BuildPage() {
         </div>
 
         {/* Phase Stepper */}
+
+        {phaseDetails && (
+          <div className="bp-phase-guidance">
+            <h4 className="bp-phase-guidance-title">{phaseDetails.name} — {phaseDetails.guidance?.summary}</h4>
+
+            {transitionMessage && (
+              <div className="bp-transition-msg">
+                {renderMarkdown(transitionMessage)}
+              </div>
+            )}
+
+            <div className="bp-guidance-actions">
+              {phaseDetails.guidance?.expected_actions && (
+                <div className="bp-guidance-block">
+                  <strong>Expected actions:</strong>
+                  <ul>{phaseDetails.guidance.expected_actions.map((a, i) => <li key={i}>{a}</li>)}</ul>
+                </div>
+              )}
+
+              {phaseDetails.guidance?.next_steps && (
+                <div className="bp-guidance-block">
+                  <strong>Next steps:</strong>
+                  <ul>{phaseDetails.guidance.next_steps.map((n, i) => <li key={i}>{n}</li>)}</ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         <div className="bp-stepper">
           {PHASES.map((phase, i) => {
             const isActive = i === currentPhaseIndex;

@@ -92,4 +92,5 @@ dist/
 *.tar.bz2
 *.tar.xz
 *.tar.zst
+opencode.json
 stdin

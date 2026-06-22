@@ -1147,23 +1147,91 @@ def list_mvp_sessions(user_email: str) -> List[Dict[str, Any]]:
 
 
 def delete_mvp_session(session_id: str, user_email: str) -> bool:
-    """Delete an MVP session by ID with ownership verification."""
+    """Archive (soft-delete) an MVP session by moving it to mvp_sessions_archive."""
     try:
         conn = sqlite3.connect(DB_PATH, timeout=20)
         cursor = conn.cursor()
+        # Ensure archive table exists
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS mvp_sessions_archive (
+                id TEXT PRIMARY KEY,
+                user_email TEXT NOT NULL,
+                product_idea TEXT NOT NULL,
+                current_phase_index INTEGER NOT NULL DEFAULT 0,
+                mode TEXT NOT NULL DEFAULT 'plan',
+                phases TEXT NOT NULL DEFAULT '[]',
+                chat_history TEXT NOT NULL DEFAULT '[]',
+                files TEXT NOT NULL DEFAULT '{}',
+                github_connected INTEGER NOT NULL DEFAULT 0,
+                github_repo_name TEXT,
+                github_username TEXT,
+                logs TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                archived_at TEXT NOT NULL
+            )
+        ''')
+        # Retrieve the session
+        cursor.execute('SELECT id, user_email, product_idea, current_phase_index, mode, phases, chat_history, files, github_connected, github_repo_name, github_username, logs, created_at, updated_at FROM mvp_sessions WHERE id = ? AND user_email = ?', (session_id, user_email))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return False
+        # Insert into archive
+        now = datetime.utcnow().isoformat()
+        cursor.execute('''
+            INSERT OR REPLACE INTO mvp_sessions_archive (id, user_email, product_idea, current_phase_index, mode, phases, chat_history, files, github_connected, github_repo_name, github_username, logs, created_at, updated_at, archived_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11], row[12], row[13], now))
+        # Delete original
         cursor.execute('DELETE FROM mvp_sessions WHERE id = ? AND user_email = ?', (session_id, user_email))
         deleted = cursor.rowcount > 0
         conn.commit()
         conn.close()
         return deleted
     except Exception as e:
-        print(f"Error deleting MVP session: {e}")
+        print(f"Error archiving MVP session: {e}")
         return False
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # JOB SEARCH FUNCTIONS
 # ─────────────────────────────────────────────────────────────────────────────
+
+def list_archived_mvp_sessions(user_email: str) -> List[Dict[str, Any]]:
+    """List archived MVP sessions for a user."""
+    conn = sqlite3.connect(DB_PATH, timeout=20)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, user_email, product_idea, current_phase_index, mode,
+            phases, chat_history, files, github_connected, github_repo_name,
+            github_username, logs, created_at, updated_at, archived_at
+        FROM mvp_sessions_archive WHERE user_email = ?
+        ORDER BY archived_at DESC
+    ''', (user_email,))
+    rows = cursor.fetchall()
+    conn.close()
+    results = []
+    for row in rows:
+        results.append({
+            "id": row[0],
+            "user_email": row[1],
+            "product_idea": row[2],
+            "current_phase_index": row[3],
+            "mode": row[4],
+            "phases": json.loads(row[5]) if row[5] else [],
+            "chat_history": json.loads(row[6]) if row[6] else [],
+            "files": json.loads(row[7]) if row[7] else {},
+            "github_connected": bool(row[8]),
+            "github_repo_name": row[9],
+            "github_username": row[10],
+            "logs": json.loads(row[11]) if row[11] else [],
+            "created_at": row[12],
+            "updated_at": row[13],
+            "archived_at": row[14],
+        })
+    return results
+
 
 def _migrate_job_searches():
     conn = sqlite3.connect(DB_PATH, timeout=20)

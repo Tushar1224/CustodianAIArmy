@@ -23,7 +23,7 @@ from src.core.database import (
     get_user_plan, check_and_increment_rate_limit, upgrade_user_plan, save_payment,
     save_resume, get_user_resumes, get_resume, get_resume_count, delete_resume, save_resume_chat_history,
     save_template, list_templates, get_template_by_name,
-    delete_mvp_session, list_mvp_sessions,
+    delete_mvp_session, list_mvp_sessions, list_archived_mvp_sessions,
     save_job_search, get_recent_job_search, save_global_job_cache, get_global_job_cache,
     add_jobs_to_accumulated, get_accumulated_jobs, get_accumulated_job_count,
     get_fetch_state, set_fetch_state, clear_stale_accumulated,
@@ -38,6 +38,18 @@ from src.core.document_extractor import extract_text
 # Initialize router and logger
 router = APIRouter()
 logger = get_logger("api")
+
+# MVP export endpoint (active + archived)
+@router.get("/mvp/export-sessions")
+async def export_mvp_sessions(current_user: User = Depends(get_current_user_from_cookies)):
+    """Export all active and archived MVP sessions for current user as JSON (backup)."""
+    try:
+        sessions = list_mvp_sessions(current_user.email)
+        archived = list_archived_mvp_sessions(current_user.email)
+        return {"sessions": sessions, "archived": archived}
+    except Exception as e:
+        logger.error(f"Error exporting MVP sessions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Global agent manager instance
 agent_manager = AgentManager()

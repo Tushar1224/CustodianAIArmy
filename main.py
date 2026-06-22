@@ -44,6 +44,32 @@ app.add_middleware(
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(auth_router)
 
+from src.api.routes import get_mvp_builder_instance
+import asyncio
+
+@app.on_event("startup")
+async def startup_background_tasks():
+    """Start background autosave for MVP sessions."""
+    autosave_interval = int(os.getenv("MVP_AUTOSAVE_INTERVAL", "60"))
+
+    async def autosave_loop():
+        builder = get_mvp_builder_instance()
+        while True:
+            try:
+                for session in list(builder.sessions.values()):
+                    try:
+                        builder._persist_to_db(session)
+                    except Exception as e:
+                        log = get_logger("autosave")
+                        log.warning(f"Autosave failed for session {getattr(session, 'session_id', 'unknown')}: {e}")
+                await asyncio.sleep(autosave_interval)
+            except Exception as e:
+                log = get_logger("autosave")
+                log.error(f"Autosave loop error: {e}")
+                await asyncio.sleep(autosave_interval)
+
+    asyncio.create_task(autosave_loop())
+
 # Mount legacy static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 

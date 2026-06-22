@@ -18,6 +18,7 @@ import uuid
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from pathlib import Path
+import tempfile
 
 import httpx
 from src.agents.agent_manager import AgentManager
@@ -40,6 +41,52 @@ class MVPPhase:
         self.output: Dict[str, Any] = {}
 
     def to_dict(self) -> Dict[str, Any]:
+        """Return phase dict with actionable guidance for UI and transition logic."""
+        guidance_map = {
+            "Ideation": {
+                "summary": "Refine product vision and target users.",
+                "expected_actions": ["Answer targeted questions", "Prioritize core features"],
+                "next_steps": ["Advance to Planning when vision is stable"],
+                "ui_hints": ["Show question prompts", "Provide example ideas"]
+            },
+            "Planning": {
+                "summary": "Design architecture, tech stack, and a high-level implementation plan.",
+                "expected_actions": ["Confirm tech stack", "Outline main modules and APIs"],
+                "next_steps": ["Produce plan artifacts (plan.md)", "Advance to Review when plan is complete"],
+                "ui_hints": ["Show checklist for architecture decisions", "Allow editing plan.md"]
+            },
+            "Review": {
+                "summary": "Validate the plan and identify risks or missing details.",
+                "expected_actions": ["Run architecture review", "Ask for clarifications on assumptions"],
+                "next_steps": ["Address review comments", "Advance to Polish when issues are resolved"],
+                "ui_hints": ["Show reviewed-plan.md diff", "Highlight blockers"]
+            },
+            "Polish": {
+                "summary": "Improve UX, accessibility, and polish UI details.",
+                "expected_actions": ["Suggest UI improvements", "Refine copy and accessibility"],
+                "next_steps": ["Create visual assets or style guide", "Advance to Build when ready"],
+                "ui_hints": ["Preview UI changes", "Provide before/after suggestions"]
+            },
+            "Build": {
+                "summary": "Generate production-ready code according to the approved plan.",
+                "expected_actions": ["Generate files", "Run basic validations/tests"],
+                "next_steps": ["Switch to ACT mode to let the builder create files", "Advance to Virtual Deploy after build"],
+                "ui_hints": ["Show a 'Switch to ACT' button", "Show progress bar and logs"]
+            },
+            "Virtual Deploy": {
+                "summary": "Preview and accept deployment of the generated product.",
+                "expected_actions": ["Review generated artifacts", "Accept or request changes"],
+                "next_steps": ["Accept deployment or request changes back to Build"],
+                "ui_hints": ["Show deploy preview and accept button", "Show publish-to-GitHub option"]
+            }
+        }
+        guidance = guidance_map.get(self.name, {
+            "summary": self.description,
+            "expected_actions": [],
+            "next_steps": [],
+            "ui_hints": []
+        })
+
         return {
             "name": self.name,
             "description": self.description,
@@ -48,6 +95,7 @@ class MVPPhase:
             "progress": self.progress,
             "status": self.status,
             "output": self.output,
+            "guidance": guidance,
         }
 
 
@@ -143,7 +191,7 @@ class MVPBuilder:
     def __init__(self, agent_manager: AgentManager):
         self.agent_manager = agent_manager
         self.sessions: Dict[str, MVPSession] = {}
-        self.workspace_base = Path("/tmp/mvp-workspaces")
+        self.workspace_base = Path(tempfile.gettempdir()) / "mvp-workspaces"
         self.workspace_base.mkdir(parents=True, exist_ok=True)
         logger.info("MVP Builder initialized")
 
@@ -554,6 +602,7 @@ class MVPBuilder:
             await self._save_phase_artifacts(session)
 
             # Generate a phase-specific transition AI message
+            transition_text = None
             try:
                 agent = self._get_agent_for_specialization(next_phase.agent_specialization)
                 if not agent:
@@ -630,9 +679,41 @@ class MVPBuilder:
                         metadata={"phase": next_phase.name, "mode": "plan", "transition": True},
                     )
                     response = await self.agent_manager.send_message(msg)
+                    # Capture the transition message text to return to the client for richer UI guidance
+                    transition_text = None
+                    if response is not None:
+                        # agent_manager may return an object or dict
+                        transition_text = getattr(response, 'content', None) if hasattr(response, 'content') else (response.get('content') if isinstance(response, dict) else None)
+                    # Sanitize AI response: strip code fences and trim
+                    def _clean_text(t: str) -> str:
+                        if not t:
+                            return ''
+                        import re
+                        # Remove triple-backtick code fences
+                        cleaned = re.sub(r'```[\s\S]*?```', '', t)
+                        # Remove single-line fences
+                        cleaned = re.sub(r'```', '', cleaned)
+                        cleaned = cleaned.strip()
+                        # Limit length
+                        if len(cleaned) > 3000:
+                            cleaned = cleaned[:3000] + '\n\n...(truncated)'
+                        return cleaned
+                    transition_text = _clean_text(transition_text or '')
+
+                    # Also create a short UI prompt based on phase guidance if available
+                    guidance = next_phase.to_dict().get('guidance', {})
+                    ui_prompt_parts = [guidance.get('summary', next_phase.description)]
+                    expected = guidance.get('expected_actions') or []
+                    if expected:
+                        ui_prompt_parts.append('Expected actions: ' + '; '.join(expected[:3]))
+                    next_steps = guidance.get('next_steps') or []
+                    if next_steps:
+                        ui_prompt_parts.append('Next steps: ' + '; '.join(next_steps[:2]))
+                    ui_prompt = '\n'.join(ui_prompt_parts)
+
                     session.chat_history.append({
                         "role": "assistant",
-                        "content": response.content,
+                        "content": transition_text or ui_prompt,
                         "timestamp": datetime.utcnow().isoformat(),
                         "agent_name": agent.name,
                         "phase": next_phase.name,
@@ -649,6 +730,9 @@ class MVPBuilder:
                 "success": True,
                 "new_phase": next_phase.name,
                 "progress": session.overall_progress,
+                "transition_message": transition_text,
+                "ui_prompt": ui_prompt,
+                "phase_details": next_phase.to_dict(),
             }
 
         return {"success": False, "message": "Already at final phase"}
@@ -993,6 +1077,8 @@ class MVPBuilder:
         repo_url = f"https://github.com/{owner}/{repo}"
         pages_url = f"https://{owner}.github.io/{repo}"
         session.add_log(f"Published {len(pushed)} files to {repo_url}")
+        # Persist publishing result
+        self._persist_to_db(session)
 
         return {
             "success": len(pushed) > 0,
@@ -1083,6 +1169,9 @@ class MVPBuilder:
                 )
                 session.add_log("Saved prd.md artifact")
 
+            # Persist artifacts to DB
+            self._persist_to_db(session)
+
         except Exception as e:
             logger.warning(f"Failed to save phase artifacts: {e}")
 
@@ -1156,6 +1245,8 @@ class MVPBuilder:
             full_path.write_text(content)
             session.files[path] = content
             session.add_log(f"Created file: {path}")
+            session.updated_at = datetime.utcnow()
+            self._persist_to_db(session)
             return True
 
         return False

@@ -327,9 +327,10 @@ async def google_login(request: Request):
             ),
         )
 
-    redirect_uri = str(request.base_url) + "api/v1/auth/google/callback"
+    # Use configured redirect URI (must match Google OAuth console). This should be set in the environment for production.
+    redirect_uri = settings.GOOGLE_REDIRECT_URI or str(request.base_url) + "api/v1/auth/google/callback"
     print(f"DEBUG: GOOGLE_CLIENT_ID = {settings.GOOGLE_CLIENT_ID}")
-    print(f"DEBUG: GOOGLE_REDIRECT_URI (dynamic) = {redirect_uri}")
+    print(f"DEBUG: USING GOOGLE_REDIRECT_URI = {redirect_uri}")
 
     google_auth_url = "https://accounts.google.com/o/oauth2/v2/auth"
     params = {
@@ -355,7 +356,8 @@ async def github_login(request: Request, session_id: Optional[str] = None):
     if session_id:
         state = f"{session_id}:{state}"
 
-    redirect_uri = str(request.base_url) + "api/v1/auth/github/callback"
+    # Use configured GitHub redirect URI (must match GitHub OAuth app settings)
+    redirect_uri = settings.GITHUB_REDIRECT_URI or str(request.base_url) + "api/v1/auth/github/callback"
     github_auth_url = "https://github.com/login/oauth/authorize"
     params = {
         "client_id": settings.GITHUB_CLIENT_ID,
@@ -383,7 +385,8 @@ async def github_callback(request: Request, code: str = None, state: str = None,
     if not code:
         raise HTTPException(status_code=400, detail="No authorization code provided")
 
-    redirect_uri = str(request.base_url) + "api/v1/auth/github/callback"
+    # Use configured GitHub redirect URI to validate the token exchange
+    redirect_uri = settings.GITHUB_REDIRECT_URI or str(request.base_url) + "api/v1/auth/github/callback"
 
     try:
         async with httpx.AsyncClient() as client:
@@ -460,7 +463,8 @@ async def google_callback(request: Request, code: str = None, error: str = None)
     if not code:
         raise HTTPException(status_code=400, detail="No authorization code provided")
 
-    redirect_uri = str(request.base_url) + "api/v1/auth/google/callback"
+    # Use configured Google redirect URI to validate the token exchange
+    redirect_uri = settings.GOOGLE_REDIRECT_URI or str(request.base_url) + "api/v1/auth/google/callback"
 
     try:
         # Exchange authorization code for tokens
