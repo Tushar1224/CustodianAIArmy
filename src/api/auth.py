@@ -514,10 +514,8 @@ async def google_callback(request: Request, code: str = None, error: str = None)
 
             # Auto-assign 'free' plan for Google-authenticated users (if not already set)
             try:
-                from ..core.database import upgrade_user_plan, get_user_plan
-                existing_plan = get_user_plan(user.email)
-                if existing_plan.get("plan") == "guest":
-                    upgrade_user_plan(user.email, "free")
+                from ..core.database import upgrade_user_plan
+                upgrade_user_plan(user.email, "free")
             except Exception as _plan_err:
                 print(f"Warning: could not set free plan for {user.email}: {_plan_err}")
             
