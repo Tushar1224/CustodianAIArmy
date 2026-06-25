@@ -327,8 +327,7 @@ async def google_login(request: Request):
             ),
         )
 
-    # Use configured redirect URI (must match Google OAuth console). This should be set in the environment for production.
-    redirect_uri = settings.GOOGLE_REDIRECT_URI or str(request.base_url) + "api/v1/auth/google/callback"
+    redirect_uri = _get_google_redirect_uri(request)
     print(f"DEBUG: GOOGLE_CLIENT_ID = {settings.GOOGLE_CLIENT_ID}")
     print(f"DEBUG: USING GOOGLE_REDIRECT_URI = {redirect_uri}")
 
@@ -344,6 +343,16 @@ async def google_login(request: Request):
     from urllib.parse import urlencode
     auth_url = f"{google_auth_url}?{urlencode(params)}"
     return RedirectResponse(url=auth_url)
+
+
+def _get_google_redirect_uri(request: Request) -> str:
+    """Construct the Google OAuth redirect URI, respecting proxy forwarded headers."""
+    if settings.GOOGLE_REDIRECT_URI:
+        return settings.GOOGLE_REDIRECT_URI
+    forwarded_proto = request.headers.get("x-forwarded-proto", "http")
+    forwarded_host = request.headers.get("x-forwarded-host", request.headers.get("host", "localhost:8000"))
+    return f"{forwarded_proto}://{forwarded_host}/api/v1/auth/google/callback"
+
 
 @router.get("/github/login")
 async def github_login(request: Request, session_id: Optional[str] = None):
@@ -464,7 +473,7 @@ async def google_callback(request: Request, code: str = None, error: str = None)
         raise HTTPException(status_code=400, detail="No authorization code provided")
 
     # Use configured Google redirect URI to validate the token exchange
-    redirect_uri = settings.GOOGLE_REDIRECT_URI or str(request.base_url) + "api/v1/auth/google/callback"
+    redirect_uri = _get_google_redirect_uri(request)
 
     try:
         # Exchange authorization code for tokens
