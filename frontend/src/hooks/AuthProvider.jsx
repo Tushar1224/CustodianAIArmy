@@ -8,7 +8,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem('custodian_user')); } catch { return null; }
   });
-  const [loading, setLoading] = useState(!user);
+  const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState(() => {
     try {
       const u = JSON.parse(localStorage.getItem('custodian_user'));
