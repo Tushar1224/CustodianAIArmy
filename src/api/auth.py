@@ -8,7 +8,7 @@ import time
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, Request, HTTPException, Depends, Cookie, Response
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, HTMLResponse
 from pydantic import BaseModel
 import httpx
 import jwt
@@ -521,9 +521,28 @@ async def google_callback(request: Request, code: str = None, error: str = None)
             
             # Generate JWT token (now with 1-year expiry)
             jwt_token = generate_jwt_token(user)
-            
-            # Set session cookie
-            response = RedirectResponse(url="/")
+
+            # Return HTML that posts message to opener and closes popup
+            user_json = json.dumps({
+                "id": user.id,
+                "email": user.email,
+                "name": user.name,
+                "picture": user.picture,
+                "plan": "free"
+            })
+            html_content = f"""<!DOCTYPE html>
+<html><body>
+<script>
+if (window.opener) {{
+    window.opener.postMessage({{ type: 'auth-callback', authenticated: true, user: {user_json} }}, '*');
+    window.close();
+}} else {{
+    window.location.href = '/';
+}}
+</script>
+<p>Signed in successfully. You can close this window.</p>
+</body></html>"""
+            response = HTMLResponse(content=html_content)
             response.set_cookie(
                 key="session_id",
                 value=session_id,
@@ -532,7 +551,7 @@ async def google_callback(request: Request, code: str = None, error: str = None)
                 samesite="lax",
                 secure=False  # Set to True in production with HTTPS
             )
-            
+
             # Also return JWT in response body for API clients
             response.set_cookie(
                 key="access_token",
@@ -542,9 +561,9 @@ async def google_callback(request: Request, code: str = None, error: str = None)
                 samesite="lax",
                 secure=False
             )
-            
+
             return response
-            
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Authentication failed: {str(e)}")
 

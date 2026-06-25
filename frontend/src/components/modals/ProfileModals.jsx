@@ -38,8 +38,12 @@ function maskKey(key) {
   return key.slice(0, 4) + '****' + key.slice(-4);
 }
 
-export default function ProfileModals({ show, onClose, user, onLogout, onRefreshUser }) {
-  const { plan: contextPlan } = useAuth();
+export default function ProfileModals({ show, onClose, user: propUser, onLogout, onRefreshUser }) {
+  const { user: authUser, plan: contextPlan, logout: contextLogout, refetch: contextRefetch } = useAuth();
+  // Use auth context user as fallback when prop not passed (e.g. via MainLayout)
+  const resolvedUser = propUser || authUser;
+  const resolvedLogout = onLogout || contextLogout;
+  const resolvedRefresh = onRefreshUser || contextRefetch;
   const [activeTab, setActiveTab] = useState('profile');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -53,11 +57,11 @@ export default function ProfileModals({ show, onClose, user, onLogout, onRefresh
   const [planLoading, setPlanLoading] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      setName(user.name || '');
-      setEmail(user.email || '');
+    if (resolvedUser) {
+      setName(resolvedUser.name || '');
+      setEmail(resolvedUser.email || '');
     }
-  }, [user]);
+  }, [resolvedUser]);
 
   useEffect(() => {
     if (show && activeTab === 'chats') {
@@ -143,7 +147,8 @@ export default function ProfileModals({ show, onClose, user, onLogout, onRefresh
     setPlanLoading(true);
     try {
       const data = await apiGet('/user/plan');
-      if (user && contextPlan && contextPlan !== 'guest') {
+      // Override plan with context plan (more reliable than /user/plan endpoint)
+      if (contextPlan && contextPlan !== 'guest') {
         data.plan = contextPlan;
         // Fix limits if API returned guest numbers
         if (contextPlan === 'free' && (!data.daily_limit || data.daily_limit <= 3)) {
@@ -160,15 +165,15 @@ export default function ProfileModals({ show, onClose, user, onLogout, onRefresh
     } finally {
       setPlanLoading(false);
     }
-  }, [user, contextPlan]);
+  }, [contextPlan]);
 
   const saveProfile = useCallback(async () => {
-    if (user) {
-      const updated = { ...user, name };
+    if (resolvedUser) {
+      const updated = { ...resolvedUser, name };
       localStorage.setItem('custodian_user', JSON.stringify(updated));
-      if (onRefreshUser) onRefreshUser(updated);
+      if (resolvedRefresh) resolvedRefresh(updated);
     }
-  }, [name, user, onRefreshUser]);
+  }, [name, resolvedUser, resolvedRefresh]);
 
   if (!show) return null;
 
@@ -179,7 +184,7 @@ export default function ProfileModals({ show, onClose, user, onLogout, onRefresh
     { id: 'plan', label: 'My Plan', icon: 'fas fa-crown' },
   ];
 
-  const isGuest = !user || contextPlan === 'guest';
+  const isGuest = !resolvedUser || contextPlan === 'guest';
 
   return (
     <div className="modal fade show d-block" tabIndex="-1" style={{ background: 'rgba(0,0,0,0.6)' }}>
@@ -214,9 +219,9 @@ export default function ProfileModals({ show, onClose, user, onLogout, onRefresh
                     {tab.label}
                   </button>
                 ))}
-                {user && (
+                {resolvedUser && (
                   <button
-                    onClick={onLogout}
+                    onClick={resolvedLogout}
                     className="d-flex align-items-center gap-2 btn btn-sm text-start w-100 mt-auto"
                     style={{
                       padding: '0.6rem 0.75rem',

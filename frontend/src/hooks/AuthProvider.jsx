@@ -56,7 +56,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('custodian_user');
     setUser(null);
     setPlan('guest');
-    window.location.href = '/';
+    if (window.__navigate) window.__navigate('/');
   }, []);
 
   return (

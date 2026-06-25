@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import DashboardPage from './pages/DashboardPage';
 import LearnPage from './pages/LearnPage';
@@ -12,9 +12,16 @@ import JobsPage from './pages/JobsPage';
 import ProfileModals from './components/modals/ProfileModals';
 import { useAuth } from './hooks/useAuth';
 
-function App() {
+function AppShell() {
+  const navigate = useNavigate();
   const [showLogin, setShowLogin] = useState(false);
   const { user, loading, plan, logout, refetch } = useAuth();
+
+  // Expose navigate globally so AuthProvider can use it for logout
+  useEffect(() => {
+    window.__navigate = navigate;
+    return () => { window.__navigate = undefined; };
+  }, [navigate]);
 
   const requireAuth = useCallback(() => {
     if (!user) {
@@ -45,9 +52,29 @@ function App() {
     return () => { window.fetch = origFetch; };
   }, []);
 
+  // Intercept Google sign-in links → open popup instead of full navigation
+  useEffect(() => {
+    const handler = (e) => {
+      const link = e.target.closest('a[href="/api/v1/auth/google"]');
+      if (!link) return;
+      e.preventDefault();
+      const popup = window.open('/api/v1/auth/google', 'google-auth',
+        'width=500,height=700,menubar=no,toolbar=no,location=no');
+      const onMessage = (event) => {
+        if (event.data?.type === 'auth-callback') {
+          window.removeEventListener('message', onMessage);
+          popup?.close();
+          refetch();
+        }
+      };
+      window.addEventListener('message', onMessage);
+    };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [refetch]);
+
   return (
     <>
-    <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
@@ -59,16 +86,21 @@ function App() {
         <Route path="/resume" element={<ResumePage />} />
         <Route path="/jobs" element={<JobsPage />} />
       </Routes>
-    </BrowserRouter>
-    <ProfileModals
-      show={showLogin}
-      onClose={() => setShowLogin(false)}
-      user={user}
-      onLogout={logout}
-      onRefreshUser={refetch}
-    />
+      <ProfileModals
+        show={showLogin}
+        onClose={() => setShowLogin(false)}
+        user={user}
+        onLogout={logout}
+        onRefreshUser={refetch}
+      />
     </>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppShell />
+    </BrowserRouter>
+  );
+}
