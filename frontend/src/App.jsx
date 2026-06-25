@@ -28,16 +28,6 @@ function App() {
   }, [requireAuth]);
 
   useEffect(() => {
-    if (!loading && user) {
-      const redirect = localStorage.getItem('redirect_after_payment_login');
-      if (redirect) {
-        localStorage.removeItem('redirect_after_payment_login');
-        window.location.href = redirect;
-      }
-    }
-  }, [loading, user]);
-
-  useEffect(() => {
     const origFetch = window.fetch;
     window.fetch = async function (...args) {
       const res = await origFetch(...args);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdSenseAd from '../components/layout/AdSenseAd';
 import { useAuth } from '../hooks/useAuth';
@@ -6,12 +6,6 @@ import { useAuth } from '../hooks/useAuth';
 export default function PaymentPage() {
   const navigate = useNavigate();
   const { user, loading, plan } = useAuth();
-
-  useEffect(() => {
-    if (!loading && (!user || plan === 'guest')) {
-      localStorage.setItem('redirect_after_payment_login', '/payment');
-    }
-  }, [loading, user, plan, navigate]);
 
   const formatCardNumber = useCallback((input) => {
     let v = input.value.replace(/\D/g, '').substring(0, 16);
@@ -63,7 +57,7 @@ export default function PaymentPage() {
       document.getElementById('success-section').style.display = 'block';
 
       setTimeout(() => {
-        window.location.href = '/';
+        navigate('/');
       }, 2000);
     } catch (err) {
       if (btn) {
