@@ -7,18 +7,18 @@ export default function PortfolioPage() {
         <div style={{ fontSize: '5rem', color: 'var(--primary-color)', marginBottom: '1.5rem' }}>
           <i className="fab fa-github"></i>
         </div>
-        <h2 style={{ color: 'var(--primary-color)', marginBottom: '1rem' }}>Portfolio Builder</h2>
+        <h2 style={{ color: 'var(--primary-color)', marginBottom: '1rem' }}>AI Portfolio Showcase</h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', marginBottom: '1.5rem' }}>
-          Build a stunning developer portfolio with AI assistance. Showcase your projects, skills, and achievements — automatically generated and hosted.
+          Showcase products you built with <strong>Build Your Product</strong> or any GitHub repo — all personalized with your resume and AI-powered storytelling.
         </p>
         <span className="badge bg-warning text-dark px-3 py-2" style={{ fontSize: '1rem' }}>🚀 Coming Soon</span>
 
         <div className="feature-preview-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginTop: '3rem' }}>
           {[
-            { icon: 'fas fa-magic', title: 'AI-Generated Bio', desc: 'Describe yourself and let AI craft a professional bio' },
-            { icon: 'fab fa-github', title: 'GitHub Integration', desc: 'Auto-import your repos and highlight top projects' },
-            { icon: 'fas fa-palette', title: 'Custom Themes', desc: 'Choose from futuristic, minimal, or classic designs' },
-            { icon: 'fas fa-globe', title: 'One-Click Deploy', desc: 'Deploy to a custom subdomain instantly' },
+            { icon: 'fas fa-rocket', title: 'Product Showcase', desc: 'Highlight products built via the platform — from idea to deployed app' },
+            { icon: 'fab fa-github', title: 'GitHub Portfolio', desc: 'Connect a repo and let AI generate a full portfolio page for it' },
+            { icon: 'fas fa-file-alt', title: 'Resume-Powered', desc: 'Upload your resume to personalize content, tone, and skills emphasis' },
+            { icon: 'fas fa-wand-magic-sparkles', title: 'AI Storytelling', desc: 'AI writes project narratives, tech descriptions, and impact summaries' },
           ].map((f, i) => (
             <div key={i} className="feature-preview-card" style={{ background: 'var(--secondary-bg)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '1.5rem', textAlign: 'center', opacity: 0.7 }}>
               <i className={f.icon} style={{ fontSize: '2rem', color: 'var(--primary-color)', marginBottom: '0.75rem', display: 'block' }}></i>

@@ -10,7 +10,7 @@ export default function Header({ showSubHeader, subHeaderContent, style: customS
 
   const firstName = displayName.split(' ')[0];
   const planLabel = { guest: 'GUEST', free: 'FREE', pro: 'PRO' }[plan] || 'FREE';
-  const planColor = plan === 'pro' ? 'var(--warning-color)' : 'var(--primary-color)';
+  const planColor = plan === 'pro' ? 'var(--pro)' : 'var(--primary-color)';
 
   const handleLogout = async (e) => {
     e.preventDefault();
@@ -34,7 +34,10 @@ export default function Header({ showSubHeader, subHeaderContent, style: customS
 
   return (
     <>
-      <header className="header fixed-top" style={customStyle}>
+      <header className="header fixed-top" style={{
+        ...customStyle,
+        ...(plan === 'pro' ? { borderBottom: '1px solid var(--pro-border)', boxShadow: '0 1px 8px var(--pro-glow)' } : {}),
+      }}>
         <div className="header-content">
           {/* Left: Hamburger + Logo */}
           <div className="d-flex align-items-center gap-2">
@@ -62,9 +65,14 @@ export default function Header({ showSubHeader, subHeaderContent, style: customS
           <div className="dropdown">
             <button className="btn-icon-only dropdown-toggle" type="button"
               id="userProfileDropdown" data-bs-toggle="dropdown" aria-expanded="false"
-              style={{ background: 'none', border: '1px solid var(--primary-color)', borderRadius: '4px', padding: '0.4rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary-color)', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer' }}>
+              style={{ background: 'none', border: `1px solid ${plan === 'pro' ? 'var(--pro)' : 'var(--primary-color)'}`, borderRadius: '4px', padding: '0.4rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: plan === 'pro' ? 'var(--pro)' : 'var(--primary-color)', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', boxShadow: plan === 'pro' ? '0 0 8px var(--pro-glow)' : 'none' }}>
               <i className="fas fa-user-circle me-1"></i>
               <span id="user-display-name" style={{ maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{firstName}</span>
+              {plan === 'pro' && (
+                <span style={{ fontSize: '0.55rem', fontWeight: 700, background: 'var(--pro)', color: 'var(--bg)', padding: '0.1rem 0.3rem', borderRadius: '3px', marginLeft: '0.15rem', lineHeight: 1.2 }}>
+                  <i className="fas fa-crown" style={{ fontSize: '0.45rem', marginRight: '0.1rem' }}></i>PRO
+                </span>
+              )}
             </button>
             <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userProfileDropdown"
               style={{ background: 'var(--secondary-bg)', border: '1px solid var(--primary-color)' }}>

@@ -3,6 +3,7 @@ import { marked } from 'marked';
 import MainLayout from '../components/layout/MainLayout';
 import LoadingOverlay from '../components/shared/LoadingOverlay';
 import ProviderSwitcher from '../components/shared/ProviderSwitcher';
+import { useAuth } from '../hooks/useAuth';
 
 const API_BASE = '/api/v1';
 
@@ -27,6 +28,7 @@ function apiGet(path) {
 }
 
 export default function DashboardPage() {
+  const { plan } = useAuth();
   const [agents, setAgents] = useState([]);
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -273,16 +275,19 @@ export default function DashboardPage() {
       <div className="sub-header-divider"></div>
       <div className="sub-header-stat">
         <span className="stat-label">Current Provider</span>
-        <span className="stat-value" id="current-provider" style={{ color: provider === 'anthropic' ? 'var(--warning-color)' : 'var(--info-color)' }}>{providerLabel}</span>
+        <span className="stat-value" id="current-provider" style={{ color: provider === 'anthropic' ? 'var(--pro)' : 'var(--info-color)' }}>{providerLabel}</span>
       </div>
     </>
   );
 
+  const isPro = plan === 'pro';
+
   return (
     <MainLayout showSubHeader={true} subHeaderContent={subHeaderContent}>
+      <div className={`${isPro ? 'pro-dashboard' : ''}`}>
       <div className="page-header-box mb-3">
         <div className="section-header mb-0">
-          <h2><i className="fas fa-brain me-2"></i>Custodian AI Dashboard</h2>
+          <h2><i className="fas fa-brain me-2"></i>Custodian AI Dashboard{isPro && <span className="pro-badge"><i className="fas fa-crown" style={{ fontSize: '0.5rem' }}></i>Pro</span>}</h2>
           <p>Select an agent from the list to start a conversation.</p>
         </div>
       </div>
@@ -299,13 +304,13 @@ export default function DashboardPage() {
             const isActive = selectedAgent?.agent_id === agent.agent_id;
             return (
               <div key={agent.agent_id}
-                className="agent-list-item d-flex align-items-center gap-2 px-3 py-2"
+                className={`agent-list-item d-flex align-items-center gap-2 px-3 py-2 ${isActive && isPro ? 'agent-list-item-active' : ''}`}
                 onClick={() => selectAgent(agent)}
                 style={{
                   cursor: 'pointer',
                   borderBottom: '1px solid var(--border-color)',
-                  background: isActive ? 'var(--bg3)' : 'transparent',
-                  borderLeft: isActive ? '3px solid var(--primary-color)' : '3px solid transparent',
+                  background: isActive ? (isPro ? 'transparent' : 'var(--bg3)') : 'transparent',
+                  borderLeft: isActive ? `3px solid ${isPro ? 'var(--pro)' : 'var(--primary-color)'}` : '3px solid transparent',
                   transition: 'all 0.15s',
                 }}
                 onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--bg3)'; }}
@@ -380,6 +385,7 @@ export default function DashboardPage() {
       </div>
 
       <LoadingOverlay visible={false} />
+      </div>
     </MainLayout>
   );
 }

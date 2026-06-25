@@ -1196,3 +1196,23 @@ Vercel (React) ──proxies /api/*──> EC2 (FastAPI) ──> RDS (PostgreSQL
 - PRD §8.6 covers: match scoring internals (`includes()`, `normalizeWord()`, capped denominator, floor of 1), applied tracking flow (localStorage + backend sync, pending-apply modal), sliding window pagination, English filter regex, description formatting pipeline
 - Updated word-boundary session to reflect the `\bkw\b` → `includes()` change (was logged inaccurately before)
 - MCP tools table updated to mention "7 major platforms + AI fallback for 86 total" |
+
+## Session: 2026-06-25 — Guest Payment Guard + Redirect-After-Login
+
+### What was done
+
+| File | Change |
+|------|--------|
+| `frontend/src/pages/PaymentPage.jsx` | Added `useAuth` + guest guard: if `user` is null or `plan === 'guest'`, shows a "Sign In Required" card with Google sign-in button instead of the payment form; stores `redirect_after_payment_login` in localStorage so user lands back on `/payment` after auth; shows spinner during loading state |
+| `frontend/src/App.jsx` | Added `useEffect` that checks `localStorage.getItem('redirect_after_payment_login')` after auth loads — if set, removes the key and redirects via `window.location.href` to the stored path |
+
+### Flow
+1. Guest navigates to `/payment` → sees "Sign In Required" card (not payment form)
+2. Clicks "Sign in with Google" → `/api/v1/auth/google` → Google OAuth → callback → redirect to `/`
+3. `App.jsx` detects authenticated user + redirect intent → `window.location.href = '/payment'`
+4. Payment page re-mounts with auth → payment form renders normally
+
+### Key Design Decisions
+- localStorage flag (`redirect_after_payment_login`) bridges the gap between Google OAuth's hard redirect to `/` and the user's intended destination — no backend changes needed
+- Full page reload (`window.location.href`) used for redirect-after-login so `useAuth` re-fetches auth state fresh from cookies set by the OAuth callback
+- Guest notice card matches the existing payment page visual style (card, gradient background, AdSense)

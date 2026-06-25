@@ -1395,18 +1395,26 @@ def add_jobs_to_accumulated(jobs: list):
         add_job_to_accumulated(j)
 
 
-def get_accumulated_jobs(limit: int = 500, offset: int = 0) -> list:
-    """Return accumulated jobs, newest first, up to `limit`."""
+def get_accumulated_jobs(limit: int = 500, offset: int = 0, since: Optional[str] = None) -> list:
+    """Return accumulated jobs, newest first, up to `limit`.
+    
+    If `since` (ISO timestamp) is provided, only jobs fetched after that time are returned.
+    """
     conn = sqlite3.connect(DB_PATH, timeout=20)
     cursor = conn.cursor()
-    cutoff = (datetime.utcnow().timestamp() - ACCUMULATED_JOB_TTL_HOURS * 3600)
-    cursor.execute('''
+    params = [ACCUMULATED_JOB_TTL_HOURS]
+    extra_sql = ""
+    if since:
+        extra_sql = " AND fetched_at > ?"
+        params.append(since)
+    params.extend([limit, offset])
+    cursor.execute(f'''
         SELECT title, company, location, type, description, apply_url, date_posted, salary_range, match_score, source, fetched_at
         FROM job_cache_accumulated
-        WHERE (julianday('now') - julianday(fetched_at)) * 24 < ?
+        WHERE (julianday('now') - julianday(fetched_at)) * 24 < ?{extra_sql}
         ORDER BY date_posted DESC, fetched_at DESC
         LIMIT ? OFFSET ?
-    ''', (ACCUMULATED_JOB_TTL_HOURS, limit, offset))
+    ''', params)
     rows = cursor.fetchall()
     conn.close()
     return [{

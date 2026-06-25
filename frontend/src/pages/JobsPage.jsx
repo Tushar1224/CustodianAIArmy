@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 
 const API_BASE = '/api/v1';
-const REFRESH_INTERVAL = 300000;
+const REFRESH_INTERVAL = 20000;
 const PAGE_SIZE = 9;
 
 const JOB_TYPE_OPTIONS = [
@@ -363,6 +363,7 @@ export default function JobsPage() {
   const [platformFilters, setPlatformFilters] = useState(
     Object.fromEntries(PLATFORM_OPTIONS.map(p => [p.id, true]))
   );
+  const POPULAR_PLATFORM_IDS = ['linkedin', 'indeed', 'glassdoor', 'google', 'zip_recruiter', 'remoteok', 'weworkremotely', 'wellfound', 'upwork', 'freelancer', 'dice', 'monster'];
   const [keywordFilter, setKeywordFilter] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -377,6 +378,7 @@ export default function JobsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [lowMatchPage, setLowMatchPage] = useState(1);
   const accumulatedPollRef = useRef(null);
+  const lastPollRef = useRef(null);
   const [accumulatedCount, setAccumulatedCount] = useState(0);
   const [appliedJobs, setAppliedJobs] = useState(() => {
     try { return JSON.parse(localStorage.getItem('custodian_applied_jobs') || '[]'); } catch { return []; }
@@ -717,13 +719,15 @@ export default function JobsPage() {
   };
 
   const fetchAccumulatedJobs = useCallback(async () => {
-    // Background refresh — only updates jobs if accumulated cache has data,
-    // never clears existing jobs. On serverless (Vercel), this is a no-op
-    // but doesn't disrupt the real-time search results.
+    // Background refresh — only fetches new jobs since last poll.
+    // Silently appends to existing list, never clears jobs.
     try {
-      const r = await fetch(`${API_BASE}/jobs/accumulated`, { credentials: 'include' });
+      const params = new URLSearchParams();
+      if (lastPollRef.current) params.set('since', lastPollRef.current);
+      const r = await fetch(`${API_BASE}/jobs/accumulated?${params}`, { credentials: 'include' });
       if (r.ok) {
         const data = await r.json();
+        lastPollRef.current = new Date().toISOString();
         if (data.jobs && data.jobs.length > 0) {
           setJobs(prev => {
             const existing = new Set(prev.map(j => `${j.title}|||${j.company}|||${j.source}`));
@@ -737,8 +741,9 @@ export default function JobsPage() {
     } catch {}
   }, []);
 
-  // Initial load — always call real-time search for instant results
-  useEffect(() => { searchJobs(null, null, '', ''); }, [searchJobs]);
+  // Initial load — read from accumulated cache (server caches jobs from startup)
+  // Filters are applied client-side only — no backend call on filter toggle
+  useEffect(() => { fetchAccumulatedJobs(); }, [fetchAccumulatedJobs]);
 
   // Background accumulated poll — merges new jobs silently without disrupting display
   useEffect(() => {
@@ -746,14 +751,14 @@ export default function JobsPage() {
     return () => clearInterval(accumulatedPollRef.current);
   }, [fetchAccumulatedJobs]);
 
-  // When tab regains focus, run search again for fresh results
+  // When tab regains focus, refresh from accumulated cache (no heavy search)
   useEffect(() => {
     const handle = () => {
-      if (document.visibilityState === 'visible') searchJobs(null, null, '', '');
+      if (document.visibilityState === 'visible') fetchAccumulatedJobs();
     };
     document.addEventListener('visibilitychange', handle);
     return () => document.removeEventListener('visibilitychange', handle);
-  }, [searchJobs]);
+  }, [fetchAccumulatedJobs]);
 
   const isEnglish = (text) => {
     if (!text) return true;
@@ -781,6 +786,7 @@ export default function JobsPage() {
       if (!matchesTitle && !matchesCompany && !matchesDesc && !matchesLocation) return false;
     }
     if (!typeFilters[j.type]) return false;
+    if (!platformFilters[j.source]) return false;
     return true;
   });
 
@@ -1025,6 +1031,7 @@ export default function JobsPage() {
               ))}
             </div>
           </div>
+
         </div>
       </div>
 

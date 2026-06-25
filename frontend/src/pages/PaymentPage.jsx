@@ -1,7 +1,18 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AdSenseAd from '../components/layout/AdSenseAd';
+import { useAuth } from '../hooks/useAuth';
 
 export default function PaymentPage() {
+  const navigate = useNavigate();
+  const { user, loading, plan } = useAuth();
+
+  useEffect(() => {
+    if (!loading && (!user || plan === 'guest')) {
+      localStorage.setItem('redirect_after_payment_login', '/payment');
+    }
+  }, [loading, user, plan, navigate]);
+
   const formatCardNumber = useCallback((input) => {
     let v = input.value.replace(/\D/g, '').substring(0, 16);
     input.value = v.replace(/(.{4})/g, '$1 ').trim();
@@ -62,6 +73,47 @@ export default function PaymentPage() {
       if (errEl) { errEl.textContent = err.message; errEl.classList.remove('d-none'); }
     }
   }, []);
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="spinner-border" style={{ width: '3rem', height: '3rem', color: 'var(--primary)' }} role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || plan === 'guest') {
+    return (
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, var(--bg3) 0%, var(--bg2) 50%, var(--bg) 100%)', display: 'flex', flexDirection: 'column' }}>
+        <AdSenseAd />
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
+          <div className="payment-card" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '2.5rem', maxWidth: '460px', width: '100%', textAlign: 'center', boxShadow: '0 2px 20px rgba(var(--primary-rgb),0.12)' }}>
+            <div style={{ fontSize: '3rem', color: 'var(--primary)', marginBottom: '1rem' }}>
+              <i className="fas fa-sign-in-alt"></i>
+            </div>
+            <h2 style={{ fontSize: '1.5rem', color: 'var(--text)', marginBottom: '0.75rem' }}>Sign In Required</h2>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: 1.6 }}>
+              You need to sign in with Google before upgrading to Pro. Guest accounts cannot process payments — signing in links your payment to your account.
+            </p>
+            <a href="/api/v1/auth/google"
+               className="btn btn-success btn-lg"
+               style={{ padding: '0.75rem 2.5rem', borderRadius: '10px', fontWeight: 700, fontSize: '1.05rem' }}>
+              <i className="fab fa-google me-2"></i>Sign in with Google
+            </a>
+            <div style={{ marginTop: '1rem' }}>
+              <button onClick={() => navigate('/')} className="btn btn-link" style={{ color: 'var(--text-muted)', textDecoration: 'none', fontSize: '0.875rem' }}>
+                <i className="fas fa-arrow-left me-1"></i>Back to Home
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, var(--bg3) 0%, var(--bg2) 50%, var(--bg) 100%)', display: 'flex', flexDirection: 'column' }}>

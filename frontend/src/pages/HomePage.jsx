@@ -82,7 +82,7 @@ export default function HomePage() {
       icon: 'fab fa-github',
       href: '/portfolio',
       status: 'coming',
-      description: 'AI-generated developer portfolios. Connect GitHub, describe yourself, and get a stunning portfolio deployed in minutes.',
+      description: 'Showcase products you built on the platform or any GitHub repo — AI-generated storytelling, resume-personalized, deployed instantly.',
       color: '#f59e0b',
       gradient: 'linear-gradient(135deg, #f59e0b, #d97706)',
     },
@@ -328,10 +328,10 @@ export default function HomePage() {
           <div style={{ background: 'var(--card)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '16px', padding: '2.5rem 2rem', textAlign: 'center', position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(90deg, var(--warning), #d97706)' }}></div>
             <i className="fas fa-layer-group" style={{ fontSize: '3rem', color: 'var(--warning)', marginBottom: '1rem', display: 'block' }}></i>
-            <h3 style={{ fontFamily: "'Orbitron', monospace", fontSize: '1.1rem', color: 'var(--text)', marginBottom: '0.75rem' }}>Build for Portfolio</h3>
+            <h3 style={{ fontFamily: "'Orbitron', monospace", fontSize: '1.1rem', color: 'var(--text)', marginBottom: '0.75rem' }}>AI Portfolio Showcase</h3>
             <p style={{ color: 'var(--text2)', fontSize: '0.9rem', lineHeight: 1.6, margin: '0 0 1rem' }}>
-              Generate complete portfolio-worthy projects with AI from idea to deployment — 
-              full-stack apps, sites, and tools you can showcase to employers.
+              Showcase products you built on the platform or any GitHub repo — 
+              AI-generated storytelling, resume-personalized, deployed instantly.
             </p>
             <span style={{ display: 'inline-block', background: 'rgba(245,158,11,0.1)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.3)', fontSize: '0.75rem', padding: '0.2rem 0.75rem', borderRadius: '10px', fontWeight: 600 }}>Coming Soon</span>
           </div>

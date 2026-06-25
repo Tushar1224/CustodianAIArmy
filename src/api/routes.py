@@ -489,10 +489,10 @@ async def search_jobs(
                 loc_lower = _v(j.get("location")).lower()
                 title_lower_full = _v(j.get("title")).lower()
                 is_remote_field = j.get("isRemote") in (True, "true", "True", 1)
-                is_remote_flag = is_remote_field or "remote" in emp_type or "remote" in loc_lower or "remote" in title_lower_full or "(remote)" in title_lower_full
-                if is_remote_flag and ("hybrid" in emp_type or "hybrid" in loc_lower or "hybrid" in title_lower_full):
+                # Check hybrid before remote — "San Francisco (Hybrid)" has no "remote" keyword
+                if "hybrid" in emp_type or "hybrid" in loc_lower or "hybrid" in title_lower_full:
                     wtype = "hybrid"
-                elif is_remote_flag:
+                elif is_remote_field or "remote" in emp_type or "remote" in loc_lower or "remote" in title_lower_full or "(remote)" in title_lower_full:
                     wtype = "remote"
                 else:
                     wtype = "on_site"
@@ -765,10 +765,14 @@ async def get_accumulated_jobs_endpoint(
     hybrid: Optional[bool] = Query(None),
     on_site: Optional[bool] = Query(None),
     keyword: Optional[str] = Query(None),
+    since: Optional[str] = Query(None),
 ):
-    """Lightweight — DB read only, no JobSpy/AI calls."""
+    """Lightweight — DB read only, no JobSpy/AI calls.
+    
+    `since` — ISO timestamp; returns only jobs fetched after that time.
+    """
     try:
-        jobs = get_accumulated_jobs(limit=1000)
+        jobs = get_accumulated_jobs(limit=1000, since=since)
         if jobs:
             allowed = set()
             if remote: allowed.add("remote")
@@ -2232,17 +2236,22 @@ async def _fetch_job_group(group: dict):
             apply_url = "https://" + apply_url
         if apply_url and not apply_url.startswith("http"):
             apply_url = ""
-        emp_type = _v(j.get("employmentType") or j.get("jobType")).lower()
-        loc_lower = _v(j.get("location")).lower()
-        title_lower = _v(j.get("title")).lower()
-        is_remote_field = j.get("isRemote") in (True, "true", "True", 1)
-        is_remote_flag = is_remote_field or "remote" in emp_type or "remote" in loc_lower or "remote" in title_lower
-        if is_remote_flag and ("hybrid" in emp_type or "hybrid" in loc_lower or "hybrid" in title_lower):
-            wtype = "hybrid"
-        elif is_remote_flag:
-            wtype = "remote"
+        # Respect existing type field if valid
+        existing_type = _v(j.get("type")).lower()
+        if existing_type in ("remote", "hybrid", "on_site"):
+            wtype = existing_type
         else:
-            wtype = "on_site"
+            emp_type = _v(j.get("employmentType") or j.get("jobType")).lower()
+            loc_lower = _v(j.get("location")).lower()
+            title_lower = _v(j.get("title")).lower()
+            is_remote_field = j.get("isRemote") in (True, "true", "True", 1)
+            # Check hybrid before remote — "San Francisco (Hybrid)" has no "remote" keyword
+            if "hybrid" in emp_type or "hybrid" in loc_lower or "hybrid" in title_lower:
+                wtype = "hybrid"
+            elif is_remote_field or "remote" in emp_type or "remote" in loc_lower or "remote" in title_lower:
+                wtype = "remote"
+            else:
+                wtype = "on_site"
         return {
             "title": _v(j.get("title")),
             "company": _v(j.get("company")),

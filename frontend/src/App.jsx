@@ -28,6 +28,16 @@ function App() {
   }, [requireAuth]);
 
   useEffect(() => {
+    if (!loading && user) {
+      const redirect = localStorage.getItem('redirect_after_payment_login');
+      if (redirect) {
+        localStorage.removeItem('redirect_after_payment_login');
+        window.location.href = redirect;
+      }
+    }
+  }, [loading, user]);
+
+  useEffect(() => {
     const origFetch = window.fetch;
     window.fetch = async function (...args) {
       const res = await origFetch(...args);
@@ -47,26 +57,26 @@ function App() {
 
   return (
     <>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/learn" element={<LearnPage />} />
-          <Route path="/portfolio" element={<PortfolioPage />} />
-          <Route path="/build" element={<BuildPage />} />
-          <Route path="/agents" element={<CustomAgentsPage />} />
-          <Route path="/payment" element={<PaymentPage />} />
-          <Route path="/resume" element={<ResumePage />} />
-          <Route path="/jobs" element={<JobsPage />} />
-        </Routes>
-      </BrowserRouter>
-      <ProfileModals
-        show={showLogin}
-        onClose={() => setShowLogin(false)}
-        user={user}
-        onLogout={logout}
-        onRefreshUser={refetch}
-      />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/learn" element={<LearnPage />} />
+        <Route path="/portfolio" element={<PortfolioPage />} />
+        <Route path="/build" element={<BuildPage />} />
+        <Route path="/agents" element={<CustomAgentsPage />} />
+        <Route path="/payment" element={<PaymentPage />} />
+        <Route path="/resume" element={<ResumePage />} />
+        <Route path="/jobs" element={<JobsPage />} />
+      </Routes>
+    </BrowserRouter>
+    <ProfileModals
+      show={showLogin}
+      onClose={() => setShowLogin(false)}
+      user={user}
+      onLogout={logout}
+      onRefreshUser={refetch}
+    />
     </>
   );
 }
