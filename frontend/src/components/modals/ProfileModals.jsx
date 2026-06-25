@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../../hooks/useAuth';
 
 const API_BASE = '/api/v1';
 
@@ -38,6 +39,7 @@ function maskKey(key) {
 }
 
 export default function ProfileModals({ show, onClose, user, onLogout, onRefreshUser }) {
+  const { plan: contextPlan } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -141,13 +143,24 @@ export default function ProfileModals({ show, onClose, user, onLogout, onRefresh
     setPlanLoading(true);
     try {
       const data = await apiGet('/user/plan');
+      if (user && contextPlan && contextPlan !== 'guest') {
+        data.plan = contextPlan;
+        // Fix limits if API returned guest numbers
+        if (contextPlan === 'free' && (!data.daily_limit || data.daily_limit <= 3)) {
+          data.daily_limit = 20;
+          data.remaining = Math.max(0, 20 - (data.requests_today || 0));
+        } else if (contextPlan === 'pro' && (!data.daily_limit || data.daily_limit <= 3)) {
+          data.daily_limit = 50;
+          data.remaining = Math.max(0, 50 - (data.requests_today || 0));
+        }
+      }
       setPlanInfo(data);
     } catch (e) {
       setPlanInfo(null);
     } finally {
       setPlanLoading(false);
     }
-  }, []);
+  }, [user, contextPlan]);
 
   const saveProfile = useCallback(async () => {
     if (user) {
@@ -166,7 +179,7 @@ export default function ProfileModals({ show, onClose, user, onLogout, onRefresh
     { id: 'plan', label: 'My Plan', icon: 'fas fa-crown' },
   ];
 
-  const isGuest = planInfo?.plan === 'guest' || !user;
+  const isGuest = !user || contextPlan === 'guest';
 
   return (
     <div className="modal fade show d-block" tabIndex="-1" style={{ background: 'rgba(0,0,0,0.6)' }}>
