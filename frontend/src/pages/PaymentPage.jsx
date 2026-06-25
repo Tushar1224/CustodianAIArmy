@@ -1,24 +1,23 @@
-import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdSenseAd from '../components/layout/AdSenseAd';
 import { useAuth } from '../hooks/useAuth';
 
 export default function PaymentPage() {
   const navigate = useNavigate();
-  const { user, loading, plan } = useAuth();
+  const { user, loading, plan, refetch, handlePopupAuth } = useAuth();
 
-  const formatCardNumber = useCallback((input) => {
+  const formatCardNumber = (input) => {
     let v = input.value.replace(/\D/g, '').substring(0, 16);
     input.value = v.replace(/(.{4})/g, '$1 ').trim();
-  }, []);
+  };
 
-  const formatExpiry = useCallback((input) => {
+  const formatExpiry = (input) => {
     let v = input.value.replace(/\D/g, '').substring(0, 4);
     if (v.length >= 2) v = v.substring(0, 2) + ' / ' + v.substring(2);
     input.value = v;
-  }, []);
+  };
 
-  const processPayment = useCallback(async () => {
+  const processPayment = async () => {
     const btn = document.getElementById('pay-btn');
     const errEl = document.getElementById('payment-error');
     errEl?.classList.add('d-none');
@@ -45,7 +44,7 @@ export default function PaymentPage() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: 'pro' })
+        body: JSON.stringify({ plan: 'pro', email: user?.email || '' })
       });
 
       if (!resp.ok) {
@@ -55,6 +54,14 @@ export default function PaymentPage() {
 
       document.getElementById('payment-form-section').style.display = 'none';
       document.getElementById('success-section').style.display = 'block';
+
+      // Directly set plan in auth context (no cookie dependency)
+      if (user) {
+        const upgraded = { ...user, plan: 'pro' };
+        handlePopupAuth(upgraded);
+      } else {
+        localStorage.setItem('custodian_user', JSON.stringify({ plan: 'pro' }));
+      }
 
       setTimeout(() => {
         navigate('/');
@@ -66,7 +73,7 @@ export default function PaymentPage() {
       }
       if (errEl) { errEl.textContent = err.message; errEl.classList.remove('d-none'); }
     }
-  }, []);
+  };
 
   if (loading) {
     return (

@@ -2072,29 +2072,34 @@ async def get_active_provider():
 
 class UpgradePlanRequest(BaseModel):
     plan: str  # 'pro' | 'free'
+    email: Optional[str] = None  # fallback when cookies aren't forwarded (cross-domain prod)
 
 
 @router.post("/user/upgrade-plan")
 async def upgrade_plan(
     request: UpgradePlanRequest,
-    current_user: User = Depends(get_current_user_from_cookies)
+    optional_user: Optional[User] = Depends(get_optional_user)
 ):
     """Upgrade the current user's plan (called after payment confirmation)."""
+    # Get email: try cookie auth first, then fall back to request body
+    user_email = optional_user.email if optional_user else request.email
+    if not user_email:
+        raise HTTPException(status_code=401, detail="User email required (auth cookie or email field)")
     valid_plans = ["free", "pro"]
     if request.plan not in valid_plans:
         raise HTTPException(status_code=400, detail=f"Invalid plan. Must be one of: {', '.join(valid_plans)}")
     try:
         from datetime import timedelta
         expiry_date = (datetime.utcnow() + timedelta(days=365)).isoformat()
-        success = upgrade_user_plan(current_user.email, request.plan, plan_expiry=expiry_date)
+        success = upgrade_user_plan(user_email, request.plan, plan_expiry=expiry_date)
         if success:
             save_payment(
-                user_email=current_user.email,
+                user_email=user_email,
                 amount=9.99,
                 plan=request.plan,
                 valid_until=expiry_date
             )
-            plan_info = get_user_plan(current_user.email)
+            plan_info = get_user_plan(user_email)
             return {
                 "status": "success",
                 "message": f"Plan upgraded to {request.plan}",

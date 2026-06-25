@@ -59,8 +59,15 @@ export function AuthProvider({ children }) {
     if (window.__navigate) window.__navigate('/');
   }, []);
 
+  const handlePopupAuth = useCallback((userData) => {
+    // Directly set user from popup postMessage data (no cookie dependency)
+    localStorage.setItem('custodian_user', JSON.stringify(userData));
+    setUser(userData);
+    setPlan(userData.plan || 'free');
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, plan, logout, refetch: fetchUser, guestName, setGuestName, displayName }}>
+    <AuthContext.Provider value={{ user, loading, plan, logout, refetch: fetchUser, guestName, setGuestName, displayName, handlePopupAuth }}>
       {children}
     </AuthContext.Provider>
   );

@@ -15,7 +15,7 @@ import { useAuth } from './hooks/useAuth';
 function AppShell() {
   const navigate = useNavigate();
   const [showLogin, setShowLogin] = useState(false);
-  const { user, loading, plan, logout, refetch } = useAuth();
+  const { user, loading, plan, logout, refetch, handlePopupAuth } = useAuth();
 
   // Expose navigate globally so AuthProvider can use it for logout
   useEffect(() => {
@@ -64,6 +64,9 @@ function AppShell() {
         if (event.data?.type === 'auth-callback') {
           window.removeEventListener('message', onMessage);
           popup?.close();
+          if (event.data.user) {
+            handlePopupAuth(event.data.user);
+          }
           refetch();
         }
       };
