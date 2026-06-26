@@ -356,6 +356,7 @@ export default function ProfileModals({ show, onClose, user: propUser, onLogout,
                             <div className="flex-grow-1" style={{ minWidth: 0 }}>
                               <strong className="text-info" style={{ fontSize: '0.85rem' }}>{chat.title || 'Chat Session'}</strong>
                               <div className="small" style={{ color: 'var(--text-secondary)' }}>
+                                {chat.agent_name ? <><span className="badge bg-primary me-1" style={{ fontSize: '0.6rem' }}>{chat.agent_name}</span> • </> : ''}
                                 {chat.messages?.length || 0} messages • {new Date(chat.last_updated).toLocaleString()}
                               </div>
                             </div>

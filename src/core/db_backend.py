@@ -180,7 +180,9 @@ class Database:
     def _create_all_tables_sqlite(self, c):
         c.execute("""CREATE TABLE IF NOT EXISTS chat_sessions (
             id TEXT PRIMARY KEY, user_email TEXT NOT NULL, title TEXT NOT NULL,
-            start_time TEXT NOT NULL, last_updated TEXT NOT NULL, messages TEXT NOT NULL)""")
+            start_time TEXT NOT NULL, last_updated TEXT NOT NULL, messages TEXT NOT NULL,
+            agent_name TEXT)""")
+        self._alter_sqlite(c, "chat_sessions", "agent_name TEXT")
         c.execute("""CREATE TABLE IF NOT EXISTS user_progress (
             id INTEGER PRIMARY KEY AUTOINCREMENT, user_email TEXT NOT NULL,
             course_id TEXT NOT NULL, lang TEXT NOT NULL DEFAULT 'en',
@@ -313,7 +315,12 @@ class Database:
         c.execute("""
             CREATE TABLE IF NOT EXISTS chat_sessions (
                 id TEXT PRIMARY KEY, user_email TEXT NOT NULL, title TEXT NOT NULL,
-                start_time TEXT NOT NULL, last_updated TEXT NOT NULL, messages TEXT NOT NULL)""")
+                start_time TEXT NOT NULL, last_updated TEXT NOT NULL, messages TEXT NOT NULL,
+                agent_name TEXT)""")
+        try:
+            c.execute("ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS agent_name TEXT")
+        except Exception:
+            pass  # Column might already exist in older PG versions
         c.execute("""
             CREATE TABLE IF NOT EXISTS sessions (
                 session_id TEXT PRIMARY KEY, user_id TEXT, user_email TEXT,

@@ -1,6 +1,6 @@
 # Custodian AI Army
 
-A futuristic multi-agent AI orchestration system — chat with specialized AI agents (Google, Anthropic) via SSE streaming, build full-stack products via a 5-phase MVP pipeline, learn programming with AI tutoring across 23 courses + 17 career pathways, and manage custom agents. Chat history is available for all users (guest and authenticated).
+A futuristic multi-agent AI orchestration system — chat with specialized AI agents (Google, Anthropic) via SSE streaming (auto-saves per-agent conversations), build full-stack products via a 5-phase MVP pipeline, learn programming with AI tutoring across 23 courses + 17 career pathways, optimize resumes with ATS-powered AI (multi-template, inline diff review, JD tailoring), search jobs across 86 platforms with background accumulation and match scoring, and manage custom agents. Chat history is available for all users (guest localStorage, authenticated server-side).
 
 ---
 
@@ -12,12 +12,11 @@ A futuristic multi-agent AI orchestration system — chat with specialized AI ag
 | Frontend | React 19, Vite, React Router 7, Bootstrap 5 |
 | UI Animation | HTML5 Canvas (neuron visualization), CSS animations |
 | Auth | Google OAuth, GitHub OAuth, JWT |
-| AI | Google, Anthropic (Gemini-2.5-flash, Claude-Sonnet-4-5) |
-| Database | SQLite |
-| MCP | fetch, duckduckgo, filesystem, memory, sequential_thinking, **crawl_course_pathway** |
+| AI | Google (Gemini-2.5-flash/pro), Anthropic (Claude-Sonnet-4-5 via SDK) |
+| Database | SQLite (dev) + PostgreSQL (prod) via `db_backend.py` |
+| MCP | fetch, duckduckgo, filesystem, memory, sequential_thinking, crawl_course_pathway, jobspy |
 | Agent Skills | Ollama tool-use models (qwen2.5-coder, qwen3-coder) |
-| Deployment | Vercel (frontend), local server (backend) |
-| Database | SQLite (custodian.db) |
+| Deployment | Vercel (frontend + backend), PostgreSQL (Supabase) |
 
 ---
 
@@ -91,8 +90,14 @@ CustodianAIArmy/
 │   │   ├── dashboard.html      # AI Dashboard (loads app.v2.js)
 │   │   └── ...
 │   └── css/
-├── dependencies/               # Legacy git submodules (deprecated)
-├── dependencies/               # Legacy git submodules (deprecated)
+├── dependencies/               # Git submodules
+├── tests/                     # Python test suite (6 files)
+│   ├── test_all_flows.py      # End-to-end: chats, resumes, templates, jobs
+│   ├── test_chat_save.py      # Chat save/retrieve
+│   ├── test_claude_agents.py  # Claude agent unit tests
+│   ├── test_resume_api.py     # Resume CRUD + chat history
+│   ├── test_resume_save.py    # Resume save/update
+│   └── test_upload.py         # Resume upload flow
 ├── AWS_MIGRATION_INFO           # Archived AWS CDK deployment guide
 └── install.sh                  # Automated setup script
 ```
@@ -132,8 +137,8 @@ CustodianAIArmy/
 
 | Method | Stack | Instructions |
 |--------|-------|-------------|
-| Frontend (Vercel) | React SPA | Push to GitHub → Vercel auto-deploys |
-| Backend + Database (AWS) | EC2 + RDS | See [`AWS_MIGRATION_INFO`](AWS_MIGRATION_INFO) |
+| Frontend + Backend (Vercel) | React SPA + FastAPI | Push to GitHub → `vercel-build` runs → auto-deploys |
+| Database (PostgreSQL) | Supabase / RDS | Set `DATABASE_URL` in Vercel env vars |
 
 ### Python Environment
 
@@ -271,14 +276,14 @@ cd frontend && npm run build && cd .. && python main.py
 | Path | Page | Description |
 |------|------|-------------|
 | `/` | HomePage | Landing, features, pricing, sign in |
-| `/dashboard` | DashboardPage | Chat with AI agents |
-| `/learn` | LearnPage | Interactive programming courses (23 courses) |
-| `/portfolio` | PortfolioPage | AI-generated developer portfolios |
+| `/dashboard` | DashboardPage | Chat with AI agents — auto-saves per-agent conversation |
+| `/learn` | LearnPage | Interactive programming courses (23 courses across 17 pathways) |
+| `/portfolio` | PortfolioPage | Portfolio Builder (Coming Soon — 4-card feature preview) |
 | `/build` | BuildPage | 5-phase MVP Builder pipeline |
 | `/agents` | CustomAgentsPage | Create/manage custom agents |
-| `/resume` | ResumePage | Resume Optimizer — upload, edit, ATS-optimize, multi-template |
-| `/jobs` | JobsPage | Job search across 86 platforms + background accumulation + resume match scoring |
-| `/payment` | PaymentPage | Upgrade to Pro plan |
+| `/resume` | ResumePage | Resume Optimizer — upload, edit, ATS-optimize, multi-template, diff review |
+| `/jobs` | JobsPage | Job search across 86 platforms + background accumulation + resume match scoring + applied tracker |
+| `/payment` | PaymentPage | Upgrade to Pro plan (guest-sign-in guard, sandbox demo) |
 
 ---
 
@@ -487,6 +492,19 @@ Plan badges are shown dynamically across all pages:
 - **Guest users**: Chat sessions saved to `localStorage` under `custodian_chats`. Visible in Chat History modal, persist between browser sessions.
 - **Authenticated users**: Chats synced to server (`/api/v1/auth/user/chats`). On load, localStorage chats are merged with server data for a unified view.
 - **Delete**: Removes from localStorage first, then attempts server deletion.
+- **Agent name tracking**: Each chat session stores the agent name (e.g., "CustodianAI") — Chat History list shows agent badges.
+
+### Chat Auto-Save & Per-Agent Resume
+
+Chats auto-save after every streamed response via a `finally` block in the SSE generator:
+
+1. User sends message → `/chat/stream` (or `/chat/stream/guest`)
+2. Backend streams AI response, then calls `save_chat_session()` with UUID, email, agent name, full history
+3. Chat appears in ProfileModals "Chat History" under the correct agent badge
+4. When switching agents, `selectAgent()` calls `GET /chats/last/{agent_name}` — loads the last conversation for that agent
+5. If no prior chat, the welcome/onboarding message is shown
+
+**Key files:** `src/api/routes.py` (generator `finally` block), `src/core/database.py` (`save_chat_session`, `get_last_chat_for_agent`), `src/core/db_backend.py` (`agent_name` column), `frontend/src/pages/DashboardPage.jsx` (`selectAgent`)
 
 Auth providers: Google OAuth, GitHub OAuth
 
@@ -711,6 +729,20 @@ A real-time job aggregator that accumulates listings from 86 platforms in the ba
 | `frontend/src/pages/JobsPage.jsx` | Main jobs page — match scoring, platform toggles, applied tracker, pagination |
 | `src/api/routes.py` | Jobs endpoints — search, accumulate, applied CRUD, background fetcher |
 | `src/core/database.py` | Job DB tables and CRUD functions |
+
+---
+
+## What's Not Done / Pending
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Portfolio Builder (`/portfolio`)** | Coming Soon placeholder | 4-card feature preview — no backend functionality |
+| **Stripe Payment Integration** | Demo sandbox only | Mock card form, no real Stripe SDK or webhooks |
+| **Backend Automated Tests** | Manual only | 6 test files exist, no CI pipeline |
+| **CDK Infrastructure** | Removed from git | `infra/` directory created June 21, later removed |
+| **MCP JobSpy on Windows** | Broken | Direct Python JobSpy works as fallback |
+| **Semantic Match Score Endpoint** | Not implemented | Keyword-only scoring on frontend |
+| **Gemini SDK Upgrade** | Not done | Gemini agent uses raw `httpx` (Claude uses `anthropic` SDK) |
 
 ---
 

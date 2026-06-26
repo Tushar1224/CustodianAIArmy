@@ -17,7 +17,7 @@ from datetime import datetime
 
 from src.agents.agent_manager import AgentManager
 from src.core.database import (
-    get_chats_for_user, save_chat_session,
+    get_chats_for_user, get_last_chat_for_agent, save_chat_session,
     get_user_api_keys, get_user_api_keys_raw, save_user_api_keys, delete_user_api_key, get_user_github_token, save_custom_agent_config, get_custom_agent_config, delete_custom_agent_config,
     get_user_plan, check_and_increment_rate_limit, upgrade_user_plan, save_payment,
     save_resume, get_user_resumes, get_resume, get_resume_count, delete_resume, save_resume_chat_history,
@@ -28,7 +28,6 @@ from src.core.database import (
     get_fetch_state, set_fetch_state, clear_stale_accumulated,
 )
 from src.core.db_backend import db
-from src.agents.astro_agent import AstroAgent # Import AstroAgent
 from src.agents.base_agent import AgentMessage, AgentCapability, BaseAgent
 from src.core.logging_config import get_logger
 from src.api.auth import get_current_user_from_cookies, get_optional_user, User
@@ -1385,11 +1384,15 @@ async def chat_stream(
         
         async def generate():
             """Generator for streaming response with SSE format"""
+            chat_id = str(uuid.uuid4())
+            full_response = ""
+            save_attempted = False
             try:
                 chunk_buffer = ""
                 async for chunk in _stream_with_fallback(chat_message, target_agent):
                     if chunk:
                         chunk_buffer += chunk
+                        full_response += chunk
                         # Yield chunks as server-sent events
                         yield f"data: {json.dumps({'type': 'message', 'content': chunk})}\n\n"
                 
@@ -1397,7 +1400,25 @@ async def chat_stream(
                 yield f"data: {json.dumps({'type': 'done'})}\n\n"
             except Exception as e:
                 logger.error(f"Error in stream generation: {str(e)}")
+                full_response = f"Error: {str(e)}"
                 yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+            finally:
+                if not save_attempted:
+                    save_attempted = True
+                    try:
+                        agent_name = target_agent.name if hasattr(target_agent, 'name') else (request.agent_name or "CustodianAI")
+                        messages = list(request.history or [])
+                        messages.append({"role": "user", "content": request.message})
+                        messages.append({"role": "assistant", "content": full_response or "(empty response)"})
+                        save_chat_session({
+                            "id": chat_id,
+                            "user_email": current_user.email,
+                            "title": request.message[:80],
+                            "messages": messages,
+                            "agent_name": target_agent.name if hasattr(target_agent, 'name') else (request.agent_name or "CustodianAI"),
+                        })
+                    except Exception as save_err:
+                        logger.error(f"Error saving chat session: {save_err}")
 
         return StreamingResponse(
             generate(),
@@ -1463,15 +1484,37 @@ async def chat_stream_guest(chat_request: ChatRequest, request: Request):
         
         async def generate():
             """Generator for streaming response"""
+            chat_id = str(uuid.uuid4())
+            full_response = ""
+            save_attempted = False
             try:
                 async for chunk in _stream_with_fallback(chat_message, target):
                     if chunk:
+                        full_response += chunk
                         yield f"data: {json.dumps({'type': 'message', 'content': chunk})}\n\n"
                 
                 yield f"data: {json.dumps({'type': 'done'})}\n\n"
             except Exception as e:
                 logger.error(f"Error in guest stream: {str(e)}")
+                full_response = f"Error: {str(e)}"
                 yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+            finally:
+                if not save_attempted:
+                    save_attempted = True
+                    try:
+                        agent_name = target.name if hasattr(target, 'name') else (chat_request.agent_name or "CustodianAI")
+                        messages = list(chat_request.history or [])
+                        messages.append({"role": "user", "content": chat_request.message})
+                        messages.append({"role": "assistant", "content": full_response or "(empty response)"})
+                        save_chat_session({
+                            "id": chat_id,
+                            "user_email": guest_identifier,
+                            "title": chat_request.message[:80],
+                            "messages": messages,
+                            "agent_name": target.name if hasattr(target, 'name') else (chat_request.agent_name or "CustodianAI"),
+                        })
+                    except Exception as save_err:
+                        logger.error(f"Error saving guest chat session: {save_err}")
 
         return StreamingResponse(
             generate(),
@@ -1612,6 +1655,18 @@ async def save_chat(request: ChatSessionSaveRequest):
     except Exception as e:
         logger.error(f"Error saving chat: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/chats/last/{agent_name}")
+async def get_last_chat(agent_name: str, email: str = ""):
+    """Get the most recent chat for a specific agent"""
+    try:
+        if not email:
+            return {"chat": None}
+        chat = get_last_chat_for_agent(email, agent_name)
+        return {"chat": chat}
+    except Exception as e:
+        logger.error(f"Error getting last chat: {str(e)}")
+        return {"chat": None}
 
 # Debug endpoint to check agent manager state
 @router.get("/debug/agents")

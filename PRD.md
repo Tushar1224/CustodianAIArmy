@@ -1,6 +1,6 @@
 # Custodian AI Army — Product Requirements Document
 
-> **Version:** 1.6.0 · **Last Updated:** 2026-06-21  
+> **Version:** 1.7.0 · **Last Updated:** 2026-06-26  
 > **Project:** Custodian AI Army — A futuristic multi-agent AI orchestration system
 
 ---
@@ -30,13 +30,16 @@
 
 - Chat with specialized AI agents (powered by **Google** or **Anthropic**)
 - SSE streaming responses with inline processing status ("Thinking..." → "Analyzing..." → "Synthesizing..." → "Generating...")
-- Chat history for all users (guest saves to localStorage, authenticated saves to server)
+- Chat auto-save for all users — guest (localStorage) and authenticated (server); per-agent conversation resume
 - Build full-stack products via a **5-phase MVP pipeline** (Ideation → Planning → Review → Polish → Build)
 - Publish generated code to **GitHub** with one click
-- Learn programming through interactive courses with AI tutoring
+- Learn programming through **23 interactive courses** with AI tutoring
+- Optimize resumes with AI-powered ATS scoring, multi-template system, inline diff review, and job description tailoring
+- Search jobs across **86 platforms** with background accumulation, resume match scoring, and applied job tracking
 - Manage custom AI agents with user-defined skills
 - Authenticate via **Google OAuth** and **GitHub OAuth**
 - Rate-limited plans: Guest (3/day), Free (20/day), Pro (50/day)
+- Dual database backend: **SQLite** (local) and **PostgreSQL** (production/Supabase)
 
 ### Vision
 
@@ -49,30 +52,30 @@ Replace the need for multiple AI tools with a single, self-hosted or cloud-deplo
 ### 2.1 System Diagram
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                     End User (Browser)                     │
-├──────────────────────────────────────────────────────────┤
-│                    FastAPI Server (Port 8000)              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │  Auth    │  │  Agent   │  │  MVP     │  │  Course  │  │
-│  │  Routes  │  │  Manager │  │  Builder │  │  Routes  │  │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘  │
-│       │              │              │              │       │
-│  ┌────┴──────────────┴──────────────┴──────────────┴────┐  │
-│  │                    SQLite Database                      │  │
-│  │  (sessions, chats, users, progress, api_keys, plans)   │  │
-│  └───────────────────────────┬──────────────────────────┘  │
-│                              │                              │
-│  ┌───────────────────────────┴──────────────────────────┐  │
-│  │               MCP Tool Layer                          │  │
-│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐ │  │
-│  │  │  fetch   │ │duckduckgo│ │filesystem│ │ memory  │ │  │
-│  │  └──────────┘ └──────────┘ └──────────┘ └─────────┘ │  │
-│  └───────────────────────────┬──────────────────────────┘  │
-│                              │                              │
-│  ┌───────────────────────────┴──────────────────────────┐  │
-│  │              AI Provider (Gemini / Claude)             │  │
-│  └──────────────────────────────────────────────────────┘  │
+┌───────────────────────────────────────────────────────────┐
+│                     End User (Browser)                      │
+├───────────────────────────────────────────────────────────┤
+│                    FastAPI Server (Port 8000)               │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐ │
+│  │  Auth    │ │  Agent   │ │  MVP     │ │  Resume/Jobs │ │
+│  │  Routes  │ │  Manager │ │  Builder │ │  Routes      │ │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └──────┬───────┘ │
+│       │             │             │              │         │
+│  ┌────┴─────────────┴─────────────┴──────────────┴──────┐ │
+│  │        Database Backend (SQLite or PostgreSQL)         │ │
+│  │  (sessions, chats, users, resumes, jobs, plans)       │ │
+│  └───────────────────────────┬──────────────────────────┘ │
+│                              │                             │
+│  ┌───────────────────────────┴──────────────────────────┐ │
+│  │              MCP Tool Layer                          │ │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐ │ │
+│  │  │  fetch   │ │duckduckgo│ │filesystem│ │ memory  │ │ │
+│  │  └──────────┘ └──────────┘ └──────────┘ └─────────┘ │ │
+│  └───────────────────────────┬──────────────────────────┘ │
+│                              │                             │
+│  ┌───────────────────────────┴──────────────────────────┐ │
+│  │            AI Provider (Gemini / Claude)              │ │
+│  └──────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────┘
          │
          ▼
@@ -115,17 +118,17 @@ User provides product idea
 
 | Component            | Technology                          |
 |----------------------|-------------------------------------|
-| **Backend Framework**| Python 3.8+ · FastAPI · Uvicorn     |
-| **AI Providers**     | Google (`gemini-2.5-flash/pro`)     |
-|                      | Anthropic (`claude-sonnet-4-5`)     |
-| **Database**         | SQLite (via `sqlite3` module)        |
-| **Auth**             | Google OAuth 2.0 · GitHub OAuth · JWT |
-| **Frontend**         | React 19 · Vite · React Router 7 · Bootstrap 5 · marked (markdown) · highlight.js |
+| **Backend Framework**| Python 3.8+ · FastAPI · Uvicorn         |
+| **AI Providers**     | Google (`gemini-2.5-flash/pro`)         |
+|                      | Anthropic (`claude-sonnet-4-5`)         |
+| **Database**         | SQLite (dev) + PostgreSQL (production) via `db_backend.py` — auto-detected by `DATABASE_URL` |
+| **Auth**             | Google OAuth 2.0 · GitHub OAuth · JWT     |
+| **Frontend**         | React 19 · Vite · React Router 7 · Bootstrap 5 · marked · highlight.js |
 | **Legacy Frontend**  | Static HTML + `app.v2.js` (cache-busted SPA) |
-| **MCP Tools**        | `uvx` / `npx` based servers          |
-| **Revenue**          | Demo payment page → Stripe (planned)  |
-| **Deployment**       | Vercel (Python runtime)              |
-| **Testing**          | Jest (JS) · pytest (planned)         |
+| **MCP Tools**        | `uvx` / `npx` based servers              |
+| **Revenue**          | Demo payment page → Stripe (planned)      |
+| **Deployment**       | Vercel (Python runtime)                  |
+| **Testing**          | 6 Python test files (`tests/`) · pytest   |
 
 ---
 
@@ -440,7 +443,7 @@ sessions            -- Persistent auth sessions
 | `/`              | `pages/HomePage.jsx`          | Futuristic landing with neuron visualization |
 | `/dashboard`     | `pages/DashboardPage.jsx`     | AI Dashboard (fully self-contained React) |
 | `/learn`         | `pages/LearnPage.jsx`         | Learn with AI (courses)         |
-| `/portfolio`     | `pages/PortfolioPage.jsx`     | Portfolio Builder               |
+| `/portfolio`     | `pages/PortfolioPage.jsx`     | Portfolio Builder (Coming Soon — 4-card feature preview) |
 | `/build`         | `pages/BuildPage.jsx`         | Build Your Product (MVP)        |
 | `/agents`        | `pages/CustomAgentsPage.jsx`  | Custom Agent management         |
 | `/resume`        | `pages/ResumePage.jsx`        | Resume Optimizer — upload, ATS-optimize, multi-template |
@@ -709,7 +712,58 @@ A real-time job aggregator that accumulates listings from 86 platforms in the ba
 - No CloudFront/HTTPS on backend API yet
 - Guest users work via email + session, but applied jobs are per-session only (no account merge)
 
-### 8.7 Known Issues & Fixes
+### 8.7 Guest Payment Guard (`/payment`)
+
+Guests who attempt to access the `/payment` page without signing in are shown a "Sign In Required" card instead of the payment form:
+
+1. Guest navigates to `/payment` → detects `user === null || plan === 'guest'`
+2. Shows a card with Google sign-in button + stores `redirect_after_payment_login` in localStorage
+3. Google OAuth redirects to `/` → `App.jsx` detects the flag → `window.location.href = '/payment'`
+4. Page re-mounts with auth → payment form renders normally
+
+**Key files:** `frontend/src/pages/PaymentPage.jsx`, `frontend/src/App.jsx`
+
+### 8.8 Chat Auto-Save & Per-Agent Conversation Resume
+
+Chat sessions now persist automatically and resume the last conversation per agent.
+
+#### Backend changes
+- `/chat/stream` and `/chat/stream/guest` auto-save via `finally` block in the SSE generator
+- `chat_sessions` table stores `agent_name` (added via ALTER TABLE migration)
+- `GET /chats/last/{agent_name}` — returns most recent chat for user+agent
+- `save_chat_session()` accepts and persists `agent_name`; upsert preserves existing on update
+
+#### Frontend changes
+- `selectAgent()` fetches last chat via `GET /chats/last/{name}?email=...` — loads prior conversation instead of welcome message
+- `handleLoadChat()` uses `chat.agent_name` to directly select correct agent
+- Chat history list shows agent name badge per entry (e.g., "CustodianAI")
+- Falls back to welcome message if no prior chat exists
+
+#### Test suite
+| File | Purpose |
+|------|---------|
+| `tests/test_all_flows.py` | End-to-end: chats with agent_name, resume CRUD, templates, jobs, last-chat-per-agent |
+| `tests/test_chat_save.py` | Chat save/retrieve |
+| `tests/test_resume_save.py` | Resume save/update |
+| `tests/test_resume_api.py` | Full resume API flow (create, update, list, chat history) |
+| `tests/test_claude_agents.py` | Claude agent unit tests |
+| `tests/test_upload.py` | Resume upload flow |
+
+**Key files:** `src/api/routes.py`, `src/core/database.py`, `src/core/db_backend.py`, `frontend/src/pages/DashboardPage.jsx`, `frontend/src/components/modals/ProfileModals.jsx`
+
+### 8.9 Pending Features
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Portfolio Builder (`/portfolio`)** | Coming Soon placeholder | 38-line component with 4 preview cards, no backend or real functionality |
+| **Stripe Payment Integration** | Demo sandbox only | `1.8s` simulated processing; no real Stripe SDK or webhooks |
+| **Backend Automated Tests** | Manual only | 6 test files exist but no CI pipeline |
+| **CDK Infrastructure** | Removed from git | `infra/` directory created June 21, later removed from repo |
+| **Semantic Match Score Endpoint** | Not implemented | `POST /match-scores` doesn't return updated `match_score` yet |
+| **Guest Account Merge** | Not implemented | Per-session only when not authenticated |
+| **Gemini SDK Upgrade** | Not done | Gemini agent uses raw `httpx` (Claude uses `anthropic` SDK) |
+
+### 8.10 Known Issues & Fixes
 
 | Issue | Fix |
 |-------|-----|
@@ -847,50 +901,56 @@ curl http://localhost:8000/api/v1/army/status
 | Database | RDS db.t3.micro | ~$17/mo after year 1 | 12 months |
 | Network | VPC + subnets | $0/mo | Always free |
 
-### 11.2 CDK Deployment (recommended)
+### 11.2 Connecting Vercel to Backend (for external DB)
 
-The `infra/` directory contains AWS CDK stacks for one-command deployment:
+Frontend on Vercel, backend also on Vercel (current setup — both on same domain):
+- FastAPI serves the React SPA via catch-all route `/{full_path:path}`
+- `/api/*` routes handled by FastAPI directly
+- SQLite stored in `/tmp/custodian.db` (persists during deployment lifetime)
 
-```bash
-cd infra
-cdk deploy --all ^
-  -c db_password=YourPassword123 ^
-  -c anthropic_key=sk-ant-... ^
-  -c gemini_key=AI...
-```
-
-This provisions:
-- **VPC** with public + isolated subnets (0 NAT gateways = $0)
-- **RDS PostgreSQL 16** on db.t3.micro in isolated subnet
-- **EC2 t3.micro** with auto-setup: Python → clone repo → venv → systemd service
-
-See `infra/README.md` for full deployment guide and lifecycle management.
-
-### 11.3 Connecting Vercel to Backend
-
-In `vercel.json`, proxy `/api/*` to the EC2 instance:
+For production with PostgreSQL:
+- Deploy backend separately (e.g., EC2, Railway, Render, Fly.io)
+- Set `DATABASE_URL` to your PostgreSQL connection string
+- Proxy `/api/*` via `vercel.json` rewrites:
 
 ```json
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "http://EC2_PUBLIC_IP:8000/api/$1" }
+    { "source": "/api/(.*)", "destination": "https://your-backend.com/api/$1" }
   ]
 }
 ```
 
-### 11.4 Old Deployment Methods (no longer recommended)
+### 11.3 Database Backend Options
 
-#### Vercel-only (deprecated)
-SQLite on Vercel uses `/tmp/` — data lost on cold starts. Not suitable for production.
-
-#### Pure VPS / Docker
-For custom VPS setups, see `infra/README.md` for the systemd service template. Docker instructions removed — prefer CDK for AWS or Vercel for serverless.
+| Backend | When to use | Configuration |
+|---------|-------------|---------------|
+| **SQLite** (default) | Development, low-traffic | No config needed — creates `custodian.db` locally |
+| **PostgreSQL** | Production, multi-user | Set `DATABASE_URL=postgresql://user:pass@host:port/db` |
+| **Supabase** (managed PG) | Production with built-in auth | Set `DATABASE_URL` to Supabase connection string + manage via Supabase dashboard |
 
 ---
 
 ## 12. Testing Guide
 
-### 12.1 Manual Test Flow (Chat)
+### 12.1 Python Test Suite
+
+6 test files in `tests/` directory covering core flows:
+
+```bash
+python -m pytest tests/ -v
+```
+
+| Test file | Coverage |
+|-----------|----------|
+| `test_all_flows.py` | End-to-end: 6 DB flows (chats + agent_name, resume CRUD, chat history, templates, jobs, last-chat-per-agent) |
+| `test_chat_save.py` | Chat session save & retrieve |
+| `test_claude_agents.py` | Claude agent unit tests |
+| `test_resume_api.py` | Full resume API CRUD + chat history |
+| `test_resume_save.py` | Resume save/update |
+| `test_upload.py` | Resume upload flow |
+
+### 12.2 Manual Test Flow (Chat)
 
 ```
 1. Open http://localhost:8000
@@ -959,11 +1019,11 @@ Authenticated:
 ### 12.3 Running Tests
 
 ```bash
-# JavaScript tests (if jest.config.js is set up)
-npm test
+# Python tests
+python -m pytest tests/ -v
 
-# Python tests (if any)
-python -m pytest tests/
+# Run specific test
+python -m pytest tests/test_all_flows.py -v
 ```
 
 ---
@@ -986,6 +1046,7 @@ python -m pytest tests/
 | `APP_HOST`                | No       | `localhost`     | Server bind host                     |
 | `APP_PORT` / `FASTAPI_PORT`| No      | `8000`          | Server port                          |
 | `DATABASE_PATH`           | No       | `custodian.db`    | SQLite database file path          |
+| `DATABASE_URL`            | For PG   | —                 | PostgreSQL URL (`postgresql://user:pass@host:port/db`) — auto-detected vs SQLite |
 
 > *At least one of GEMINI_API_KEY or ANTHROPIC_API_KEY is required.
 
@@ -1044,51 +1105,54 @@ CustodianAIArmy/
 ├── requirements.txt             # Python dependencies
 ├── vercel.json                  # Vercel deployment config
 ├── PRD.md                       # This document
-├── AGENTS.md                    # MCP tools guide for AI assistants
+├── AGENTS.md                    # MCP tools guide + session logs
 ├── README.md                    # Quick-start guide
+├── .gitignore
+├── .env.example
 │
 ├── src/
 │   ├── agents/
-│   │   ├── agent_manager.py     # Orchestrates all agents
+│   │   ├── agent_manager.py     # Orchestrates all 13 agents
 │   │   ├── base_agent.py        # Abstract base class
-│   │   ├── gemini_agent.py      # Google Gemini implementation
-│   │   ├── claude_agent.py      # Anthropic Claude implementation
-│   │   └── prompts/             # Agent prompt templates
+│   │   ├── gemini_agent.py      # Google Gemini implementation (raw httpx)
+│   │   ├── claude_agent.py      # Anthropic Claude SDK (AsyncAnthropic)
+│   │   ├── claude_code_agent.py # Claude for code generation
+│   │   └── prompts/             # Specialized agent prompts (job_finder, etc.)
 │   ├── api/
 │   │   ├── auth.py              # OAuth + JWT authentication
 │   │   ├── build.py             # MVP Builder (5-phase pipeline)
-│   │   ├── routes.py            # All API endpoints (1774+ lines)
+│   │   ├── routes.py            # All API endpoints (agents, chat, courses, resumes, jobs, plans, etc.)
 │   │   └── finance_ui.py        # Placeholder finance UI router
 │   ├── core/
 │   │   ├── config.py            # Settings + model assignments
-│   │   ├── database.py          # SQLite models + CRUD
+│   │   ├── database.py          # SQLite CRUD + db_backend bridge
+│   │   ├── db_backend.py        # SQLite/PostgreSQL dual backend (auto-detect by DATABASE_URL)
+│   │   ├── document_extractor.py# PDF/DOCX text extraction (PyPDF2, python-docx)
 │   │   └── logging_config.py    # Logging setup
 │   └── mcp/
 │       ├── mcp_client.py        # MCP client for tool execution
 │       └── mcp_config.py        # Server defs + agent→tool mapping
 │
-├── static/
-│   ├── home.html                # Landing page
-│   ├── index.html               # Legacy SPA (app)
-│   ├── payment.html             # Payment/upgrade page
-│   ├── pages/
-│   │   ├── dashboard.html       # AI Dashboard (loads app.v2.js)
-│   │   ├── learn.html           # Learn with AI
-│   │   ├── portfolio.html       # Portfolio Builder
-│   │   ├── build.html           # Build Your Product
-│   │   ├── finance.html         # Finance AI (placeholder)
-│   │   └── customagents.html    # Custom Agent management
-│   ├── css/                     # Stylesheets
-│   ├── js/
-│   │   ├── app.v2.js            # Dashboard/chat SPA (cache-busted)
-│   │   ├── build.js, learn.js, customagents.js  # Per-page modules
-│   │   └── shared.js            # Shared utilities
-│   └── data/                    # Course data (JSON + slides)
+├── frontend/
+│   ├── src/
+│   │   ├── pages/               # 10 page components
+│   │   ├── components/          # Layout, shared components
+│   │   ├── hooks/               # useAuth, useTheme
+│   │   └── App.jsx              # React Router setup
+│   ├── package.json
+│   └── vite.config.js
 │
-├── api/
-│   └── index.py                 # Vercel serverless entry point
+├── courses/                     # 23 courses across 17 pathways
+│   └── {pathway-name}/          # course.json + knowledge/*.md
 │
+├── tests/                       # 6 Python test files
+│   ├── test_all_flows.py
+│   ├── test_chat_save.py
+│   ├── test_claude_agents.py
+│   ├── test_resume_api.py
+│   ├── test_resume_save.py
+│   └── test_upload.py
+│
+├── static/                      # Legacy static pages (pre-React)
+├── scripts/                     # Crawling utilities
 └── dependencies/                # Git submodules (external)
-    ├── Reinforced_MVP_Developer/
-    ├── Programming-Slides/
-    └── python-sdk/

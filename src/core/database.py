@@ -54,28 +54,42 @@ def get_db():
 
 def get_chats_for_user(email: str) -> List[Dict[str, Any]]:
     rows = db.fetchall(
-        "SELECT id, user_email, title, start_time, last_updated, messages "
+        "SELECT id, user_email, title, start_time, last_updated, messages, agent_name "
         "FROM chat_sessions WHERE user_email = ? ORDER BY last_updated DESC",
         (email,))
     return [
         {"id": r[0], "user_email": r[1], "title": r[2],
          "start_time": r[3], "last_updated": r[4],
-         "messages": json.loads(r[5])}
+         "messages": json.loads(r[5]), "agent_name": r[6] if len(r) > 6 else None}
         for r in rows
     ]
+
+def get_last_chat_for_agent(email: str, agent_name: str) -> Optional[Dict[str, Any]]:
+    """Get the most recent chat session for a specific agent."""
+    rows = db.fetchall(
+        "SELECT id, user_email, title, start_time, last_updated, messages, agent_name "
+        "FROM chat_sessions WHERE user_email = ? AND agent_name = ? ORDER BY last_updated DESC LIMIT 1",
+        (email, agent_name))
+    if not rows:
+        return None
+    r = rows[0]
+    return {"id": r[0], "user_email": r[1], "title": r[2],
+            "start_time": r[3], "last_updated": r[4],
+            "messages": json.loads(r[5]), "agent_name": r[6] if len(r) > 6 else None}
 
 def save_chat_session(chat_data: Dict[str, Any]) -> str:
     chat_id = chat_data.get("id") or str(uuid.uuid4())
     messages_str = json.dumps(chat_data.get("messages", []))
     now = _now()
     start_time = chat_data.get("start_time") or now
+    agent_name = chat_data.get("agent_name")
     db.execute(
-        "INSERT INTO chat_sessions (id, user_email, title, start_time, last_updated, messages) "
-        "VALUES (?, ?, ?, ?, ?, ?) "
+        "INSERT INTO chat_sessions (id, user_email, title, start_time, last_updated, messages, agent_name) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?) "
         "ON CONFLICT(id) DO UPDATE SET "
-        "title=excluded.title, last_updated=excluded.last_updated, messages=excluded.messages",
+        "title=excluded.title, last_updated=excluded.last_updated, messages=excluded.messages, agent_name=COALESCE(excluded.agent_name, chat_sessions.agent_name)",
         (chat_id, chat_data.get("user_email", "guest"),
-         chat_data.get("title", "New Chat"), start_time, now, messages_str))
+         chat_data.get("title", "New Chat"), start_time, now, messages_str, agent_name))
     return chat_id
 
 def delete_chat_session(chat_id: str, user_email: str) -> bool:

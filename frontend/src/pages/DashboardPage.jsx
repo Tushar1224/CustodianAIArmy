@@ -56,6 +56,12 @@ export default function DashboardPage() {
       if (chat && chat.messages) {
         setMessages(chat.messages);
         setChatId(chat.id);
+        // Prefer agent_name if stored on the chat object
+        if (chat.agent_name) {
+          const agent = agents.find(a => a.name === chat.agent_name);
+          if (agent) { setSelectedAgent(agent); return; }
+        }
+        // Fallback: guess agent from first non-user message sender
         const firstAgentMsg = chat.messages.find(m => m.sender !== 'You');
         if (firstAgentMsg) {
           const agent = agents.find(a => a.name === firstAgentMsg.sender);
@@ -104,15 +110,36 @@ export default function DashboardPage() {
     }
   };
 
-  const selectAgent = (agent) => {
+  const selectAgent = async (agent) => {
     setSelectedAgent(agent);
+    setChatId('chat-' + Date.now());
+
+    // Try to resume last conversation for this agent
+    try {
+      const userStr = localStorage.getItem('custodian_user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        const res = await fetch(`${API_BASE}/chats/last/${encodeURIComponent(agent.name)}?email=${encodeURIComponent(user.email)}`, { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.chat && data.chat.messages && data.chat.messages.length > 0) {
+            setMessages(data.chat.messages);
+            setChatId(data.chat.id);
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load last chat for agent', e);
+    }
+
+    // No prior conversation — show welcome
     const uiData = AGENT_UI_DATA[agent.name] || {};
     const desc = uiData.description || 'A versatile AI assistant ready for any task.';
     const useCases = uiData.useCases || [];
     const casesMd = useCases.length ? useCases.map(u => `- \`${u}\``).join('\n') : '';
     const welcome = `## Welcome to ${agent.name}\n\n${desc}\n\n${useCases.length ? `**Example use cases:**\n${casesMd}\n\n` : ''}I'm ready to help. What would you like to do?`;
     setMessages([{ sender: agent.name, content: welcome }]);
-    setChatId('chat-' + Date.now());
   };
 
   const statusPhrases = ['Thinking...', 'Analyzing...', 'Synthesizing...', 'Generating...'];

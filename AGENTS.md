@@ -1216,3 +1216,83 @@ Vercel (React) ──proxies /api/*──> EC2 (FastAPI) ──> RDS (PostgreSQL
 - localStorage flag (`redirect_after_payment_login`) bridges the gap between Google OAuth's hard redirect to `/` and the user's intended destination — no backend changes needed
 - Full page reload (`window.location.href`) used for redirect-after-login so `useAuth` re-fetches auth state fresh from cookies set by the OAuth callback
 - Guest notice card matches the existing payment page visual style (card, gradient background, AdSense)
+
+---
+
+## Session: 2026-06-26 — Chat Auto-Save + Per-Agent Conversation Resume
+
+### What was done
+
+#### Bug fix — Chat sessions never persisted
+| File | Change |
+|------|--------|
+| `src/api/routes.py` | Both `/chat/stream` and `/chat/stream/guest` now auto-save the chat session after streaming completes via a `finally` block in the generator; stores UUID chat_id, user email, message history, and agent name |
+
+#### New — `agent_name` column on `chat_sessions`
+| File | Change |
+|------|--------|
+| `src/core/database.py` | `save_chat_session()` now accepts and stores `agent_name`; `get_chats_for_user()` returns `agent_name` in each row; added `get_last_chat_for_agent()` — returns most recent chat for a given user+agent |
+| `src/core/db_backend.py` | `chat_sessions` table now includes `agent_name TEXT` in both SQLite and PostgreSQL schemas; backward-compatible ALTER TABLE migrations for existing databases |
+| `src/api/routes.py` | Added `GET /chats/last/{agent_name}` endpoint for per-agent last-chat lookup; imported `get_last_chat_for_agent` |
+
+#### Frontend — Per-agent conversation resume
+| File | Change |
+|------|--------|
+| `frontend/src/pages/DashboardPage.jsx` | `selectAgent()` now fetches last chat for the selected agent via `GET /chats/last/{name}?email=...` and loads those messages (with chat_id) instead of showing welcome; falls back to welcome if no prior chat exists |
+| `frontend/src/pages/DashboardPage.jsx` | `handleLoadChat()` now uses `chat.agent_name` (if present) to directly select the correct agent when loading a chat from history; falls back to message-sender heuristic |
+| `frontend/src/components/modals/ProfileModals.jsx` | Chat history list now shows agent name badge (e.g., "CustodianAI") on each chat entry |
+
+#### Test suite
+| File | Change |
+|------|--------|
+| `tests/test_all_flows.py` | Comprehensive end-to-end test covering all 6 DB flows (chats with agent_name, resume CRUD, resume chat history, templates, jobs, last-chat-per-agent) |
+| `tests/test_chat_save.py` | Dedicated chat save/retrieve test |
+| `tests/test_resume_save.py` | Dedicated resume save/update test |
+| `tests/test_resume_api.py` | Full resume API flow test (create, update, list, chat history) |
+
+### How chat saving works now
+1. User sends a message via the dashboard → `/chat/stream` (or `/chat/stream/guest`)
+2. Backend streams the AI response to the frontend
+3. After streaming completes (`finally` block), backend calls `save_chat_session()` with:
+   - UUID chat_id, user email (or guest identifier), message[:80] as title
+   - Full message history (previous history + user msg + assistant response)
+   - Agent name (e.g., "CustodianAI", "TechnicalAI")
+4. Chat appears in ProfileModals "Chat History" tab under the correct agent badge
+
+### How per-agent resume works
+1. User clicks an agent in the sidebar → `selectAgent()` fires
+2. Frontend calls `GET /chats/last/{agent_name}?email={user_email}`
+3. If a prior chat exists, it loads those messages into the chat window with the saved `chat_id`
+4. If no prior chat, the welcome/onboarding message is shown as before
+5. When switching agents, the current chat is auto-saved (via stream completion) before loading the new agent's last conversation
+
+### Key Design Decisions
+- `agent_name` stored on chat_sessions rather than parsed from messages on every query — simpler queries and O(1) lookup
+- `get_last_chat_for_agent()` uses `LIMIT 1` — only the most recent conversation is resumed; older ones remain accessible via chat history
+- Backend-side auto-save (in generator `finally` block) chosen over frontend-side `POST /chats` call — ensures persistence even if frontend crashes or network drops after stream
+- `COALESCE(excluded.agent_name, chat_sessions.agent_name)` in upsert preserves existing agent_name on update if none provided
+- All test files consolidated under `tests/` directory with proper `sys.path` setup for running from project root
+
+---
+
+## Session: 2026-06-26 — Docs Update + Pending Features Inventory
+
+### What was done
+| File | Change |
+|------|--------|
+| `README.md` | Complete rewrite: added dual DB backend (SQLite + PostgreSQL), Supabase support, portfolio page status, all session features, chat auto-save, per-agent resume, 23 courses, 6 test files, no infra/ directory, pending features table |
+| `PRD.md` | Bumped to v1.7.0; added §8.7 Guest Payment Guard, §8.8 Chat Auto-Save & Per-Agent Resume; updated project structure, tech stack, route list, env vars, testing guide; removed infra/ from structure |
+| `AGENTS.md` | Added this session log + comprehensive Pending Items section |
+
+### What's NOT Done — Pending Features Inventory
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Portfolio Builder (`/portfolio`)** | Coming Soon placeholder | Shows feature preview grid (4 cards) with AI storytelling, GitHub portfolio, resume-powered content — no backend or real functionality |
+| **Stripe Payment Integration** | Demo sandbox only | `/payment` page has a mock card form with 1.8s simulated processing; no real Stripe SDK or webhook handling |
+| **Backend Automated Tests** | Manual only | 6 test files exist (`tests/`) but no CI pipeline or comprehensive test coverage |
+| **CDK Infrastructure** | Removed from git | `infra/` directory was created (June 21) and later removed; no AWS deployment stack currently available |
+| **MCP JobSpy on Windows** | Broken | `MCP server closed connection` on Windows — primary direct-JobSpy Python path works as fallback |
+| **Semantic Match Score Endpoint** | Not implemented | Backend `POST /match-scores` endpoint doesn't return updated `match_score` — keyword-only scoring on frontend |
+| **Guest Account Merge** | Not implemented | Applied jobs/per-user data is per-session only when not authenticated |
+| **Gemini Agent SDK Upgrade** | Not done | Gemini agent still uses raw `httpx` instead of `google-genai` SDK (unlike Claude which uses `anthropic` SDK) |
