@@ -504,7 +504,7 @@ Chats auto-save after every streamed response via a `finally` block in the SSE g
 4. When switching agents, `selectAgent()` calls `GET /chats/last/{agent_name}` — loads the last conversation for that agent
 5. If no prior chat, the welcome/onboarding message is shown
 
-**Key files:** `src/api/routes.py` (generator `finally` block), `src/core/database.py` (`save_chat_session`, `get_last_chat_for_agent`), `src/core/db_backend.py` (`agent_name` column), `frontend/src/pages/DashboardPage.jsx` (`selectAgent`)
+**Key files:** `src/api/routes.py` (generator `finally` block), `src/core/database.py` (`save_chat_session`, `get_last_chat_for_agent`), `src/core/db_backend.py` (`agent_name` column, `_sql()` PG/SQLite dialect translation), `frontend/src/pages/DashboardPage.jsx` (`selectAgent`)
 
 Auth providers: Google OAuth, GitHub OAuth
 

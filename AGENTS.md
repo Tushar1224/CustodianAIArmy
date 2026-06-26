@@ -1296,3 +1296,65 @@ Vercel (React) ──proxies /api/*──> EC2 (FastAPI) ──> RDS (PostgreSQL
 | **Semantic Match Score Endpoint** | Not implemented | Backend `POST /match-scores` endpoint doesn't return updated `match_score` — keyword-only scoring on frontend |
 | **Guest Account Merge** | Not implemented | Applied jobs/per-user data is per-session only when not authenticated |
 | **Gemini Agent SDK Upgrade** | Not done | Gemini agent still uses raw `httpx` instead of `google-genai` SDK (unlike Claude which uses `anthropic` SDK) |
+
+## Session: 2026-06-26 — Chat Error Recovery + Real-Time Save + Auth Stability
+
+### What was done
+
+#### Backend — Chat error prefix detection (`src/api/routes.py`)
+| Change | Detail |
+|--------|--------|
+| **`_stream_with_fallback` error detection fixed** | Changed `chunk.startswith("Error:")` → `chunk.startswith(("Error:", "Error streaming", "Error from"))` — was missing `"Error streaming from Claude: ..."` and `"Error from CustodianAI: ..."` prefixes, causing provider fallback to never trigger on actual errors |
+| **Agent re-resolution inside `generate()`** | Both `/chat/stream` and `/chat/stream/guest` `generate()` closures now re-resolve the target agent by ID→name after the generator starts, ensuring fresh agent instance after provider switches |
+
+#### Backend — Progressive real-time chat saves
+| Change | Detail |
+|--------|--------|
+| **Progressive saves during streaming** | Both `/chat/stream` and `/chat/stream/guest` now save the chat session every 15 chunks during streaming (not just at the end) — provides real-time persistence even if connection drops mid-stream |
+| **Final save in `finally` block** | Removed `save_attempted` guard (no longer needed with progressive saves); final save still runs on generator completion with the complete response |
+
+#### Frontend — Chat send retry logic (`DashboardPage.jsx`)
+| Change | Detail |
+|--------|--------|
+| **Retry on 5xx server errors** | Added automatic 1-delayed retry for HTTP 500+ responses (transient server failures) before showing the error to the user |
+| **Better error messages** | Shows `"Server error (HTTP {status})"` instead of `"Failed to send message"` when `detail` field is missing from error response |
+
+#### Frontend — Auth popup handler stability (`App.jsx`)
+| Change | Detail |
+|--------|--------|
+| **Ref-based handler** | `handlePopupAuth` and `refetch` are now stored in refs (`useRef`) so the Google sign-in click interceptor never re-registers on auth state changes — prevents race where a click during handler swap triggers a full page navigation (the "automatic hot reload") |
+| **401 interceptor dependency** | `window.fetch` monkey-patch now depends on `[requireAuth]` so it stays in sync |
+
+#### Frontend — Payment page auto-refresh (`PaymentPage.jsx`)
+| Change | Detail |
+|--------|--------|
+| **Auth refresh on mount** | Added `useEffect` that calls `refetch()` on mount — ensures plan state is fresh when user navigates to `/payment` via SPA, eliminating the need for manual reload |
+
+### Key Design Decisions
+- Progressive saves every 15 chunks (~every 2-3 seconds of streaming) balance real-time visibility with DB write overhead
+- Agent re-resolution inside `generate()` (not in `_stream_with_fallback`) keeps the fix localized to the chat endpoints without changing the fallback function's interface
+- Ref-based popup handler avoids `useEffect` re-registration entirely — the handler is registered once, never torn down, preventing the click-during-swap race
+- 5xx retry is a simple 1s delay + single retry (not exponential backoff) — enough to recover from transient FastAPI/uvicorn worker restarts
+
+### Fixed Bugs
+1. **Chat "Error: Failed to send message"** — was caused by error prefix mismatch + stale agent IDs after provider switch; now both are fixed
+2. **Chats not saving in real time** — previously saved only in generator `finally` block; now saves progressively every 15 chunks
+3. **Payment page required manual reload** — added `refetch()` on mount so SPA navigation to `/payment` always shows current plan
+4. **Automatic hot reload on initial visit** — popup handler was re-registering on every `refetch` change, creating a window where Google sign-in clicks triggered full page navigation instead of popup
+
+## Session: 2026-06-26 — PostgreSQL Ambiguous Column Fix in Rate-Limit UPSERT
+
+### What was done
+| File | Change |
+|------|--------|
+| `src/core/db_backend.py` | Added `request_count=request_count+1` → `request_count=daily_requests.request_count+1` translation in `_sql()` for PostgreSQL to fix ambiguous column reference in `ON CONFLICT DO UPDATE SET` |
+
+### Bug
+- Chat to any agent returned: `column reference "request_count" is ambiguous`
+- Root cause: PostgreSQL requires table-qualified column names in `ON CONFLICT DO UPDATE SET` when the column name appears in both the target table and the `excluded` record. The `_sql()` translation layer (which converts SQLite `?` → PG `%s` and julianday → EXTRACT) didn't handle this.
+- Fix: Added explicit table qualifier `daily_requests.request_count` in the SET expression so PostgreSQL knows we're incrementing the existing row's value, not `EXCLUDED.request_count` (which would always be 1).
+
+### How it works
+1. `increment_daily_request_count()` in `database.py` sends UPSERT with `request_count=request_count+1`
+2. `_sql()` in `db_backend.py` translates to `request_count=daily_requests.request_count+1` for PostgreSQL
+3. SQLite path unchanged (unqualified column refs are fine in SQLite UPSERT)

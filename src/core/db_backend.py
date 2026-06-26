@@ -82,6 +82,12 @@ class Database:
         # Parameter placeholders: SQLite uses ?, PostgreSQL uses %s
         # We use a simple replace that works because ? only appears as placeholders
         query = query.replace("?", "%s")
+        # Fix ambiguous column refs in ON CONFLICT DO UPDATE SET for PostgreSQL
+        # Unqualified column names in SET expressions are ambiguous in PG UPSERT
+        query = query.replace(
+            "request_count=request_count+1",
+            "request_count=daily_requests.request_count+1"
+        )
         # julianday -> epoch seconds
         query = query.replace(
             "(julianday('now') - julianday(fetched_at)) * 24",

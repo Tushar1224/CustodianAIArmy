@@ -1,6 +1,6 @@
 # Custodian AI Army — Product Requirements Document
 
-> **Version:** 1.7.0 · **Last Updated:** 2026-06-26  
+> **Version:** 1.7.1 · **Last Updated:** 2026-06-26  
 > **Project:** Custodian AI Army — A futuristic multi-agent AI orchestration system
 
 ---
