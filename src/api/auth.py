@@ -15,7 +15,7 @@ import jwt
 
 from ..core.config import settings
 import json
-from ..core.database import init_db, get_db
+from ..core.database import init_db, get_db, upgrade_user_plan
 from ..core.db_backend import db
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
 
@@ -508,10 +508,10 @@ async def google_callback(request: Request, code: str = None, error: str = None)
 
             # Auto-assign 'free' plan for Google-authenticated users (if not already set)
             try:
-                from ..core.database import upgrade_user_plan
                 upgrade_user_plan(user.email, "free")
+                print(f"[auth] Free plan assigned to {user.email}")
             except Exception as _plan_err:
-                print(f"Warning: could not set free plan for {user.email}: {_plan_err}")
+                print(f"[auth] WARNING: could not set free plan for {user.email}: {_plan_err}")
             
             # Generate JWT token (now with 1-year expiry)
             jwt_token = generate_jwt_token(user)
@@ -611,9 +611,25 @@ async def auth_status(
             plan_info = get_user_plan(user.email)
             user_dict["plan"] = plan_info.get("plan", "guest")
             user_dict["plan_expiry"] = plan_info.get("plan_expiry")
-        except Exception:
-            user_dict["plan"] = "guest"
-            user_dict["plan_expiry"] = None
+            # Ensure authenticated users are never stuck on 'guest'
+            if user_dict.get("plan") == "guest":
+                print(f"[auth] Authenticated user {user.email} had 'guest' plan — upgrading to 'free'")
+                upgrade_user_plan(user.email, "free")
+                plan_info = get_user_plan(user.email)
+                user_dict["plan"] = plan_info.get("plan", "free")
+                user_dict["plan_expiry"] = plan_info.get("plan_expiry")
+        except Exception as e:
+            print(f"[auth] Error fetching plan for {user.email}: {e}")
+            # Authenticated users default to 'free' (not 'guest')
+            try:
+                upgrade_user_plan(user.email, "free")
+                plan_info = get_user_plan(user.email)
+                user_dict["plan"] = plan_info.get("plan", "free")
+                user_dict["plan_expiry"] = plan_info.get("plan_expiry")
+            except Exception as e2:
+                print(f"[auth] Error upgrading plan for {user.email}: {e2}")
+                user_dict["plan"] = "free"
+                user_dict["plan_expiry"] = None
         return JSONResponse(
             status_code=200,
             content={

@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 
 export default function PaymentPage() {
   const navigate = useNavigate();
-  const { user, loading, plan, refetch, handlePopupAuth } = useAuth();
+  const { user, loading, plan, refetch } = useAuth();
 
   const formatCardNumber = (input) => {
     let v = input.value.replace(/\D/g, '').substring(0, 16);
@@ -55,16 +55,11 @@ export default function PaymentPage() {
       document.getElementById('payment-form-section').style.display = 'none';
       document.getElementById('success-section').style.display = 'block';
 
-      // Directly set plan in auth context (no cookie dependency)
-      if (user) {
-        const upgraded = { ...user, plan: 'pro' };
-        handlePopupAuth(upgraded);
-      } else {
-        localStorage.setItem('custodian_user', JSON.stringify({ plan: 'pro' }));
-      }
+      // Sync auth state from backend so plan is immediately correct
+      await refetch();
 
       setTimeout(() => {
-        navigate('/');
+        window.location.href = '/';
       }, 2000);
     } catch (err) {
       if (btn) {
