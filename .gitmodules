@@ -1,6 +1,3 @@
-[submodule "Reinforced_MVP_Developer"]
-	path = Reinforced_MVP_Developer
-	url = https://github.com/Tushar1224/Reinforced_MVP_Developer.git
 [submodule "dependencies/Reinforced_MVP_Developer"]
 	path = dependencies/Reinforced_MVP_Developer
 	url = https://github.com/Tushar1224/Reinforced_MVP_Developer.git
@@ -10,3 +7,6 @@
 [submodule "dependencies/jobspy-mcp-server"]
 	path = dependencies/jobspy-mcp-server
 	url = https://github.com/Tushar1224/jobspy-mcp-server.git
+[submodule "dependencies/react-mcp"]
+	path = dependencies/react-mcp
+	url = https://github.com/Streen9/react-mcp.git
