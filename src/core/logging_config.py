@@ -7,6 +7,15 @@ import sys
 from typing import Dict, Any
 
 
+import io
+
+def _utf8_stream():
+    """Return stdout wrapped in a UTF-8 encoder to prevent UnicodeEncodeError."""
+    if hasattr(sys.stdout, "encoding") and sys.stdout.encoding and sys.stdout.encoding.upper() not in ("UTF-8", "UTF-16LE"):
+        return io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    return sys.stdout
+
+
 def setup_logging(log_level: str = "INFO") -> None:
     """Setup logging configuration"""
     
@@ -16,8 +25,8 @@ def setup_logging(log_level: str = "INFO") -> None:
         datefmt="%Y-%m-%d %H:%M:%S"
     )
     
-    # Create console handler
-    console_handler = logging.StreamHandler(sys.stdout)
+    # Create console handler with UTF-8 encoding
+    console_handler = logging.StreamHandler(_utf8_stream())
     console_handler.setFormatter(formatter)
     
     # Configure root logger

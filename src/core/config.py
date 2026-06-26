@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     FASTAPI_PORT: int = 8000
 
     # Database Configuration
-    DATABASE_URL: str = "sqlite:///./custodian_ai.db"
+    DATABASE_URL: str = "postgresql://custodian:custodian_secret@localhost:5432/custodian"
 
     # Redis Configuration
     REDIS_URL: str = "redis://localhost:6379"

@@ -37,3 +37,6 @@ mcp>=1.0.0
 # AI Provider SDKs (uncomment to use official SDKs instead of httpx)
 # openai>=1.0.0        # For NVIDIA NIM (OpenAI-compatible) - optional, httpx used by default
 anthropic>=0.40.0    # For Claude API
+
+# PostgreSQL (optional — set DATABASE_URL=postgresql://... to use)
+psycopg2-binary>=2.9.0

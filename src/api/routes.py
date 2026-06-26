@@ -10,7 +10,6 @@ import subprocess
 import random
 import json
 import os
-import sqlite3
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 import uuid
@@ -18,7 +17,7 @@ from datetime import datetime
 
 from src.agents.agent_manager import AgentManager
 from src.core.database import (
-    get_chats_for_user, save_chat_session, DB_PATH,
+    get_chats_for_user, save_chat_session,
     get_user_api_keys, get_user_api_keys_raw, save_user_api_keys, delete_user_api_key, get_user_github_token, save_custom_agent_config, get_custom_agent_config, delete_custom_agent_config,
     get_user_plan, check_and_increment_rate_limit, upgrade_user_plan, save_payment,
     save_resume, get_user_resumes, get_resume, get_resume_count, delete_resume, save_resume_chat_history,
@@ -28,6 +27,7 @@ from src.core.database import (
     add_jobs_to_accumulated, get_accumulated_jobs, get_accumulated_job_count,
     get_fetch_state, set_fetch_state, clear_stale_accumulated,
 )
+from src.core.db_backend import db
 from src.agents.astro_agent import AstroAgent # Import AstroAgent
 from src.agents.base_agent import AgentMessage, AgentCapability, BaseAgent
 from src.core.logging_config import get_logger
@@ -1818,16 +1818,13 @@ async def get_my_progress(
 ):
     """Get all course progress for the authenticated user"""
     try:
-        conn = sqlite3.connect(DB_PATH, timeout=20)
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT course_id, lang, section_index, completed_sections, last_updated
-            FROM user_progress
-            WHERE user_email = ?
-            ORDER BY last_updated DESC
-        ''', (current_user.email,))
-        rows = cursor.fetchall()
-        conn.close()
+        rows = db.fetchall(
+            "SELECT course_id, lang, section_index, completed_sections, last_updated "
+            "FROM user_progress "
+            "WHERE user_email = ? "
+            "ORDER BY last_updated DESC",
+            (current_user.email,)
+        )
 
         progress = []
         for row in rows:
@@ -1866,18 +1863,15 @@ async def update_user_progress(
     try:
         now = datetime.utcnow().isoformat()
         completed_str = json.dumps(request.completed_sections)
-        conn = sqlite3.connect(DB_PATH, timeout=20)
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO user_progress (user_email, course_id, lang, section_index, completed_sections, last_updated)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(user_email, course_id, lang) DO UPDATE SET
-                section_index=excluded.section_index,
-                completed_sections=excluded.completed_sections,
-                last_updated=excluded.last_updated
-        ''', (user.email, request.course_id, request.lang, request.section_index, completed_str, now))
-        conn.commit()
-        conn.close()
+        db.execute(
+            "INSERT INTO user_progress (user_email, course_id, lang, section_index, completed_sections, last_updated) "
+            "VALUES (?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(user_email, course_id, lang) DO UPDATE SET "
+            "section_index=excluded.section_index, "
+            "completed_sections=excluded.completed_sections, "
+            "last_updated=excluded.last_updated",
+            (user.email, request.course_id, request.lang, request.section_index, completed_str, now)
+        )
         return {"status": "success", "message": "Progress updated"}
     except Exception as e:
         logger.error(f"Error updating progress: {str(e)}")

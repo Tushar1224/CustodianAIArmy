@@ -16,8 +16,7 @@ import jwt
 from ..core.config import settings
 import json
 from ..core.database import init_db, get_db
-import sqlite3
-
+from ..core.db_backend import db
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
 
 # In-memory session store (use Redis in production)
@@ -28,6 +27,8 @@ def init_session_storage():
     """Initialize database table for persistent sessions"""
     try:
         conn = get_db()
+        if conn is None:
+            return  # PostgreSQL — table already created by db.init_tables()
         cursor = conn.cursor()
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS sessions (
@@ -49,12 +50,7 @@ def init_session_storage():
 def load_sessions_from_db():
     """Load sessions from persistent storage into memory"""
     try:
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM sessions')
-        rows = cursor.fetchall()
-        conn.close()
-
+        rows = db.fetchall("SELECT * FROM sessions")
         for row in rows:
             sessions[row[0]] = {
                 "user": {
@@ -73,23 +69,16 @@ def load_sessions_from_db():
 def save_session_to_db(session_id: str, user_data: Dict[str, Any]):
     """Save session to persistent storage"""
     try:
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT OR REPLACE INTO sessions
-            (session_id, user_id, user_email, user_name, user_picture, created_at, last_activity)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            session_id,
-            user_data["id"],
-            user_data["email"],
-            user_data.get("name"),
-            user_data.get("picture"),
-            datetime.utcnow().isoformat(),
-            datetime.utcnow().isoformat()
-        ))
-        conn.commit()
-        conn.close()
+        now = datetime.utcnow().isoformat()
+        db.execute(
+            "INSERT INTO sessions (session_id, user_id, user_email, user_name, user_picture, created_at, last_activity) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(session_id) DO UPDATE SET "
+            "user_id=excluded.user_id, user_email=excluded.user_email, "
+            "user_name=excluded.user_name, user_picture=excluded.user_picture, "
+            "last_activity=excluded.last_activity",
+            (session_id, user_data["id"], user_data["email"],
+             user_data.get("name"), user_data.get("picture"), now, now))
     except Exception as e:
         print(f"Error saving session to DB: {e}")
 
@@ -97,11 +86,7 @@ def save_session_to_db(session_id: str, user_data: Dict[str, Any]):
 def delete_session_from_db(session_id: str):
     """Delete session from persistent storage"""
     try:
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute('DELETE FROM sessions WHERE session_id = ?', (session_id,))
-        conn.commit()
-        conn.close()
+        db.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
     except Exception as e:
         print(f"Error deleting session from DB: {e}")
 
@@ -854,24 +839,12 @@ async def delete_user_chat(
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     # Delete chat from database (only if it belongs to this user)
-    import sqlite3
-    from src.core.database import DB_PATH
+    from src.core.database import delete_chat_session
     
     try:
-        conn = sqlite3.connect(DB_PATH, timeout=20)
-        cursor = conn.cursor()
-        
-        # First verify ownership
-        cursor.execute(
-            "SELECT id FROM chat_sessions WHERE id = ? AND user_email = ?",
-            (chat_id, user.email)
-        )
-        if not cursor.fetchone():
+        deleted = delete_chat_session(chat_id, user.email)
+        if not deleted:
             raise HTTPException(status_code=404, detail="Chat not found or access denied")
-        
-        cursor.execute("DELETE FROM chat_sessions WHERE id = ?", (chat_id,))
-        conn.commit()
-        conn.close()
         
         return JSONResponse(
             status_code=200,
