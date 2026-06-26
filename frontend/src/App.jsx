@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import DashboardPage from './pages/DashboardPage';
@@ -16,6 +16,17 @@ function AppShell() {
   const navigate = useNavigate();
   const [showLogin, setShowLogin] = useState(false);
   const { user, loading, plan, logout, refetch, handlePopupAuth } = useAuth();
+
+  // Redirect after login (e.g. /payment → Google OAuth → back)
+  useEffect(() => {
+    if (!loading && user) {
+      const redirect = localStorage.getItem('redirect_after_login');
+      if (redirect) {
+        localStorage.removeItem('redirect_after_login');
+        window.location.href = redirect;
+      }
+    }
+  }, [loading, user]);
 
   // Expose navigate globally so AuthProvider can use it for logout
   useEffect(() => {
@@ -50,9 +61,15 @@ function AppShell() {
       return res;
     };
     return () => { window.fetch = origFetch; };
-  }, []);
+  }, [requireAuth]); // re-attach if requireAuth changes
 
   // Intercept Google sign-in links → open popup instead of full navigation
+  // Use refs to avoid re-registering the listener on every auth state change
+  const handlePopupAuthRef = useRef(handlePopupAuth);
+  const refetchRef = useRef(refetch);
+  handlePopupAuthRef.current = handlePopupAuth;
+  refetchRef.current = refetch;
+
   useEffect(() => {
     const handler = (e) => {
       const link = e.target.closest('a[href="/api/v1/auth/google"]');
@@ -65,16 +82,18 @@ function AppShell() {
           window.removeEventListener('message', onMessage);
           popup?.close();
           if (event.data.user) {
-            handlePopupAuth(event.data.user);
+            handlePopupAuthRef.current(event.data.user);
           }
-          refetch();
+          // Don't refetch — handlePopupAuth already set user,
+          // and refetch would overwrite with unauthenticated
+          // if cookies are on a different domain (e.g., production).
         }
       };
       window.addEventListener('message', onMessage);
     };
     document.addEventListener('click', handler);
     return () => document.removeEventListener('click', handler);
-  }, [refetch]);
+  }, []); // stable — never re-registers
 
   return (
     <>

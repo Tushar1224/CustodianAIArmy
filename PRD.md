@@ -1,6 +1,6 @@
 # Custodian AI Army — Product Requirements Document
 
-> **Version:** 1.7.1 · **Last Updated:** 2026-06-26  
+> **Version:** 1.8.0 · **Last Updated:** 2026-06-26  
 > **Project:** Custodian AI Army — A futuristic multi-agent AI orchestration system
 
 ---
@@ -126,7 +126,7 @@ User provides product idea
 | **Frontend**         | React 19 · Vite · React Router 7 · Bootstrap 5 · marked · highlight.js |
 | **Legacy Frontend**  | Static HTML + `app.v2.js` (cache-busted SPA) |
 | **MCP Tools**        | `uvx` / `npx` based servers              |
-| **Revenue**          | Demo payment page → Stripe (planned)      |
+| **Revenue**          | UPI direct payment (₹400 INR, UTR-verified via `9424740106@yescred`) |
 | **Deployment**       | Vercel (Python runtime)                  |
 | **Testing**          | 6 Python test files (`tests/`) · pytest   |
 
@@ -357,14 +357,23 @@ Users can switch between Google and Anthropic:
 
 **Plan Expiry:** Pro plans expire after 1 year. On the next `get_user_plan()` call after expiry, the user is automatically downgraded to Free. A `plan_expiry` column in `user_plans` stores the ISO date string.
 
-### 7.3 Payment & Upgrade Flow
+### 7.3 Payment & Upgrade Flow (UPI Direct)
 
 1. User clicks "Upgrade to Pro" → navigates to `/payment`
-2. Card form (demo sandbox) → validation → 1.8s simulated processing
-3. `POST /api/v1/user/upgrade-plan` sets `plan='pro'` + `plan_expiry = now + 365 days`
-4. A `payments` record is saved (id, user_email, amount, plan, valid_until)
-5. User is redirected to `/` via full page reload (`window.location.href = '/'`) — ensures `useAuth` re-fetches fresh plan data; Header shows **PRO** badge, Profile shows "Valid until" date
-6. Stripe integration planned (will replace demo sandbox)
+2. Guest users see "Sign In Required" card (Google sign-in)
+3. Authenticated user enters **UPI ID (VPA)** for payment reference
+4. **Mobile**: UPI deep link (`upi://pay`) opens the phone's UPI app
+   **Desktop**: QR code shown (scan with any UPI app)
+5. User pays **₹400 INR** in their UPI app to `9424740106@yescred`
+6. User enters the **12-digit UTR/RRN** from their UPI app's payment confirmation
+7. `POST /api/v1/user/upgrade-plan` — Backend validates:
+   - UTR format (10–20 chars)
+   - UTR uniqueness (no duplicate claims)
+8. Sets `plan='pro'` + `plan_expiry = now + 365 days`
+9. `payments` record saved with UPI ref + UTR
+10. User redirected to `/` via `window.location.href = '/'` — `useAuth` re-fetches fresh plan data
+
+**Key files:** `frontend/src/pages/PaymentPage.jsx`, `static/payment.html`, `src/api/routes.py`, `src/core/database.py`
 
 ### 7.4 Database Tables — Plans & Payments
 
@@ -392,7 +401,9 @@ amount REAL NOT NULL,
 currency TEXT NOT NULL DEFAULT 'usd',
 plan TEXT NOT NULL,                         -- 'pro'
 status TEXT NOT NULL,                       -- 'completed'
-payment_method TEXT NOT NULL DEFAULT 'demo', -- 'demo' | 'stripe' (future)
+payment_method TEXT NOT NULL DEFAULT 'upi',  -- 'upi' | 'demo'
+upi_ref TEXT,                                -- User's UPI VPA (e.g., name@bank)
+transaction_ref TEXT,                        -- UPI transaction UTR/RRN from UPI app
 created_at TEXT NOT NULL,
 valid_until TEXT NOT NULL                   -- ISO date (1 year from purchase)
 ```
@@ -427,7 +438,7 @@ user_profile        -- User preferences
 user_api_keys       -- Per-user custom API keys
 user_plans          -- Plan + plan_expiry
 daily_requests      -- Daily request count tracking (FK→user_plans)
-payments            -- Payment history (demo + future Stripe)
+payments            -- Payment history (UPI with UTR verification)
 user_github_connections     -- GitHub OAuth tokens
 user_github_repo_permissions -- Repo access control
 custom_agent_configs        -- User-defined agents
@@ -448,7 +459,7 @@ sessions            -- Persistent auth sessions
 | `/agents`        | `pages/CustomAgentsPage.jsx`  | Custom Agent management         |
 | `/resume`        | `pages/ResumePage.jsx`        | Resume Optimizer — upload, ATS-optimize, multi-template |
 | `/jobs`          | `pages/JobsPage.jsx`          | Jobs Board — 86 platforms, background accumulation, resume match scoring |
-| `/payment`       | `pages/PaymentPage.jsx`       | Payment/upgrade page            |
+| `/payment`       | `pages/PaymentPage.jsx`       | UPI payment upgrade (₹400, QR/deep-link, UTR verification) |
 | `/api/docs`      | —                             | Swagger UI (auto-generated)     |
 | `/api/redoc`     | —                             | ReDoc UI (auto-generated)       |
 
@@ -712,16 +723,33 @@ A real-time job aggregator that accumulates listings from 86 platforms in the ba
 - No CloudFront/HTTPS on backend API yet
 - Guest users work via email + session, but applied jobs are per-session only (no account merge)
 
-### 8.7 Guest Payment Guard (`/payment`)
+### 8.7 UPI Payment Flow — Pro Plan (`/payment`)
 
-Guests who attempt to access the `/payment` page without signing in are shown a "Sign In Required" card instead of the payment form:
-
+#### Guest Guard
+Guests who attempt to access `/payment` without signing in see a "Sign In Required" card:
 1. Guest navigates to `/payment` → detects `user === null || plan === 'guest'`
 2. Shows a card with Google sign-in button + stores `redirect_after_payment_login` in localStorage
 3. Google OAuth redirects to `/` → `App.jsx` detects the flag → `window.location.href = '/payment'`
 4. Page re-mounts with auth → payment form renders normally
 
-**Key files:** `frontend/src/pages/PaymentPage.jsx`, `frontend/src/App.jsx`
+#### UPI Payment Flow (authenticated users)
+1. Country detected via `ipapi.co` → ₹400 for India, $10 USD display for others
+2. User enters **UPI ID (VPA)** as payment reference (e.g., `name@bank`)
+3. **Mobile**: UPI deep link (`upi://pay?pa=...`) opens default UPI app
+   **Desktop**: QR code displayed via `qrserver.com` API, with click-to-copy UPI ID
+4. User pays **₹400** in their UPI app to `9424740106@yescred`
+5. User enters the **12-digit UTR/RRN** from their UPI app's payment confirmation
+6. `POST /api/v1/user/upgrade-plan` validates:
+   - UTR format (10–20 chars, alphanumeric)
+   - UTR uniqueness — checks `payments.transaction_ref` for duplicates
+7. Plan upgraded to `pro` with `plan_expiry = now + 365 days`
+8. `payments` record saved: `amount`, `currency='inr'`, `payment_method='upi'`, `upi_ref`, `transaction_ref`
+9. User redirected to `/` — `useAuth` re-fetches fresh plan from `/payment/config`
+
+#### Payment Config Endpoint
+`GET /api/v1/payment/config?email=` returns `{ upi_id, prices: { inr, usd }, plan }` — used by both `PaymentPage.jsx` and `AuthProvider.jsx` to resolve the real plan from PostgreSQL.
+
+**Key files:** `frontend/src/pages/PaymentPage.jsx`, `static/payment.html`, `src/api/routes.py`, `src/core/database.py`, `frontend/src/hooks/AuthProvider.jsx`
 
 ### 8.8 Chat Auto-Save & Per-Agent Conversation Resume
 
@@ -756,7 +784,7 @@ Chat sessions now persist automatically and resume the last conversation per age
 | Feature | Status | Details |
 |---------|--------|---------|
 | **Portfolio Builder (`/portfolio`)** | Coming Soon placeholder | 38-line component with 4 preview cards, no backend or real functionality |
-| **Stripe Payment Integration** | Demo sandbox only | `1.8s` simulated processing; no real Stripe SDK or webhooks |
+| **Stripe / International Card Payment** | Not integrated | UPI direct payment works (₹400, UTR-verified); no Stripe/webhook integration for international cards |
 | **Backend Automated Tests** | Manual only | 6 test files exist but no CI pipeline |
 | **CDK Infrastructure** | Removed from git | `infra/` directory created June 21, later removed from repo |
 | **Semantic Match Score Endpoint** | Not implemented | `POST /match-scores` doesn't return updated `match_score` yet |
@@ -1047,6 +1075,9 @@ python -m pytest tests/test_all_flows.py -v
 | `APP_PORT` / `FASTAPI_PORT`| No      | `8000`          | Server port                          |
 | `DATABASE_PATH`           | No       | `custodian.db`    | SQLite database file path          |
 | `DATABASE_URL`            | For PG   | —                 | PostgreSQL URL (`postgresql://user:pass@host:port/db`) — auto-detected vs SQLite |
+| `UPI_ID`                  | No       | `9424740106@yescred` | UPI VPA for receiving Pro payments |
+| `PRICE_INR`               | No       | `400`            | Pro plan price in INR                |
+| `PRICE_USD`               | No       | `10`             | Pro plan price in USD (display only) |
 
 > *At least one of GEMINI_API_KEY or ANTHROPIC_API_KEY is required.
 

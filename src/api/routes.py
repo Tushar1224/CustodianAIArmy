@@ -19,7 +19,7 @@ from src.agents.agent_manager import AgentManager
 from src.core.database import (
     get_chats_for_user, get_last_chat_for_agent, save_chat_session,
     get_user_api_keys, get_user_api_keys_raw, save_user_api_keys, delete_user_api_key, get_user_github_token, save_custom_agent_config, get_custom_agent_config, delete_custom_agent_config,
-    get_user_plan, check_and_increment_rate_limit, upgrade_user_plan, save_payment,
+    get_user_plan, check_and_increment_rate_limit, upgrade_user_plan, save_payment, get_payment_by_transaction_ref,
     save_resume, get_user_resumes, get_resume, get_resume_count, delete_resume, save_resume_chat_history,
     save_template, list_templates, get_template_by_name,
     delete_mvp_session, list_mvp_sessions, list_archived_mvp_sessions,
@@ -1294,8 +1294,8 @@ async def _stream_with_fallback(
             try:
                 async for chunk in current_agent.stream_message(agent_message):
                     if chunk:
-                        # Detect error chunks (agents yield "Error: ..." instead of raising)
-                        if chunk.startswith("Error:"):
+                        # Detect error chunks (agents yield "Error: ..." or "Error streaming from ...")
+                        if chunk.startswith(("Error:", "Error streaming", "Error from")):
                             got_error = True
                             logger.warning(f"Provider {provider} returned error: {chunk[:100]}")
                             break
@@ -1386,39 +1386,59 @@ async def chat_stream(
             """Generator for streaming response with SSE format"""
             chat_id = str(uuid.uuid4())
             full_response = ""
-            save_attempted = False
+            chunk_count = 0
+
+            # Re-resolve agent inside generator — provider may have switched since request
+            gen_agent = agent_manager.get_agent(target_agent.agent_id)
+            if not gen_agent:
+                gen_agent = agent_manager.get_agent_by_name(target_agent.name)
+            if not gen_agent:
+                gen_agent = target_agent
+            gen_agent_name = gen_agent.name if hasattr(gen_agent, 'name') else (request.agent_name or "CustodianAI")
+
             try:
-                chunk_buffer = ""
-                async for chunk in _stream_with_fallback(chat_message, target_agent):
+                async for chunk in _stream_with_fallback(chat_message, gen_agent):
                     if chunk:
-                        chunk_buffer += chunk
                         full_response += chunk
-                        # Yield chunks as server-sent events
+                        chunk_count += 1
                         yield f"data: {json.dumps({'type': 'message', 'content': chunk})}\n\n"
-                
-                # Send final event
+
+                        # Progressive save every 15 chunks for real-time persistence
+                        if chunk_count % 15 == 0:
+                            try:
+                                msgs = list(request.history or [])
+                                msgs.append({"role": "user", "content": request.message})
+                                msgs.append({"role": "assistant", "content": full_response + "..."})
+                                save_chat_session({
+                                    "id": chat_id,
+                                    "user_email": current_user.email,
+                                    "title": request.message[:80],
+                                    "messages": msgs,
+                                    "agent_name": gen_agent_name,
+                                })
+                            except Exception:
+                                pass
+
                 yield f"data: {json.dumps({'type': 'done'})}\n\n"
             except Exception as e:
                 logger.error(f"Error in stream generation: {str(e)}")
                 full_response = f"Error: {str(e)}"
                 yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
             finally:
-                if not save_attempted:
-                    save_attempted = True
-                    try:
-                        agent_name = target_agent.name if hasattr(target_agent, 'name') else (request.agent_name or "CustodianAI")
-                        messages = list(request.history or [])
-                        messages.append({"role": "user", "content": request.message})
-                        messages.append({"role": "assistant", "content": full_response or "(empty response)"})
-                        save_chat_session({
-                            "id": chat_id,
-                            "user_email": current_user.email,
-                            "title": request.message[:80],
-                            "messages": messages,
-                            "agent_name": target_agent.name if hasattr(target_agent, 'name') else (request.agent_name or "CustodianAI"),
-                        })
-                    except Exception as save_err:
-                        logger.error(f"Error saving chat session: {save_err}")
+                # Final save with complete response
+                try:
+                    messages = list(request.history or [])
+                    messages.append({"role": "user", "content": request.message})
+                    messages.append({"role": "assistant", "content": full_response or "(empty response)"})
+                    save_chat_session({
+                        "id": chat_id,
+                        "user_email": current_user.email,
+                        "title": request.message[:80],
+                        "messages": messages,
+                        "agent_name": gen_agent_name,
+                    })
+                except Exception as save_err:
+                    logger.error(f"Error saving chat session: {save_err}")
 
         return StreamingResponse(
             generate(),
@@ -1486,35 +1506,59 @@ async def chat_stream_guest(chat_request: ChatRequest, request: Request):
             """Generator for streaming response"""
             chat_id = str(uuid.uuid4())
             full_response = ""
-            save_attempted = False
+            chunk_count = 0
+
+            # Re-resolve agent inside generator — provider may have switched since request
+            gen_agent = agent_manager.get_agent(target.agent_id)
+            if not gen_agent:
+                gen_agent = agent_manager.get_agent_by_name(target.name)
+            if not gen_agent:
+                gen_agent = target
+            gen_agent_name = gen_agent.name if hasattr(gen_agent, 'name') else (chat_request.agent_name or "CustodianAI")
+
             try:
-                async for chunk in _stream_with_fallback(chat_message, target):
+                async for chunk in _stream_with_fallback(chat_message, gen_agent):
                     if chunk:
                         full_response += chunk
+                        chunk_count += 1
                         yield f"data: {json.dumps({'type': 'message', 'content': chunk})}\n\n"
-                
+
+                        # Progressive save every 15 chunks for real-time persistence
+                        if chunk_count % 15 == 0:
+                            try:
+                                msgs = list(chat_request.history or [])
+                                msgs.append({"role": "user", "content": chat_request.message})
+                                msgs.append({"role": "assistant", "content": full_response + "..."})
+                                save_chat_session({
+                                    "id": chat_id,
+                                    "user_email": guest_identifier,
+                                    "title": chat_request.message[:80],
+                                    "messages": msgs,
+                                    "agent_name": gen_agent_name,
+                                })
+                            except Exception:
+                                pass
+
                 yield f"data: {json.dumps({'type': 'done'})}\n\n"
             except Exception as e:
                 logger.error(f"Error in guest stream: {str(e)}")
                 full_response = f"Error: {str(e)}"
                 yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
             finally:
-                if not save_attempted:
-                    save_attempted = True
-                    try:
-                        agent_name = target.name if hasattr(target, 'name') else (chat_request.agent_name or "CustodianAI")
-                        messages = list(chat_request.history or [])
-                        messages.append({"role": "user", "content": chat_request.message})
-                        messages.append({"role": "assistant", "content": full_response or "(empty response)"})
-                        save_chat_session({
-                            "id": chat_id,
-                            "user_email": guest_identifier,
-                            "title": chat_request.message[:80],
-                            "messages": messages,
-                            "agent_name": target.name if hasattr(target, 'name') else (chat_request.agent_name or "CustodianAI"),
-                        })
-                    except Exception as save_err:
-                        logger.error(f"Error saving guest chat session: {save_err}")
+                # Final save with complete response
+                try:
+                    messages = list(chat_request.history or [])
+                    messages.append({"role": "user", "content": chat_request.message})
+                    messages.append({"role": "assistant", "content": full_response or "(empty response)"})
+                    save_chat_session({
+                        "id": chat_id,
+                        "user_email": guest_identifier,
+                        "title": chat_request.message[:80],
+                        "messages": messages,
+                        "agent_name": gen_agent_name,
+                    })
+                except Exception as save_err:
+                    logger.error(f"Error saving guest chat session: {save_err}")
 
         return StreamingResponse(
             generate(),
@@ -2122,6 +2166,10 @@ async def get_active_provider():
 class UpgradePlanRequest(BaseModel):
     plan: str  # 'pro' | 'free'
     email: Optional[str] = None  # fallback when cookies aren't forwarded (cross-domain prod)
+    amount: Optional[float] = 400.0  # payment amount in local currency
+    currency: Optional[str] = 'inr'  # currency code (inr, usd, etc.)
+    upi_ref: Optional[str] = None  # user's UPI VPA for payment reference
+    transaction_ref: Optional[str] = None  # UPI transaction UTR/RRN from the user's UPI app
 
 
 @router.post("/user/upgrade-plan")
@@ -2138,15 +2186,27 @@ async def upgrade_plan(
     if request.plan not in valid_plans:
         raise HTTPException(status_code=400, detail=f"Invalid plan. Must be one of: {', '.join(valid_plans)}")
     try:
+        # Validate UTR if provided
+        utr = request.transaction_ref
+        if utr:
+            utr = utr.strip()
+            if len(utr) < 10 or len(utr) > 20:
+                raise HTTPException(status_code=400, detail="UTR must be 10–20 characters. Check your UPI app for the correct transaction reference.")
+            existing = get_payment_by_transaction_ref(utr)
+            if existing:
+                raise HTTPException(status_code=409, detail=f"UTR '{utr}' already used for payment {existing['id']}. Duplicate transactions not allowed.")
         from datetime import timedelta
         expiry_date = (datetime.utcnow() + timedelta(days=365)).isoformat()
         success = upgrade_user_plan(user_email, request.plan, plan_expiry=expiry_date)
         if success:
             save_payment(
                 user_email=user_email,
-                amount=9.99,
+                amount=request.amount,
                 plan=request.plan,
-                valid_until=expiry_date
+                valid_until=expiry_date,
+                currency=request.currency,
+                upi_ref=request.upi_ref,
+                transaction_ref=request.transaction_ref
             )
             plan_info = get_user_plan(user_email)
             return {
@@ -2162,6 +2222,29 @@ async def upgrade_plan(
     except Exception as e:
         logger.error(f"Error upgrading plan: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/payment/config")
+async def payment_config(email: Optional[str] = None):
+    """Return UPI payment config, pricing, and user plan (from .env + DB)."""
+    result = {
+        "upi_id": os.getenv("UPI_ID", "9424740106@yescred"),
+        "prices": {
+            "inr": int(os.getenv("PRICE_INR", "400")),
+            "usd": int(os.getenv("PRICE_USD", "10")),
+        },
+        "plan": None,
+    }
+    if email:
+        try:
+            from src.core.database import get_user_plan
+            plan_data = get_user_plan(email)
+            if plan_data:
+                result["plan"] = plan_data.get("plan", "guest")
+        except Exception:
+            pass
+    logger.info(f"payment_config: email={email} plan={result['plan']}")
+    return result
 
 
 @router.delete("/user/api-keys/{provider}")

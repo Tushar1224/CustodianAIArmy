@@ -15,7 +15,7 @@ import jwt
 
 from ..core.config import settings
 import json
-from ..core.database import init_db, get_db, upgrade_user_plan
+from ..core.database import init_db, get_db, get_user_plan, upgrade_user_plan
 from ..core.db_backend import db
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
 
@@ -506,13 +506,19 @@ async def google_callback(request: Request, code: str = None, error: str = None)
             # Create session
             session_id = create_user_session(user)
 
-            # Auto-assign 'free' plan for Google-authenticated users (if not already set)
+            # Check or assign plan — preserve existing plan (pro) if already set
             try:
-                upgrade_user_plan(user.email, "free")
-                print(f"[auth] Free plan assigned to {user.email}")
+                existing = get_user_plan(user.email)
+                if existing and existing.get('plan') and existing['plan'] != 'guest':
+                    actual_plan = existing['plan']
+                else:
+                    upgrade_user_plan(user.email, "free")
+                    print(f"[auth] Free plan assigned to {user.email}")
+                    actual_plan = "free"
             except Exception as _plan_err:
-                print(f"[auth] WARNING: could not set free plan for {user.email}: {_plan_err}")
-            
+                print(f"[auth] WARNING: plan check failed for {user.email}: {_plan_err}")
+                actual_plan = "free"
+
             # Generate JWT token (now with 1-year expiry)
             jwt_token = generate_jwt_token(user)
 
@@ -522,7 +528,7 @@ async def google_callback(request: Request, code: str = None, error: str = None)
                 "email": user.email,
                 "name": user.name,
                 "picture": user.picture,
-                "plan": "free"
+                "plan": actual_plan
             })
             html_content = f"""<!DOCTYPE html>
 <html><body>

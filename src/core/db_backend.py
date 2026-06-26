@@ -213,6 +213,8 @@ class Database:
             currency TEXT NOT NULL DEFAULT 'usd', plan TEXT NOT NULL,
             status TEXT NOT NULL, payment_method TEXT NOT NULL DEFAULT 'demo',
             created_at TEXT NOT NULL, valid_until TEXT NOT NULL)""")
+        self._alter_sqlite(c, "payments", "upi_ref TEXT")
+        self._alter_sqlite(c, "payments", "transaction_ref TEXT")
         c.execute("""CREATE TABLE IF NOT EXISTS daily_requests (
             id INTEGER PRIMARY KEY AUTOINCREMENT, user_email TEXT NOT NULL,
             date TEXT NOT NULL, request_count INTEGER NOT NULL DEFAULT 0,
@@ -359,6 +361,14 @@ class Database:
                 currency TEXT NOT NULL DEFAULT 'usd', plan TEXT NOT NULL,
                 status TEXT NOT NULL, payment_method TEXT NOT NULL DEFAULT 'demo',
                 created_at TEXT NOT NULL, valid_until TEXT NOT NULL)""")
+        try:
+            c.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS upi_ref TEXT")
+        except Exception:
+            pass
+        try:
+            c.execute("ALTER TABLE payments ADD COLUMN IF NOT EXISTS transaction_ref TEXT")
+        except Exception:
+            pass
         c.execute("""
             CREATE TABLE IF NOT EXISTS daily_requests (
                 id SERIAL PRIMARY KEY, user_email TEXT NOT NULL,

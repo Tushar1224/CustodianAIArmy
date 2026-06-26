@@ -239,16 +239,28 @@ def upgrade_user_plan(user_email: str, new_plan: str, plan_expiry: Optional[str]
         print(f"Error upgrading plan: {e}")
         return False
 
-def save_payment(user_email: str, amount: float, plan: str, valid_until: str) -> Optional[str]:
+def save_payment(user_email: str, amount: float, plan: str, valid_until: str, currency: str = 'inr', payment_method: str = 'upi', upi_ref: Optional[str] = None, transaction_ref: Optional[str] = None) -> Optional[str]:
     try:
         payment_id = str(uuid.uuid4())
         db.execute(
-            "INSERT INTO payments (id, user_email, amount, currency, plan, status, payment_method, created_at, valid_until) "
-            "VALUES (?, ?, ?, 'usd', ?, 'completed', 'demo', ?, ?)",
-            (payment_id, user_email, amount, plan, _now(), valid_until))
+            "INSERT INTO payments (id, user_email, amount, currency, plan, status, payment_method, created_at, valid_until, upi_ref, transaction_ref) "
+            "VALUES (?, ?, ?, ?, ?, 'completed', ?, ?, ?, ?, ?)",
+            (payment_id, user_email, amount, currency, plan, payment_method, _now(), valid_until, upi_ref, transaction_ref))
         return payment_id
     except Exception as e:
         print(f"Error saving payment: {e}")
+        return None
+
+def get_payment_by_transaction_ref(transaction_ref: str) -> Optional[dict]:
+    try:
+        row = db.fetchone(
+            "SELECT id, user_email, amount, status FROM payments WHERE transaction_ref=?",
+            (transaction_ref,))
+        if row:
+            return {"id": row[0], "user_email": row[1], "amount": row[2], "status": row[3]}
+        return None
+    except Exception as e:
+        print(f"Error checking payment by transaction_ref: {e}")
         return None
 
 def get_daily_request_count(user_email: str, date: str) -> int:

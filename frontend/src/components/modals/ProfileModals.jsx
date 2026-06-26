@@ -55,6 +55,7 @@ export default function ProfileModals({ show, onClose, user: propUser, onLogout,
   const [keysMsg, setKeysMsg] = useState(null);
   const [planInfo, setPlanInfo] = useState(null);
   const [planLoading, setPlanLoading] = useState(false);
+  const [priceConfig, setPriceConfig] = useState(null);
 
   useEffect(() => {
     if (resolvedUser) {
@@ -160,12 +161,16 @@ export default function ProfileModals({ show, onClose, user: propUser, onLogout,
         }
       }
       setPlanInfo(data);
+      // Also fetch price config
+      const email = resolvedUser?.email || '';
+      const cfg = await apiGet('/payment/config' + (email ? '?email=' + encodeURIComponent(email) : ''));
+      setPriceConfig(cfg);
     } catch (e) {
       setPlanInfo(null);
     } finally {
       setPlanLoading(false);
     }
-  }, [contextPlan]);
+  }, [contextPlan, resolvedUser]);
 
   const saveProfile = useCallback(async () => {
     if (resolvedUser) {
@@ -442,7 +447,7 @@ export default function ProfileModals({ show, onClose, user: propUser, onLogout,
                               <li>Priority access to all providers</li>
                             </ul>
                             <a href="/payment" className="btn btn-warning text-dark w-100 fw-bold">
-                              <i className="fas fa-crown me-2"></i>Upgrade to Pro — $9.99/mo
+                              <i className="fas fa-crown me-2"></i>{priceConfig?.prices?.inr ? `Upgrade to Pro — ₹${priceConfig.prices.inr}/mo` : 'Upgrade to Pro'}
                             </a>
                           </div>
                         )}

@@ -283,7 +283,7 @@ cd frontend && npm run build && cd .. && python main.py
 | `/agents` | CustomAgentsPage | Create/manage custom agents |
 | `/resume` | ResumePage | Resume Optimizer — upload, edit, ATS-optimize, multi-template, diff review |
 | `/jobs` | JobsPage | Job search across 86 platforms + background accumulation + resume match scoring + applied tracker |
-| `/payment` | PaymentPage | Upgrade to Pro plan (guest-sign-in guard, sandbox demo) |
+| `/payment` | PaymentPage | Upgrade to Pro — UPI payment (India, ₹400), guest-sign-in guard, QR/deep-link, UTR verification |
 
 ---
 
@@ -465,7 +465,7 @@ Each agent specialization has a curated set of tools. See `src/mcp/mcp_config.py
 |------|-------------|----------|----------|
 | Guest | 3 requests | Try without signup, chat history saved to browser localStorage | — |
 | Free | 20 requests | Google sign-in, all agents, server-side chat history | — |
-| Pro | 50 requests ($9.99/mo) | Priority, all providers, all features | 1 year from purchase |
+| Pro | 50 requests (₹400/mo INR / ~$10 USD) | Priority, all providers, all features | 1 year from purchase |
 
 **Plan Expiry:** Pro auto-downgrades to Free after 1 year. Payment history stored in `payments` table.
 
@@ -485,7 +485,7 @@ Plan badges are shown dynamically across all pages:
 |-------|---------|
 | `user_plans` | Plan type (`guest`/`free`/`pro`) + `plan_expiry` column |
 | `daily_requests` | Per-user per-day request count (FK → `user_plans`) |
-| `payments` | Payment history (demo sandbox, future Stripe) |
+| `payments` | Payment history (UPI intent with UTR verification, UPI ref stored) |
 
 ### Chat History
 
@@ -589,6 +589,9 @@ SECRET_KEY=your_secret_key
 DEBUG=True|False
 LOG_LEVEL=INFO|DEBUG
 FASTAPI_PORT=8000
+UPI_ID=your_upi_vpa@bank          # UPI VPA for receiving Pro payments (e.g., 9424740106@yescred)
+PRICE_INR=400                     # Pro plan price in INR
+PRICE_USD=10                      # Pro plan price in USD (display only)
 ```
 
 ---
@@ -737,7 +740,7 @@ A real-time job aggregator that accumulates listings from 86 platforms in the ba
 | Feature | Status | Details |
 |---------|--------|---------|
 | **Portfolio Builder (`/portfolio`)** | Coming Soon placeholder | 4-card feature preview — no backend functionality |
-| **Stripe Payment Integration** | Demo sandbox only | Mock card form, no real Stripe SDK or webhooks |
+| **Stripe Payment Gateway** | Not integrated | UPI direct payment works (₹400, UTR-verified); Stripe for international cards is not set up |
 | **Backend Automated Tests** | Manual only | 6 test files exist, no CI pipeline |
 | **CDK Infrastructure** | Removed from git | `infra/` directory created June 21, later removed |
 | **MCP JobSpy on Windows** | Broken | Direct Python JobSpy works as fallback |
