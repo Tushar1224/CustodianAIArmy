@@ -188,8 +188,9 @@ export default function DashboardPage() {
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
+
+        // Agent went stale (provider switch) — reload agents and retry once
         if (response.status === 404 && errData.detail?.includes('Agent')) {
-          // Agent went stale (provider switch) — reload agents and retry once
           const agentsData = await apiGet('/agents');
           setAgents(agentsData.agents || []);
           const refreshed = agentsData.agents.find(a => a.name === selectedAgent?.name);
@@ -201,13 +202,26 @@ export default function DashboardPage() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(body),
             });
+            if (response.ok) { /* retry succeeded — continue to streaming below */ }
           }
         }
+
+        // Retry once for 5xx server errors (transient failures)
+        if (!response.ok && response.status >= 500) {
+          await new Promise(r => setTimeout(r, 1000));
+          response = await fetch(endpoint, {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+        }
+
         if (!response.ok) {
           const err2 = response.status === 404
             ? { detail: 'Agent not found after refresh. Please select the agent again.' }
             : await response.json().catch(() => ({}));
-          throw new Error(err2.detail || 'Failed to send message');
+          const msg = err2.detail || `Server error (HTTP ${response.status})`;
+          throw new Error(msg);
         }
       }
 

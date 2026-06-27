@@ -1297,6 +1297,38 @@ Vercel (React) ──proxies /api/*──> EC2 (FastAPI) ──> RDS (PostgreSQL
 | **Guest Account Merge** | Not implemented | Applied jobs/per-user data is per-session only when not authenticated |
 | **Gemini Agent SDK Upgrade** | Not done | Gemini agent still uses raw `httpx` instead of `google-genai` SDK (unlike Claude which uses `anthropic` SDK) |
 
+## Session: 2026-06-26 — UPI Direct Payment (No Gateway, India Only)
+
+### What was done
+| File | Change |
+|------|--------|
+| `.env` | Added `UPI_ID=9424740106@yescred`, `PRICE_INR=400`, `PRICE_USD=10` |
+| `src/core/database.py` | `save_payment()` now accepts `currency` and `payment_method` params (was hardcoded to `'usd'`/`'demo'`) |
+| `src/api/routes.py` | `UpgradePlanRequest` now has `amount: float` and `currency: str` fields; passes them to `save_payment()`; added `GET /payment/config` endpoint returning UPI ID + prices from `.env` |
+| `frontend/src/pages/PaymentPage.jsx` | **Complete rewrite**: Replaced mock credit card form with direct UPI intent flow — geo-detection (ipapi.co) for price display, QR code via qrserver API, UPI deep link (`upi://pay`), app-specific buttons (Google Pay/PhonePe/Paytm), "I've Paid" confirmation flow, success redirect to `/` |
+| `static/payment.html` | Same UPI intent flow as React page — QR, UPI ID copy, app buttons, confirm flow, redirect |
+
+### How the UPI payment flow works
+1. User clicks "Pay ₹400 via UPI" → opens UPI app via `upi://` deep link
+2. User authenticates and pays in their UPI app
+3. User returns to the page, clicks **"Yes, I've Paid — Upgrade Now"**
+4. Backend upgrades plan (trust-based for now; webhook verification can be added later with a gateway)
+5. 2s success screen → redirect to `/`
+
+### Payment config (from `.env`)
+```env
+UPI_ID=9424740106@yescred
+PRICE_INR=400
+PRICE_USD=10
+```
+
+### Key Design Decisions
+- **No payment gateway** — Razorpay site wasn't accessible; Direct UPI Intent used instead (common Indian small-business pattern)
+- **Trust-based verification** — user clicks confirm after paying; no webhook callback since no gateway
+- **Geo-pricing display** — `ipapi.co` detects country; ₹400 for India, shows `₹400 (~$10 USD)` for others; UPI amount is always ₹400 INR
+- **QR + deep link** — desktop users scan QR with phone; mobile users get UPI app deep link
+- **`.env` configurable** — UPI ID and prices can be changed without code changes
+
 ## Session: 2026-06-26 — Chat Error Recovery + Real-Time Save + Auth Stability
 
 ### What was done
