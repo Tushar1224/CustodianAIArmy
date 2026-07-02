@@ -2,7 +2,7 @@ import json
 import logging
 import uuid
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 
 from .db_backend import db
@@ -821,6 +821,126 @@ def save_user_profile(profile_data: Dict[str, Any]) -> bool:
     except Exception as e:
         print(f"Error saving profile: {e}")
         return False
+
+
+# ── TOKEN USAGE LOGGING ─────────────────────────────────────────────────
+
+def log_token_usage(user_email: str, feature: str, page: str,
+                    prompt_tokens: int, completion_tokens: int,
+                    cost: float, model: str = "",
+                    metadata: Optional[dict] = None) -> bool:
+    """Record a token usage entry for admin dashboard tracking."""
+    try:
+        total = prompt_tokens + completion_tokens
+        db.execute(
+            "INSERT INTO token_usage_logs "
+            "(user_email, feature, page, prompt_tokens, completion_tokens, total_tokens, cost, model, metadata, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (user_email or "guest", feature, page, prompt_tokens, completion_tokens,
+             total, cost, model, json.dumps(metadata or {}), _now()))
+        return True
+    except Exception as e:
+        print(f"Error logging token usage: {e}")
+        return False
+
+def get_token_usage_stats(days: int = 30) -> Dict[str, Any]:
+    """Get overall token usage stats for the admin dashboard."""
+    import sqlite3
+    try:
+        row = db.fetchone(
+            "SELECT COALESCE(SUM(total_tokens),0), COALESCE(SUM(cost),0), COUNT(*), "
+            "COALESCE(SUM(prompt_tokens),0), COALESCE(SUM(completion_tokens),0) "
+            "FROM token_usage_logs "
+            "WHERE created_at >= ?",
+            ((datetime.utcnow() - timedelta(days=days)).isoformat(),))
+        row2 = db.fetchone("SELECT COUNT(DISTINCT user_email) FROM token_usage_logs")
+        return {
+            "total_tokens": row[0] if row else 0,
+            "total_cost": round(row[1] if row else 0, 6),
+            "total_requests": row[2] if row else 0,
+            "total_prompt_tokens": row[3] if row else 0,
+            "total_completion_tokens": row[4] if row else 0,
+            "unique_users": row2[0] if row2 else 0,
+        }
+    except Exception as e:
+        print(f"Error getting token usage stats: {e}")
+        return {"total_tokens": 0, "total_cost": 0, "total_requests": 0,
+                "total_prompt_tokens": 0, "total_completion_tokens": 0, "unique_users": 0}
+
+def get_token_usage_by_user(days: int = 30) -> List[Dict[str, Any]]:
+    """Per-user token usage breakdown."""
+    try:
+        rows = db.fetchall(
+            "SELECT user_email, COALESCE(SUM(total_tokens),0), COALESCE(SUM(cost),0), COUNT(*) "
+            "FROM token_usage_logs WHERE created_at >= ? "
+            "GROUP BY user_email ORDER BY SUM(cost) DESC",
+            ((datetime.utcnow() - timedelta(days=days)).isoformat(),))
+        return [{"user_email": r[0], "total_tokens": r[1], "total_cost": round(r[2], 6), "total_requests": r[3]}
+                for r in rows]
+    except Exception as e:
+        print(f"Error getting token usage by user: {e}")
+        return []
+
+def get_token_usage_by_feature(days: int = 30) -> List[Dict[str, Any]]:
+    """Per-feature token usage breakdown."""
+    try:
+        rows = db.fetchall(
+            "SELECT feature, COALESCE(SUM(total_tokens),0), COALESCE(SUM(cost),0), COUNT(*) "
+            "FROM token_usage_logs WHERE created_at >= ? "
+            "GROUP BY feature ORDER BY SUM(cost) DESC",
+            ((datetime.utcnow() - timedelta(days=days)).isoformat(),))
+        return [{"feature": r[0], "total_tokens": r[1], "total_cost": round(r[2], 6), "total_requests": r[3]}
+                for r in rows]
+    except Exception as e:
+        print(f"Error getting token usage by feature: {e}")
+        return []
+
+def get_token_usage_logs(limit: int = 100, offset: int = 0,
+                         user_filter: Optional[str] = None,
+                         feature_filter: Optional[str] = None) -> Dict[str, Any]:
+    """Paginated raw token usage logs."""
+    try:
+        where = "WHERE 1=1"
+        params = []
+        if user_filter:
+            where += " AND user_email = ?"
+            params.append(user_filter)
+        if feature_filter:
+            where += " AND feature = ?"
+            params.append(feature_filter)
+
+        count_row = db.fetchone(
+            f"SELECT COUNT(*) FROM token_usage_logs {where}", tuple(params))
+        total = count_row[0] if count_row else 0
+
+        rows = db.fetchall(
+            f"SELECT id, user_email, feature, page, prompt_tokens, completion_tokens, "
+            f"total_tokens, cost, model, metadata, created_at "
+            f"FROM token_usage_logs {where} ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            tuple(params + [limit, offset]))
+        logs = [{"id": r[0], "user_email": r[1], "feature": r[2], "page": r[3],
+                 "prompt_tokens": r[4], "completion_tokens": r[5], "total_tokens": r[6],
+                 "cost": r[7], "model": r[8],
+                 "metadata": json.loads(r[9]) if r[9] else {},
+                 "created_at": r[10]} for r in rows]
+        return {"logs": logs, "total": total, "limit": limit, "offset": offset}
+    except Exception as e:
+        print(f"Error getting token usage logs: {e}")
+        return {"logs": [], "total": 0, "limit": limit, "offset": offset}
+
+def get_all_users_simple() -> List[Dict[str, Any]]:
+    """Get a simple list of all users for admin dropdowns."""
+    try:
+        rows = db.fetchall(
+            "SELECT DISTINCT user_email FROM chat_sessions "
+            "UNION SELECT DISTINCT user_email FROM user_resumes "
+            "UNION SELECT DISTINCT user_email FROM user_plans "
+            "UNION SELECT DISTINCT user_email FROM token_usage_logs "
+            "ORDER BY user_email")
+        return [{"user_email": r[0]} for r in rows]
+    except Exception as e:
+        print(f"Error getting all users: {e}")
+        return []
 
 
 # ── Initialize on import ────────────────────────────────────────────────

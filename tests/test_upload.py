@@ -1,23 +1,35 @@
-import sys, json, asyncio, re
-sys.path.insert(0, 'D:/CustodianAIArmy')
+"""Test PDF document extraction and AI parsing."""
+import os, sys, json, re
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from dotenv import load_dotenv
+load_dotenv()
+
+import pytest
 from src.core.document_extractor import extract_text
 from src.agents.agent_manager import AgentManager
 from src.agents.base_agent import AgentMessage
 
-async def test():
-    pdf_path = 'D:/CustodianAIArmy/resources/resumes/Gen_AI_Developer_CV.pdf'
+
+@pytest.mark.asyncio
+async def test_pdf_extraction():
+    pdf_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "resources", "resumes", "Gen_AI_Developer_CV.pdf"
+    )
+    if not os.path.exists(pdf_path):
+        pytest.skip(f"PDF not found: {pdf_path}")
+
     with open(pdf_path, 'rb') as f:
         contents = f.read()
     text = extract_text(contents, 'Gen_AI_Developer_CV.pdf')
-    print(f"Extracted {len(text)} chars from PDF")
-    print("=== Text preview ===")
-    print(text[:400])
-    print("=== End preview ===")
+    assert len(text) > 50, f"Extracted too little text: {len(text)} chars"
 
     agent_mgr = AgentManager()
     agent = agent_mgr.get_agent_by_name("TechnicalAI")
     if not agent:
         agent = agent_mgr.get_agent_by_name("CustodianAI")
+    assert agent is not None, "No AI agent available"
 
     prompt = f"""You are an expert resume parser. Analyze the following raw resume text and extract all information into a structured JSON object.
 
@@ -39,13 +51,30 @@ Return ONLY valid JSON with this exact structure (use empty arrays/strings for m
     result_msg = await agent.process_message(msg)
     result = result_msg.content
 
+    result = result.strip()
+    if result.startswith("```"):
+        result = re.sub(r'^```(?:json)?\s*', '', result)
+        result = re.sub(r'\s*```$', '', result)
     json_match = re.search(r'\{.*\}', result, re.DOTALL)
-    if json_match:
-        parsed_data = json.loads(json_match.group())
-    else:
-        parsed_data = json.loads(result)
+    parsed_data = json.loads(json_match.group() if json_match else result)
 
-    print("\n=== Parsed Resume JSON ===")
-    print(json.dumps(parsed_data, indent=2, ensure_ascii=False))
+    assert "personal_info" in parsed_data
+    assert "education" in parsed_data
+    assert "experience" in parsed_data
+    assert "skills" in parsed_data
 
-asyncio.run(test())
+
+@pytest.mark.asyncio
+async def test_pdf_extraction_simple():
+    """Test that PDF extraction works without hitting AI (skip if no key)."""
+    pdf_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "resources", "resumes", "Gen_AI_Developer_CV.pdf"
+    )
+    if not os.path.exists(pdf_path):
+        pytest.skip(f"PDF not found: {pdf_path}")
+
+    with open(pdf_path, 'rb') as f:
+        contents = f.read()
+    text = extract_text(contents, 'Gen_AI_Developer_CV.pdf')
+    assert len(text) > 50

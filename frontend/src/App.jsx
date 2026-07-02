@@ -9,6 +9,7 @@ import CustomAgentsPage from './pages/CustomAgentsPage';
 import PaymentPage from './pages/PaymentPage';
 import ResumePage from './pages/ResumePage';
 import JobsPage from './pages/JobsPage';
+import AdminPage from './pages/AdminPage';
 import ProfileModals from './components/modals/ProfileModals';
 import { useAuth } from './hooks/useAuth';
 
@@ -107,6 +108,7 @@ function AppShell() {
         <Route path="/payment" element={<PaymentPage />} />
         <Route path="/resume" element={<ResumePage />} />
         <Route path="/jobs" element={<JobsPage />} />
+        <Route path="/admin" element={<AdminPage />} />
       </Routes>
       <ProfileModals
         show={showLogin}

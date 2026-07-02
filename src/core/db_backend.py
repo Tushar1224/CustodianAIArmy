@@ -184,6 +184,7 @@ class Database:
         print(f"Database initialized at {self._db_path}")
 
     def _create_all_tables_sqlite(self, c):
+        self._create_token_usage_table_sqlite(c)
         c.execute("""CREATE TABLE IF NOT EXISTS chat_sessions (
             id TEXT PRIMARY KEY, user_email TEXT NOT NULL, title TEXT NOT NULL,
             start_time TEXT NOT NULL, last_updated TEXT NOT NULL, messages TEXT NOT NULL,
@@ -295,6 +296,19 @@ class Database:
             github_username TEXT, logs TEXT NOT NULL DEFAULT '[]',
             created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
             archived_at TEXT NOT NULL)""")
+    def _create_token_usage_table_sqlite(self, c):
+        c.execute("""CREATE TABLE IF NOT EXISTS token_usage_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_email TEXT,
+            feature TEXT NOT NULL,
+            page TEXT NOT NULL DEFAULT 'general',
+            prompt_tokens INTEGER NOT NULL DEFAULT 0,
+            completion_tokens INTEGER NOT NULL DEFAULT 0,
+            total_tokens INTEGER NOT NULL DEFAULT 0,
+            cost REAL NOT NULL DEFAULT 0.0,
+            model TEXT DEFAULT '',
+            metadata TEXT DEFAULT '{}',
+            created_at TEXT NOT NULL)""")
 
     @staticmethod
     def _alter_sqlite(c, table, column_def):
@@ -451,6 +465,19 @@ class Database:
                 apply_url TEXT DEFAULT '', salary_range TEXT DEFAULT '',
                 match_score INTEGER DEFAULT 0, date_posted TEXT DEFAULT '',
                 applied_at TEXT NOT NULL)""")
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS token_usage_logs (
+                id SERIAL PRIMARY KEY,
+                user_email TEXT,
+                feature TEXT NOT NULL,
+                page TEXT NOT NULL DEFAULT 'general',
+                prompt_tokens INTEGER NOT NULL DEFAULT 0,
+                completion_tokens INTEGER NOT NULL DEFAULT 0,
+                total_tokens INTEGER NOT NULL DEFAULT 0,
+                cost REAL NOT NULL DEFAULT 0.0,
+                model TEXT DEFAULT '',
+                metadata TEXT DEFAULT '{}',
+                created_at TEXT NOT NULL)""")
 
 
 # Module-level singleton

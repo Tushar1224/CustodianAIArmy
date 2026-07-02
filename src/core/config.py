@@ -56,6 +56,11 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_SECRET: Optional[str] = None
     GITHUB_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/github/callback"
 
+    # Admin Dashboard
+    ADMIN_USERNAME: str = "admin"
+    ADMIN_PASSWORD: str = "admin123"
+    ADMIN_JWT_SECRET: str = "admin-jwt-secret-change-in-production"
+
     # Logging
     LOG_LEVEL: str = "INFO"
 

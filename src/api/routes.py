@@ -13,7 +13,7 @@ import os
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from src.agents.agent_manager import AgentManager
 from src.core.database import (
@@ -26,10 +26,13 @@ from src.core.database import (
     save_job_search, get_recent_job_search, save_global_job_cache, get_global_job_cache,
     add_jobs_to_accumulated, get_accumulated_jobs, get_accumulated_job_count,
     get_fetch_state, set_fetch_state, clear_stale_accumulated,
+    log_token_usage, get_token_usage_stats, get_token_usage_by_user,
+    get_token_usage_by_feature, get_token_usage_logs, get_all_users_simple,
 )
 from src.core.db_backend import db
 from src.agents.base_agent import AgentMessage, AgentCapability, BaseAgent
 from src.core.logging_config import get_logger
+from src.core.config import settings
 from src.api.auth import get_current_user_from_cookies, get_optional_user, User
 from src.api.build import get_mvp_builder, MVPBuilder
 from src.core.document_extractor import extract_text
@@ -77,6 +80,46 @@ def _get_agent_for_feature(feature: str) -> Optional[BaseAgent]:
 # Chat compaction: when total message characters exceed this, compact old messages
 CHAT_COMPACTION_CHAR_THRESHOLD = 8000
 CHAT_COMPACTION_KEEP_RECENT = 4  # keep last N messages as-is
+
+# ── Token estimation & cost tracking helpers ───────────────────────────
+
+MODEL_PRICING = {
+    "claude-sonnet-4-5":       {"input": 3.0,  "output": 15.0},
+    "gemini-2.5-flash":        {"input": 0.15, "output": 0.60},
+    "gemini-2.5-pro":          {"input": 1.25, "output": 5.0},
+    "gemini-2.0-flash":        {"input": 0.10, "output": 0.40},
+    "default":                 {"input": 1.0,  "output": 2.0},
+}
+
+def _estimate_tokens(text: str) -> int:
+    """Rough token estimate (~4 chars per token)."""
+    return max(1, len(text) // 4)
+
+def _compute_cost(model: str, prompt_tok: int, completion_tok: int) -> float:
+    pricing = MODEL_PRICING.get(model, MODEL_PRICING["default"])
+    cost_in = (prompt_tok / 1_000_000) * pricing["input"]
+    cost_out = (completion_tok / 1_000_000) * pricing["output"]
+    return round(cost_in + cost_out, 8)
+
+def _track_tokens(user_email: str, feature: str, page: str,
+                  prompt_text: str, response_text: str,
+                  model: str = ""):
+    """Estimate tokens from text and log to DB."""
+    try:
+        pt = _estimate_tokens(prompt_text)
+        ct = _estimate_tokens(response_text)
+        cost = _compute_cost(model, pt, ct)
+        log_token_usage(
+            user_email=user_email,
+            feature=feature,
+            page=page,
+            prompt_tokens=pt,
+            completion_tokens=ct,
+            cost=cost,
+            model=model or "",
+        )
+    except Exception as e:
+        logger.warning(f"Token tracking error (non-fatal): {e}")
 
 
 # Global MVP Builder instance (initialized on first use)
@@ -717,6 +760,15 @@ Return ONLY a JSON array of job objects — no markdown, no explanations, no cod
                     else:
                         jobs = ai_jobs
                     logger.info(f"AI generated {len(ai_jobs)} jobs (total: {len(jobs or [])})")
+
+                    _track_tokens(
+                        user_email=user_email,
+                        feature="jobs",
+                        page="jobs",
+                        prompt_text=prompt,
+                        response_text=raw or "",
+                        model=target.name if hasattr(target, 'name') else "default"
+                    )
 
         # Merge in accumulated jobs from background fetcher
         acc = get_accumulated_jobs(limit=500)
@@ -1419,6 +1471,19 @@ async def chat_stream(
                             except Exception:
                                 pass
 
+                # Track tokens BEFORE yield (guaranteed execution for normal completion)
+                try:
+                    _track_tokens(
+                        user_email=current_user.email,
+                        feature="chat",
+                        page="dashboard",
+                        prompt_text=request.message,
+                        response_text=full_response or "",
+                        model=gen_agent_name or "default"
+                    )
+                except Exception:
+                    pass
+
                 yield f"data: {json.dumps({'type': 'done'})}\n\n"
             except Exception as e:
                 logger.error(f"Error in stream generation: {str(e)}")
@@ -1439,6 +1504,19 @@ async def chat_stream(
                     })
                 except Exception as save_err:
                     logger.error(f"Error saving chat session: {save_err}")
+
+                # Backup track in finally (covers error and disconnect cases)
+                try:
+                    _track_tokens(
+                        user_email=current_user.email,
+                        feature="chat",
+                        page="dashboard",
+                        prompt_text=request.message,
+                        response_text=full_response or "",
+                        model=gen_agent_name or "default"
+                    )
+                except Exception:
+                    pass
 
         return StreamingResponse(
             generate(),
@@ -1539,6 +1617,19 @@ async def chat_stream_guest(chat_request: ChatRequest, request: Request):
                             except Exception:
                                 pass
 
+                # Track tokens BEFORE yield (guaranteed execution for normal completion)
+                try:
+                    _track_tokens(
+                        user_email=guest_identifier,
+                        feature="chat",
+                        page="dashboard",
+                        prompt_text=chat_request.message,
+                        response_text=full_response or "",
+                        model=gen_agent_name or "default"
+                    )
+                except Exception:
+                    pass
+
                 yield f"data: {json.dumps({'type': 'done'})}\n\n"
             except Exception as e:
                 logger.error(f"Error in guest stream: {str(e)}")
@@ -1559,6 +1650,19 @@ async def chat_stream_guest(chat_request: ChatRequest, request: Request):
                     })
                 except Exception as save_err:
                     logger.error(f"Error saving guest chat session: {save_err}")
+
+                # Backup track in finally (covers error and disconnect cases)
+                try:
+                    _track_tokens(
+                        user_email=guest_identifier,
+                        feature="chat",
+                        page="dashboard",
+                        prompt_text=chat_request.message,
+                        response_text=full_response or "",
+                        model=gen_agent_name or "default"
+                    )
+                except Exception:
+                    pass
 
         return StreamingResponse(
             generate(),
@@ -1609,15 +1713,44 @@ async def stream_to_agent(
         
         async def generate():
             """Generator for streaming response"""
+            full_response = ""
             try:
                 async for chunk in _stream_with_fallback(message, agent):
                     if chunk:
+                        full_response += chunk
                         yield f"data: {json.dumps({'type': 'message', 'content': chunk})}\n\n"
-                
+
+                # Track tokens BEFORE yield (guaranteed execution for normal completion)
+                try:
+                    _track_tokens(
+                        user_email=current_user.email,
+                        feature="custom_agents",
+                        page="custom-agents",
+                        prompt_text=message_request.content,
+                        response_text=full_response or "",
+                        model=agent.name if hasattr(agent, 'name') else "default"
+                    )
+                except Exception:
+                    pass
+
                 yield f"data: {json.dumps({'type': 'done'})}\n\n"
             except Exception as e:
                 logger.error(f"Error streaming to agent {agent_id}: {str(e)}")
+                full_response = f"Error: {str(e)}"
                 yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+            finally:
+                # Backup track in finally (covers error and disconnect cases)
+                try:
+                    _track_tokens(
+                        user_email=current_user.email,
+                        feature="custom_agents",
+                        page="custom-agents",
+                        prompt_text=message_request.content,
+                        response_text=full_response or "",
+                        model=agent.name if hasattr(agent, 'name') else "default"
+                    )
+                except Exception:
+                    pass
 
         return StreamingResponse(
             generate(),
@@ -2045,6 +2178,15 @@ Slide Content:
         )
 
         response = await agent_manager.send_message(chat_message)
+
+        _track_tokens(
+            user_email="anonymous",
+            feature="learn",
+            page="learn",
+            prompt_text=enriched_message,
+            response_text=response.content or "",
+            model=tutor_agent.name if hasattr(tutor_agent, 'name') else "default"
+        )
 
         return {
             "user_message": request.message,
@@ -3703,6 +3845,15 @@ IMPORTANT: Keep your output SMALL. Only include data that actually changed from 
         }
         save_resume(update_data)
 
+        _track_tokens(
+            user_email=current_user.email,
+            feature="resume_optimize",
+            page="resume",
+            prompt_text=prompt,
+            response_text=result,
+            model=agent.name if hasattr(agent, 'name') else "default"
+        )
+
         return {
             "optimization": optimization,
             "message": "Resume optimized successfully"
@@ -3713,6 +3864,85 @@ IMPORTANT: Keep your output SMALL. Only include data that actually changed from 
     except Exception as e:
         logger.error(f"Error optimizing resume: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Optimization failed: {str(e)}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Admin Dashboard Endpoints
+# ─────────────────────────────────────────────────────────────────────────────
+
+import jwt as pyjwt
+
+ADMIN_ROUTER_PREFIX = "/admin"
+
+def _verify_admin_token(request: Request) -> str:
+    """Verify admin JWT from Authorization header. Returns username on success."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing admin token")
+    token = auth[7:]
+    try:
+        payload = pyjwt.decode(token, settings.ADMIN_JWT_SECRET, algorithms=["HS256"])
+        if payload.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Not an admin token")
+        return payload.get("sub", "admin")
+    except pyjwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Admin token expired")
+    except pyjwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid admin token")
+
+class AdminLoginRequest(BaseModel):
+    username: str
+    password: str
+
+@router.post("/admin/login")
+async def admin_login(req: AdminLoginRequest):
+    """Admin login — returns JWT if credentials match .env."""
+    if req.username != settings.ADMIN_USERNAME or req.password != settings.ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Invalid admin credentials")
+    payload = {
+        "sub": req.username,
+        "role": "admin",
+        "exp": datetime.utcnow() + timedelta(hours=24),
+        "iat": datetime.utcnow(),
+    }
+    token = pyjwt.encode(payload, settings.ADMIN_JWT_SECRET, algorithm="HS256")
+    return {"access_token": token, "token_type": "bearer", "expires_in": 86400}
+
+@router.get("/admin/stats")
+async def admin_stats(request: Request, days: int = Query(30, ge=1, le=365)):
+    """Overall token usage stats for admin dashboard."""
+    _verify_admin_token(request)
+    return get_token_usage_stats(days=days)
+
+@router.get("/admin/per-user")
+async def admin_per_user(request: Request, days: int = Query(30, ge=1, le=365)):
+    """Per-user token usage breakdown."""
+    _verify_admin_token(request)
+    return {"users": get_token_usage_by_user(days=days)}
+
+@router.get("/admin/per-feature")
+async def admin_per_feature(request: Request, days: int = Query(30, ge=1, le=365)):
+    """Per-feature token usage breakdown."""
+    _verify_admin_token(request)
+    return {"features": get_token_usage_by_feature(days=days)}
+
+@router.get("/admin/logs")
+async def admin_logs(
+    request: Request,
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    user: Optional[str] = Query(None),
+    feature: Optional[str] = Query(None),
+):
+    """Paginated raw token usage logs."""
+    _verify_admin_token(request)
+    return get_token_usage_logs(limit=limit, offset=offset, user_filter=user, feature_filter=feature)
+
+@router.get("/admin/users")
+async def admin_users(request: Request):
+    """List of all known users (for dropdowns)."""
+    _verify_admin_token(request)
+    return {"users": get_all_users_simple()}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
